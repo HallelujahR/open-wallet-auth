@@ -1,0 +1,9 @@
+.DS_Store
+.env
+*.log
+tmp/
+bin/
+coverage.out
+configs/config.yaml
+configs/jwt_private.pem
+configs/jwt_public.pem

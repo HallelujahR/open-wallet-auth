@@ -1,0 +1,35 @@
+app:
+  name: open-wallet-auth
+  env: development
+
+http:
+  host: 0.0.0.0
+  port: 8080
+  read_header_timeout: 5s
+  read_timeout: 15s
+  write_timeout: 15s
+  idle_timeout: 60s
+
+log:
+  level: info
+  format: console
+
+database:
+  driver: postgres
+  dsn: postgres://open_wallet_auth:open_wallet_auth@localhost:5432/open_wallet_auth?sslmode=disable
+  max_open_conns: 25
+  max_idle_conns: 10
+  conn_max_lifetime: 30m
+
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+
+jwt:
+  issuer: open-wallet-auth
+  access_token_ttl: 15m
+  refresh_token_ttl: 720h
+  private_key_path: ./configs/jwt_private.pem
+  public_key_path: ./configs/jwt_public.pem
+  active_key_id: default
