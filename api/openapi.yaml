@@ -15,3 +15,15 @@ paths:
       responses:
         "200":
           description: Ready
+  /api/v1/auth/register:
+    post:
+      summary: Register with email and password
+      responses:
+        "200":
+          description: Registered
+  /api/v1/auth/login:
+    post:
+      summary: Login with email and password
+      responses:
+        "200":
+          description: Logged in

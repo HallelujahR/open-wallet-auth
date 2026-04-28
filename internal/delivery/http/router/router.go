@@ -12,6 +12,7 @@ import (
 type Dependencies struct {
 	Config *config.Config
 	Logger *zap.Logger
+	Auth   *handler.AuthHandler
 }
 
 func New(deps Dependencies) *gin.Engine {
@@ -32,6 +33,13 @@ func New(deps Dependencies) *gin.Engine {
 	v1 := engine.Group("/api/v1")
 	{
 		v1.GET("/health", healthHandler.Health)
+		if deps.Auth != nil {
+			auth := v1.Group("/auth")
+			{
+				auth.POST("/register", deps.Auth.Register)
+				auth.POST("/login", deps.Auth.Login)
+			}
+		}
 	}
 
 	return engine

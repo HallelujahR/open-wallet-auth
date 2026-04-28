@@ -17,6 +17,7 @@ log:
 database:
   driver: postgres
   dsn: postgres://open_wallet_auth:open_wallet_auth@localhost:5432/open_wallet_auth?sslmode=disable
+  auto_migrate: true
   max_open_conns: 25
   max_idle_conns: 10
   conn_max_lifetime: 30m

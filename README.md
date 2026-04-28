@@ -22,6 +22,7 @@ The service follows Clean Architecture with explicit boundaries between:
 
 ```bash
 cp configs/config.example.yaml configs/config.yaml
+docker compose up -d postgres redis
 go run ./cmd/server
 ```
 

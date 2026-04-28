@@ -38,6 +38,7 @@ type LogConfig struct {
 type DatabaseConfig struct {
 	Driver          string        `mapstructure:"driver"`
 	DSN             string        `mapstructure:"dsn"`
+	AutoMigrate     bool          `mapstructure:"auto_migrate"`
 	MaxOpenConns    int           `mapstructure:"max_open_conns"`
 	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
 	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
@@ -97,6 +98,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("log.format", "json")
 	v.SetDefault("database.driver", "postgres")
 	v.SetDefault("database.dsn", "postgres://open_wallet_auth:open_wallet_auth@localhost:5432/open_wallet_auth?sslmode=disable")
+	v.SetDefault("database.auto_migrate", true)
 	v.SetDefault("database.max_open_conns", 25)
 	v.SetDefault("database.max_idle_conns", 10)
 	v.SetDefault("database.conn_max_lifetime", "30m")

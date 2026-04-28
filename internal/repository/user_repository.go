@@ -2,9 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 )
+
+var ErrNotFound = errors.New("repository: not found")
 
 type UserRepository interface {
 	FindByID(ctx context.Context, id string) (*user.User, error)

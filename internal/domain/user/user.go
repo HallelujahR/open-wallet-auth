@@ -18,6 +18,7 @@ type User struct {
 	PasswordHash string
 	Avatar       string
 	Status       Status
+	LastLoginAt  *time.Time
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
