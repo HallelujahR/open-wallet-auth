@@ -13,6 +13,8 @@ type Dependencies struct {
 	Config *config.Config
 	Logger *zap.Logger
 	Auth   *handler.AuthHandler
+	Token  middleware.TokenVerifier
+	JWKS   *handler.JWKSHandler
 }
 
 func New(deps Dependencies) *gin.Engine {
@@ -29,6 +31,9 @@ func New(deps Dependencies) *gin.Engine {
 
 	engine.GET("/healthz", healthHandler.Health)
 	engine.GET("/readyz", healthHandler.Ready)
+	if deps.JWKS != nil {
+		engine.GET("/.well-known/jwks.json", deps.JWKS.JWKS)
+	}
 
 	v1 := engine.Group("/api/v1")
 	{
@@ -38,6 +43,9 @@ func New(deps Dependencies) *gin.Engine {
 			{
 				auth.POST("/register", deps.Auth.Register)
 				auth.POST("/login", deps.Auth.Login)
+				if deps.Token != nil {
+					auth.GET("/me", middleware.Authenticate(deps.Token, "default"), deps.Auth.Me)
+				}
 			}
 		}
 	}

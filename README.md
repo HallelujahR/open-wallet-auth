@@ -32,6 +32,12 @@ Health check:
 curl http://localhost:8080/healthz
 ```
 
+JWKS:
+
+```bash
+curl http://localhost:8080/.well-known/jwks.json
+```
+
 ## Roadmap
 
 - Password login

@@ -6,9 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/contextkey"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/dto"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/response"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	authusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/auth"
 )
 
@@ -87,6 +89,26 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			ExpiresAt:    result.Token.ExpiresAt.Format(timeFormatRFC3339),
 			TokenType:    "Bearer",
 		},
+	})
+}
+
+func (h *AuthHandler) Me(c *gin.Context) {
+	claims, ok := c.Get(contextkey.AuthClaims)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, "AUTH_INVALID_TOKEN", "invalid authorization token")
+		return
+	}
+
+	authClaims, ok := claims.(*token.Claims)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, "AUTH_INVALID_TOKEN", "invalid authorization token")
+		return
+	}
+
+	response.OK(c, dto.AuthUser{
+		ID:       authClaims.UserID,
+		Username: authClaims.Username,
+		Email:    authClaims.Email,
 	})
 }
 

@@ -28,6 +28,12 @@ go run ./cmd/server
 curl http://localhost:8080/healthz
 ```
 
+JWKS 公钥：
+
+```bash
+curl http://localhost:8080/.well-known/jwks.json
+```
+
 账号注册：
 
 ```bash
@@ -42,4 +48,11 @@ curl -X POST http://localhost:8080/api/v1/auth/register \
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"client_id":"default","email":"alice@example.com","password":"password123"}'
+```
+
+当前用户：
+
+```bash
+curl http://localhost:8080/api/v1/auth/me \
+  -H "Authorization: Bearer <access_token>"
 ```

@@ -2,11 +2,14 @@ package jwt
 
 import (
 	"context"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
+	"math/big"
 	"os"
 	"time"
 
@@ -20,6 +23,7 @@ import (
 type Service struct {
 	cfg        config.JWTConfig
 	privateKey *rsa.PrivateKey
+	publicKey  *rsa.PublicKey
 }
 
 type claims struct {
@@ -37,7 +41,7 @@ func NewService(cfg config.JWTConfig) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Service{cfg: cfg, privateKey: privateKey}, nil
+	return &Service{cfg: cfg, privateKey: privateKey, publicKey: &privateKey.PublicKey}, nil
 }
 
 func (s *Service) IssuePair(ctx context.Context, input token.Claims) (*token.Pair, error) {
@@ -77,6 +81,61 @@ func (s *Service) sign(c claims) (string, error) {
 	t := gojwt.NewWithClaims(gojwt.SigningMethodRS256, c)
 	t.Header["kid"] = s.cfg.ActiveKeyID
 	return t.SignedString(s.privateKey)
+}
+
+func (s *Service) Verify(ctx context.Context, tokenString string, audience string) (*token.Claims, error) {
+	parsed, err := gojwt.ParseWithClaims(tokenString, &claims{}, func(t *gojwt.Token) (any, error) {
+		if _, ok := t.Method.(*gojwt.SigningMethodRSA); !ok {
+			return nil, errors.New("unexpected jwt signing method")
+		}
+		return s.publicKey, nil
+	}, gojwt.WithIssuer(s.cfg.Issuer), gojwt.WithAudience(audience))
+	if err != nil {
+		return nil, err
+	}
+
+	c, ok := parsed.Claims.(*claims)
+	if !ok || !parsed.Valid {
+		return nil, errors.New("invalid jwt claims")
+	}
+
+	return &token.Claims{
+		UserID:      c.Subject,
+		ClientID:    c.ClientID,
+		Audience:    firstAudience(c.Audience),
+		Username:    c.Username,
+		Email:       c.Email,
+		Roles:       c.Roles,
+		Permissions: c.Permissions,
+		Wallets:     c.Wallets,
+		Issuer:      c.Issuer,
+		ExpiresAt:   c.ExpiresAt.Time,
+		IssuedAt:    c.IssuedAt.Time,
+	}, nil
+}
+
+func (s *Service) JWKS() token.JWKS {
+	return token.JWKS{
+		Keys: []token.JWK{{
+			Kty: "RSA",
+			Use: "sig",
+			Kid: s.cfg.ActiveKeyID,
+			Alg: "RS256",
+			N:   base64.RawURLEncoding.EncodeToString(s.publicKey.N.Bytes()),
+			E:   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(s.publicKey.E)).Bytes()),
+		}},
+	}
+}
+
+func (s *Service) PublicKey() crypto.PublicKey {
+	return s.publicKey
+}
+
+func firstAudience(aud gojwt.ClaimStrings) string {
+	if len(aud) == 0 {
+		return ""
+	}
+	return aud[0]
 }
 
 func loadOrGenerateKey(cfg config.JWTConfig) (*rsa.PrivateKey, error) {

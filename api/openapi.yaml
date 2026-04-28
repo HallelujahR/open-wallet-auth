@@ -27,3 +27,15 @@ paths:
       responses:
         "200":
           description: Logged in
+  /api/v1/auth/me:
+    get:
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+  /.well-known/jwks.json:
+    get:
+      summary: JSON Web Key Set
+      responses:
+        "200":
+          description: Public signing keys

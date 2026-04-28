@@ -64,6 +64,8 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 		Config: cfg,
 		Logger: logger,
 		Auth:   handler.NewAuthHandler(authService),
+		Token:  tokenIssuer,
+		JWKS:   handler.NewJWKSHandler(tokenIssuer),
 	})
 
 	server := &http.Server{
