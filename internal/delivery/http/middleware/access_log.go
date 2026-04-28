@@ -9,6 +9,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/response"
 )
 
+// AccessLog writes one structured log entry for each HTTP request.
 func AccessLog(logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()

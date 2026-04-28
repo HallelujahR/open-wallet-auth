@@ -9,6 +9,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/config"
 )
 
+// New creates a configured zap logger.
 func New(cfg config.LogConfig) (*zap.Logger, error) {
 	level := zapcore.InfoLevel
 	if err := level.Set(strings.ToLower(cfg.Level)); err != nil {
@@ -25,6 +26,7 @@ func New(cfg config.LogConfig) (*zap.Logger, error) {
 	return zapCfg.Build()
 }
 
+// Error returns a zap error field.
 func Error(err error) zap.Field {
 	return zap.Error(err)
 }

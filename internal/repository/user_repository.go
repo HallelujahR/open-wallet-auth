@@ -9,6 +9,7 @@ import (
 
 var ErrNotFound = errors.New("repository: not found")
 
+// UserRepository defines persistence operations for users.
 type UserRepository interface {
 	FindByID(ctx context.Context, id string) (*user.User, error)
 	FindByEmail(ctx context.Context, email string) (*user.User, error)

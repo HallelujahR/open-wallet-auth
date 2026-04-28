@@ -20,20 +20,24 @@ const (
 	ErrInvalidRefreshToken = "AUTH_INVALID_REFRESH_TOKEN"
 )
 
+// PasswordHasher hashes and verifies user passwords.
 type PasswordHasher interface {
 	Hash(plain string) (string, error)
 	Compare(hash string, plain string) bool
 }
 
+// TokenIssuer issues access and refresh tokens.
 type TokenIssuer interface {
 	IssuePair(ctx context.Context, claims token.Claims) (*token.Pair, error)
 	RefreshTokenTTL() time.Duration
 }
 
+// TokenHasher hashes opaque refresh tokens before persistence.
 type TokenHasher interface {
 	HashToken(raw string) string
 }
 
+// Service orchestrates registration, login, refresh, and logout usecases.
 type Service struct {
 	users         repository.UserRepository
 	clients       repository.ClientRepository
@@ -43,12 +47,14 @@ type Service struct {
 	issuer        TokenIssuer
 }
 
+// LoginRequest is the input for password login.
 type LoginRequest struct {
 	ClientID string
 	Email    string
 	Password string
 }
 
+// LoginResult is returned after a successful password login.
 type LoginResult struct {
 	UserID   string
 	Username string
@@ -56,6 +62,7 @@ type LoginResult struct {
 	Token    *token.Pair
 }
 
+// RegisterRequest is the input for email/password registration.
 type RegisterRequest struct {
 	ClientID string
 	Username string
@@ -63,6 +70,7 @@ type RegisterRequest struct {
 	Password string
 }
 
+// RegisterResult is returned after successful registration.
 type RegisterResult struct {
 	UserID   string
 	Username string
@@ -70,10 +78,12 @@ type RegisterResult struct {
 	Token    *token.Pair
 }
 
+// RefreshRequest is the input for refresh token rotation.
 type RefreshRequest struct {
 	RefreshToken string
 }
 
+// RefreshResult is returned after successful refresh token rotation.
 type RefreshResult struct {
 	UserID   string
 	Username string
@@ -81,10 +91,12 @@ type RefreshResult struct {
 	Token    *token.Pair
 }
 
+// LogoutRequest is the input for refresh token revocation.
 type LogoutRequest struct {
 	RefreshToken string
 }
 
+// NewService creates the auth usecase service with its required ports.
 func NewService(
 	users repository.UserRepository,
 	clients repository.ClientRepository,

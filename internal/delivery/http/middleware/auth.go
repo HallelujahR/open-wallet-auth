@@ -16,6 +16,7 @@ type TokenVerifier interface {
 	Verify(ctx context.Context, tokenString string, audience string) (*token.Claims, error)
 }
 
+// Authenticate validates a Bearer token and stores claims in the request context.
 func Authenticate(verifier TokenVerifier, audience string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")

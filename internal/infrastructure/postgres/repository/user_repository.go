@@ -12,10 +12,12 @@ import (
 	domainrepo "github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 )
 
+// UserRepository persists users in PostgreSQL.
 type UserRepository struct {
 	db *gorm.DB
 }
 
+// NewUserRepository creates a PostgreSQL user repository.
 func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
 }

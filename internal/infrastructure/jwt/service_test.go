@@ -73,7 +73,7 @@ func TestServiceVerifyRejectsWrongAudience(t *testing.T) {
 		t.Fatalf("issue pair: %v", err)
 	}
 
-	if _, err := service.Verify(context.Background(), pair.AccessToken, "blockx"); err == nil {
+	if _, err := service.Verify(context.Background(), pair.AccessToken, "other-app"); err == nil {
 		t.Fatal("expected wrong audience to be rejected")
 	}
 }

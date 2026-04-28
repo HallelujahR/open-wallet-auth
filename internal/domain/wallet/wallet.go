@@ -2,12 +2,14 @@ package wallet
 
 import "time"
 
+// ChainType identifies a wallet ecosystem such as EVM.
 type ChainType string
 
 const (
 	ChainTypeEVM ChainType = "evm"
 )
 
+// UserWallet links a verified wallet address to a user.
 type UserWallet struct {
 	ID         string
 	UserID     string
@@ -18,6 +20,7 @@ type UserWallet struct {
 	CreatedAt  time.Time
 }
 
+// Nonce is a one-time challenge used by wallet signature login.
 type Nonce struct {
 	ID        string
 	Address   string

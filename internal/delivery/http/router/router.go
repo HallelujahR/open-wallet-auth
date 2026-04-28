@@ -17,6 +17,7 @@ type Dependencies struct {
 	JWKS   *handler.JWKSHandler
 }
 
+// New creates the HTTP router and registers public and authenticated routes.
 func New(deps Dependencies) *gin.Engine {
 	if deps.Config.App.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)

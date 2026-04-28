@@ -2,6 +2,7 @@ package user
 
 import "time"
 
+// Status is the lifecycle state of a user account.
 type Status string
 
 const (
@@ -10,6 +11,7 @@ const (
 	StatusDeleted   Status = "deleted"
 )
 
+// User is the core account entity owned by the auth service.
 type User struct {
 	ID           string
 	Username     string

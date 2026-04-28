@@ -2,6 +2,7 @@ package model
 
 import "time"
 
+// RefreshToken maps to the refresh_tokens table.
 type RefreshToken struct {
 	ID        string     `gorm:"primaryKey;type:varchar(64)"`
 	UserID    string     `gorm:"type:varchar(64);not null;index"`

@@ -11,6 +11,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/config"
 )
 
+// Open creates a GORM PostgreSQL connection and configures its pool.
 func Open(cfg config.DatabaseConfig) (*gorm.DB, *sql.DB, error) {
 	db, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),

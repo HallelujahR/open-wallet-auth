@@ -2,6 +2,7 @@ package model
 
 import "time"
 
+// User maps to the users table.
 type User struct {
 	ID           string     `gorm:"primaryKey;type:varchar(64)"`
 	Username     string     `gorm:"type:varchar(128);not null"`

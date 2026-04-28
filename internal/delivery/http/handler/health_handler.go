@@ -10,11 +10,13 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/config"
 )
 
+// HealthHandler exposes liveness and readiness endpoints.
 type HealthHandler struct {
 	cfg       *config.Config
 	startedAt time.Time
 }
 
+// NewHealthHandler creates a health handler.
 func NewHealthHandler(cfg *config.Config) *HealthHandler {
 	return &HealthHandler{
 		cfg:       cfg,
@@ -22,6 +24,7 @@ func NewHealthHandler(cfg *config.Config) *HealthHandler {
 	}
 }
 
+// Health returns basic service liveness information.
 func (h *HealthHandler) Health(c *gin.Context) {
 	response.OK(c, gin.H{
 		"service":    h.cfg.App.Name,
@@ -31,6 +34,7 @@ func (h *HealthHandler) Health(c *gin.Context) {
 	})
 }
 
+// Ready returns readiness information.
 func (h *HealthHandler) Ready(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":       "OK",

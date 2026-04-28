@@ -14,19 +14,17 @@ import (
 	authusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/auth"
 )
 
-type AuthService interface {
-	Register(c gin.Context, req authusecase.RegisterRequest) (*authusecase.RegisterResult, error)
-	Login(c gin.Context, req authusecase.LoginRequest) (*authusecase.LoginResult, error)
-}
-
+// AuthHandler exposes authentication usecases as HTTP endpoints.
 type AuthHandler struct {
 	auth *authusecase.Service
 }
 
+// NewAuthHandler creates an AuthHandler bound to the auth usecase service.
 func NewAuthHandler(auth *authusecase.Service) *AuthHandler {
 	return &AuthHandler{auth: auth}
 }
 
+// Register handles email/password registration and returns a token pair.
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req dto.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -60,6 +58,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
+// Login handles email/password authentication and returns a token pair.
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -92,6 +91,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
+// Refresh rotates a refresh token and returns a new token pair.
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req dto.RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -122,6 +122,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	})
 }
 
+// Logout revokes a refresh token.
 func (h *AuthHandler) Logout(c *gin.Context) {
 	var req dto.LogoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -139,6 +140,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	response.OK(c, gin.H{"logged_out": true})
 }
 
+// Me returns the authenticated user claims injected by auth middleware.
 func (h *AuthHandler) Me(c *gin.Context) {
 	claims, ok := c.Get(contextkey.AuthClaims)
 	if !ok {

@@ -9,6 +9,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/response"
 )
 
+// Recovery converts panics into safe HTTP 500 responses and structured logs.
 func Recovery(logger *zap.Logger) gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered any) {
 		logger.Error("panic recovered",

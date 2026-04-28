@@ -13,10 +13,12 @@ import (
 	domainrepo "github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 )
 
+// ClientRepository persists clients in PostgreSQL.
 type ClientRepository struct {
 	db *gorm.DB
 }
 
+// NewClientRepository creates a PostgreSQL client repository.
 func NewClientRepository(db *gorm.DB) *ClientRepository {
 	return &ClientRepository{db: db}
 }
@@ -29,6 +31,7 @@ func (r *ClientRepository) FindByClientID(ctx context.Context, clientID string) 
 	return toDomainClient(row), nil
 }
 
+// EnsureDefault creates a default client for local development and first boot.
 func (r *ClientRepository) EnsureDefault(ctx context.Context) error {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.Client{}).Where("client_id = ?", "default").Count(&count).Error; err != nil {

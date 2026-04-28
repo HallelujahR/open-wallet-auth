@@ -12,10 +12,12 @@ import (
 	domainrepo "github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 )
 
+// RefreshTokenRepository persists refresh tokens in PostgreSQL.
 type RefreshTokenRepository struct {
 	db *gorm.DB
 }
 
+// NewRefreshTokenRepository creates a PostgreSQL refresh token repository.
 func NewRefreshTokenRepository(db *gorm.DB) *RefreshTokenRepository {
 	return &RefreshTokenRepository{db: db}
 }

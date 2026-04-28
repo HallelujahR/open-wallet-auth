@@ -6,6 +6,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/wallet"
 )
 
+// WalletRepository defines persistence operations for wallets and login nonces.
 type WalletRepository interface {
 	FindByAddress(ctx context.Context, chainType wallet.ChainType, address string) (*wallet.UserWallet, error)
 	CreateWallet(ctx context.Context, w *wallet.UserWallet) error

@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Config contains all runtime configuration.
 type Config struct {
 	App      AppConfig      `mapstructure:"app"`
 	HTTP     HTTPConfig     `mapstructure:"http"`
@@ -16,11 +17,13 @@ type Config struct {
 	JWT      JWTConfig      `mapstructure:"jwt"`
 }
 
+// AppConfig contains service identity settings.
 type AppConfig struct {
 	Name string `mapstructure:"name"`
 	Env  string `mapstructure:"env"`
 }
 
+// HTTPConfig contains HTTP server settings.
 type HTTPConfig struct {
 	Host              string        `mapstructure:"host"`
 	Port              int           `mapstructure:"port"`
@@ -30,11 +33,13 @@ type HTTPConfig struct {
 	IdleTimeout       time.Duration `mapstructure:"idle_timeout"`
 }
 
+// LogConfig contains structured logging settings.
 type LogConfig struct {
 	Level  string `mapstructure:"level"`
 	Format string `mapstructure:"format"`
 }
 
+// DatabaseConfig contains PostgreSQL connection settings.
 type DatabaseConfig struct {
 	Driver          string        `mapstructure:"driver"`
 	DSN             string        `mapstructure:"dsn"`
@@ -44,12 +49,14 @@ type DatabaseConfig struct {
 	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
 }
 
+// RedisConfig contains Redis connection settings.
 type RedisConfig struct {
 	Addr     string `mapstructure:"addr"`
 	Password string `mapstructure:"password"`
 	DB       int    `mapstructure:"db"`
 }
 
+// JWTConfig contains token signing and lifetime settings.
 type JWTConfig struct {
 	Issuer          string        `mapstructure:"issuer"`
 	AccessTokenTTL  time.Duration `mapstructure:"access_token_ttl"`
@@ -59,6 +66,7 @@ type JWTConfig struct {
 	ActiveKeyID     string        `mapstructure:"active_key_id"`
 }
 
+// Load reads configuration from defaults, config files, and environment variables.
 func Load() (*Config, error) {
 	v := viper.New()
 	v.SetConfigName("config")

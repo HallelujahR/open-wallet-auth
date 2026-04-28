@@ -8,6 +8,7 @@ import (
 
 const RequestIDKey = "request_id"
 
+// Body is the standard HTTP response envelope.
 type Body struct {
 	Code      string `json:"code"`
 	Message   string `json:"message"`
@@ -15,6 +16,7 @@ type Body struct {
 	Data      any    `json:"data"`
 }
 
+// OK writes a successful response envelope.
 func OK(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, Body{
 		Code:      "OK",
@@ -24,6 +26,7 @@ func OK(c *gin.Context, data any) {
 	})
 }
 
+// Error writes an error response envelope.
 func Error(c *gin.Context, status int, code string, message string) {
 	c.JSON(status, Body{
 		Code:      code,
@@ -33,6 +36,7 @@ func Error(c *gin.Context, status int, code string, message string) {
 	})
 }
 
+// RequestID returns the request id stored in the Gin context.
 func RequestID(c *gin.Context) string {
 	if v, ok := c.Get(RequestIDKey); ok {
 		if requestID, ok := v.(string); ok {

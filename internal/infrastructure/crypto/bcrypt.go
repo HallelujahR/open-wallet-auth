@@ -2,10 +2,12 @@ package crypto
 
 import "golang.org/x/crypto/bcrypt"
 
+// BcryptHasher hashes and verifies passwords using bcrypt.
 type BcryptHasher struct {
 	cost int
 }
 
+// NewBcryptHasher creates a bcrypt password hasher.
 func NewBcryptHasher(cost int) *BcryptHasher {
 	if cost <= 0 {
 		cost = bcrypt.DefaultCost

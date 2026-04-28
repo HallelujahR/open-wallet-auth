@@ -21,6 +21,7 @@ import (
 	authusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/auth"
 )
 
+// Application owns process-level dependencies and lifecycle.
 type Application struct {
 	cfg    *config.Config
 	logger *zap.Logger
@@ -28,6 +29,7 @@ type Application struct {
 	sqlDB  *sql.DB
 }
 
+// New wires infrastructure adapters, usecases, and HTTP delivery.
 func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	if cfg == nil {
 		return nil, errors.New("config is required")

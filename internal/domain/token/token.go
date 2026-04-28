@@ -2,6 +2,7 @@ package token
 
 import "time"
 
+// Claims represents normalized authentication claims used inside the service.
 type Claims struct {
 	UserID      string
 	ClientID    string
@@ -16,12 +17,14 @@ type Claims struct {
 	IssuedAt    time.Time
 }
 
+// Pair contains an access token and refresh token returned to clients.
 type Pair struct {
 	AccessToken  string
 	RefreshToken string
 	ExpiresAt    time.Time
 }
 
+// RefreshToken represents a persisted refresh token record.
 type RefreshToken struct {
 	ID        string
 	UserID    string
@@ -40,10 +43,12 @@ func (t RefreshToken) IsRevoked() bool {
 	return t.RevokedAt != nil
 }
 
+// JWKS is the JSON Web Key Set returned from the public discovery endpoint.
 type JWKS struct {
 	Keys []JWK `json:"keys"`
 }
 
+// JWK describes a public signing key in JSON Web Key format.
 type JWK struct {
 	Kty string `json:"kty"`
 	Use string `json:"use"`

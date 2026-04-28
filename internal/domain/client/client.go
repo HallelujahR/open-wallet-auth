@@ -2,6 +2,7 @@ package client
 
 import "time"
 
+// Status is the lifecycle state of an application client.
 type Status string
 
 const (
@@ -9,6 +10,7 @@ const (
 	StatusDisabled Status = "disabled"
 )
 
+// Client represents an application allowed to request tokens.
 type Client struct {
 	ID                  string
 	ClientID            string

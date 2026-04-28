@@ -6,6 +6,7 @@ import (
 	"gorm.io/datatypes"
 )
 
+// Client maps to the clients table.
 type Client struct {
 	ID                  string         `gorm:"primaryKey;type:varchar(64)"`
 	ClientID            string         `gorm:"type:varchar(128);not null;uniqueIndex"`

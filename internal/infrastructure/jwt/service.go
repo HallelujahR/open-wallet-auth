@@ -2,7 +2,6 @@ package jwt
 
 import (
 	"context"
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -20,6 +19,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/config"
 )
 
+// Service signs, verifies, and exposes JWT/JWKS data.
 type Service struct {
 	cfg        config.JWTConfig
 	privateKey *rsa.PrivateKey
@@ -36,6 +36,7 @@ type claims struct {
 	gojwt.RegisteredClaims
 }
 
+// NewService creates a JWT service from configured or generated RSA keys.
 func NewService(cfg config.JWTConfig) (*Service, error) {
 	privateKey, err := loadOrGenerateKey(cfg)
 	if err != nil {
@@ -44,6 +45,7 @@ func NewService(cfg config.JWTConfig) (*Service, error) {
 	return &Service{cfg: cfg, privateKey: privateKey, publicKey: &privateKey.PublicKey}, nil
 }
 
+// IssuePair returns a signed access token and an opaque refresh token.
 func (s *Service) IssuePair(ctx context.Context, input token.Claims) (*token.Pair, error) {
 	now := time.Now().UTC()
 	expiresAt := now.Add(s.cfg.AccessTokenTTL)
@@ -103,10 +105,12 @@ func (s *Service) IssueAccessToken(ctx context.Context, input token.Claims) (str
 	return access, expiresAt, err
 }
 
+// RefreshTokenTTL returns the configured refresh token lifetime.
 func (s *Service) RefreshTokenTTL() time.Duration {
 	return s.cfg.RefreshTokenTTL
 }
 
+// GenerateRefreshToken creates a cryptographically random opaque refresh token.
 func GenerateRefreshToken() (string, error) {
 	buf := make([]byte, 32)
 	if _, err := rand.Read(buf); err != nil {
@@ -121,6 +125,7 @@ func (s *Service) sign(c claims) (string, error) {
 	return t.SignedString(s.privateKey)
 }
 
+// Verify validates a JWT and returns normalized claims.
 func (s *Service) Verify(ctx context.Context, tokenString string, audience string) (*token.Claims, error) {
 	parsed, err := gojwt.ParseWithClaims(tokenString, &claims{}, func(t *gojwt.Token) (any, error) {
 		if _, ok := t.Method.(*gojwt.SigningMethodRSA); !ok {
@@ -152,6 +157,7 @@ func (s *Service) Verify(ctx context.Context, tokenString string, audience strin
 	}, nil
 }
 
+// JWKS returns the public signing keys in JSON Web Key Set format.
 func (s *Service) JWKS() token.JWKS {
 	return token.JWKS{
 		Keys: []token.JWK{{
@@ -163,10 +169,6 @@ func (s *Service) JWKS() token.JWKS {
 			E:   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(s.publicKey.E)).Bytes()),
 		}},
 	}
-}
-
-func (s *Service) PublicKey() crypto.PublicKey {
-	return s.publicKey
 }
 
 func firstAudience(aud gojwt.ClaimStrings) string {

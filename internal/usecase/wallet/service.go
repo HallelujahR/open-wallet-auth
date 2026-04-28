@@ -20,23 +20,27 @@ type Clock interface {
 	Now() time.Time
 }
 
+// Service orchestrates wallet nonce and verification usecases.
 type Service struct {
 	wallets repository.WalletRepository
 	ttl     time.Duration
 	clock   Clock
 }
 
+// NonceRequest is the input for creating a wallet login nonce.
 type NonceRequest struct {
 	Address string
 	Domain  string
 	ChainID int64
 }
 
+// NonceResult contains a wallet login nonce and its expiration time.
 type NonceResult struct {
 	Nonce     string
 	ExpiresAt time.Time
 }
 
+// NewService creates the wallet usecase service.
 func NewService(wallets repository.WalletRepository, ttl time.Duration, clock Clock) *Service {
 	return &Service{
 		wallets: wallets,

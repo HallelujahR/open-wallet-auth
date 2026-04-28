@@ -18,6 +18,8 @@ The service follows Clean Architecture with explicit boundaries between:
 - repositories
 - infrastructure adapters
 
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the current project layout and dependency rules.
+
 ## Quick Start
 
 ```bash
