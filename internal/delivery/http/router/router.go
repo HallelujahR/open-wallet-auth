@@ -43,6 +43,8 @@ func New(deps Dependencies) *gin.Engine {
 			{
 				auth.POST("/register", deps.Auth.Register)
 				auth.POST("/login", deps.Auth.Login)
+				auth.POST("/refresh", deps.Auth.Refresh)
+				auth.POST("/logout", deps.Auth.Logout)
 				if deps.Token != nil {
 					auth.GET("/me", middleware.Authenticate(deps.Token, "default"), deps.Auth.Me)
 				}

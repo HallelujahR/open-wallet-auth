@@ -33,6 +33,9 @@ func TestServiceIssueVerifyAndJWKS(t *testing.T) {
 	if pair.AccessToken == "" || pair.RefreshToken == "" {
 		t.Fatal("expected token pair")
 	}
+	if service.RefreshTokenTTL() != time.Hour {
+		t.Fatal("expected refresh token ttl")
+	}
 
 	claims, err := service.Verify(context.Background(), pair.AccessToken, "default")
 	if err != nil {

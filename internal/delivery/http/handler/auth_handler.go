@@ -92,6 +92,53 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var req dto.RefreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, authusecase.ErrInvalidInput, "invalid request")
+		return
+	}
+
+	result, err := h.auth.Refresh(c.Request.Context(), authusecase.RefreshRequest{
+		RefreshToken: req.RefreshToken,
+	})
+	if err != nil {
+		writeAuthError(c, err)
+		return
+	}
+
+	response.OK(c, dto.AuthResponse{
+		User: dto.AuthUser{
+			ID:       result.UserID,
+			Username: result.Username,
+			Email:    result.Email,
+		},
+		Token: dto.TokenPair{
+			AccessToken:  result.Token.AccessToken,
+			RefreshToken: result.Token.RefreshToken,
+			ExpiresAt:    result.Token.ExpiresAt.Format(timeFormatRFC3339),
+			TokenType:    "Bearer",
+		},
+	})
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	var req dto.LogoutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, authusecase.ErrInvalidInput, "invalid request")
+		return
+	}
+
+	if err := h.auth.Logout(c.Request.Context(), authusecase.LogoutRequest{
+		RefreshToken: req.RefreshToken,
+	}); err != nil {
+		writeAuthError(c, err)
+		return
+	}
+
+	response.OK(c, gin.H{"logged_out": true})
+}
+
 func (h *AuthHandler) Me(c *gin.Context) {
 	claims, ok := c.Get(contextkey.AuthClaims)
 	if !ok {
@@ -121,6 +168,8 @@ func writeAuthError(c *gin.Context, err error) {
 		case authusecase.ErrInvalidClient:
 			response.Error(c, http.StatusBadRequest, appErr.Code, appErr.Message)
 		case authusecase.ErrInvalidCredentials:
+			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
+		case authusecase.ErrInvalidRefreshToken:
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
 		default:
 			response.Error(c, http.StatusBadRequest, appErr.Code, appErr.Message)

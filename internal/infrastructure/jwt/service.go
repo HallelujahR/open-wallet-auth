@@ -69,12 +69,50 @@ func (s *Service) IssuePair(ctx context.Context, input token.Claims) (*token.Pai
 		return nil, err
 	}
 
-	refreshToken := "rfr_" + uuid.NewString() + uuid.NewString()
+	refreshToken, err := GenerateRefreshToken()
+	if err != nil {
+		return nil, err
+	}
 	return &token.Pair{
 		AccessToken:  access,
 		RefreshToken: refreshToken,
 		ExpiresAt:    expiresAt,
 	}, nil
+}
+
+func (s *Service) IssueAccessToken(ctx context.Context, input token.Claims) (string, time.Time, error) {
+	now := time.Now().UTC()
+	expiresAt := now.Add(s.cfg.AccessTokenTTL)
+	access, err := s.sign(claims{
+		Username:    input.Username,
+		Email:       input.Email,
+		ClientID:    input.ClientID,
+		Roles:       input.Roles,
+		Permissions: input.Permissions,
+		Wallets:     input.Wallets,
+		RegisteredClaims: gojwt.RegisteredClaims{
+			Issuer:    s.cfg.Issuer,
+			Subject:   input.UserID,
+			Audience:  gojwt.ClaimStrings{input.Audience},
+			ExpiresAt: gojwt.NewNumericDate(expiresAt),
+			IssuedAt:  gojwt.NewNumericDate(now),
+			NotBefore: gojwt.NewNumericDate(now),
+			ID:        uuid.NewString(),
+		},
+	})
+	return access, expiresAt, err
+}
+
+func (s *Service) RefreshTokenTTL() time.Duration {
+	return s.cfg.RefreshTokenTTL
+}
+
+func GenerateRefreshToken() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return "rfr_" + base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
 func (s *Service) sign(c claims) (string, error) {

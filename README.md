@@ -38,6 +38,14 @@ JWKS:
 curl http://localhost:8080/.well-known/jwks.json
 ```
 
+Refresh token:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"refresh_token":"<refresh_token>"}'
+```
+
 ## Roadmap
 
 - Password login

@@ -42,23 +42,25 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	}
 
 	if cfg.Database.AutoMigrate {
-		if err := db.AutoMigrate(&model.User{}, &model.Client{}); err != nil {
+		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.RefreshToken{}); err != nil {
 			return nil, fmt.Errorf("auto migrate database: %w", err)
 		}
 	}
 
 	userRepo := pgrepo.NewUserRepository(db)
 	clientRepo := pgrepo.NewClientRepository(db)
+	refreshTokenRepo := pgrepo.NewRefreshTokenRepository(db)
 	if err := clientRepo.EnsureDefault(context.Background()); err != nil {
 		return nil, fmt.Errorf("ensure default client: %w", err)
 	}
 
 	hasher := infrahash.NewBcryptHasher(0)
+	tokenHasher := infrahash.NewSHA256TokenHasher()
 	tokenIssuer, err := infrajwt.NewService(cfg.JWT)
 	if err != nil {
 		return nil, fmt.Errorf("initialize jwt service: %w", err)
 	}
-	authService := authusecase.NewService(userRepo, clientRepo, hasher, tokenIssuer)
+	authService := authusecase.NewService(userRepo, clientRepo, refreshTokenRepo, hasher, tokenHasher, tokenIssuer)
 
 	engine := router.New(router.Dependencies{
 		Config: cfg,

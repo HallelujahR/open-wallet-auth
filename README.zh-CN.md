@@ -56,3 +56,19 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 curl http://localhost:8080/api/v1/auth/me \
   -H "Authorization: Bearer <access_token>"
 ```
+
+刷新 Token：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"refresh_token":"<refresh_token>"}'
+```
+
+退出登录：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/logout \
+  -H 'Content-Type: application/json' \
+  -d '{"refresh_token":"<refresh_token>"}'
+```

@@ -15,7 +15,7 @@ import (
 
 func TestServiceRegisterSuccess(t *testing.T) {
 	users := newMemoryUsers()
-	service := NewService(users, defaultClients(), fakeHasher{}, fakeIssuer{})
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
 
 	result, err := service.Register(context.Background(), RegisterRequest{
 		ClientID: "default",
@@ -41,7 +41,7 @@ func TestServiceRegisterRejectsExistingEmail(t *testing.T) {
 		Email:  "alice@example.com",
 		Status: user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), fakeHasher{}, fakeIssuer{})
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
 
 	_, err := service.Register(context.Background(), RegisterRequest{
 		ClientID: "default",
@@ -67,7 +67,7 @@ func TestServiceLoginRejectsInvalidPassword(t *testing.T) {
 		PasswordHash: "hash:correct",
 		Status:       user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), fakeHasher{}, fakeIssuer{})
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
 
 	_, err := service.Login(context.Background(), LoginRequest{
 		ClientID: "default",
@@ -81,6 +81,37 @@ func TestServiceLoginRejectsInvalidPassword(t *testing.T) {
 	var appErr *domain.Error
 	if !errors.As(err, &appErr) || appErr.Code != ErrInvalidCredentials {
 		t.Fatalf("expected %s, got %v", ErrInvalidCredentials, err)
+	}
+}
+
+func TestServiceRefreshRotatesRefreshToken(t *testing.T) {
+	users := newMemoryUsers()
+	users.byID["usr_existing"] = &user.User{
+		ID:       "usr_existing",
+		Username: "alice",
+		Email:    "alice@example.com",
+		Status:   user.StatusActive,
+	}
+	refreshTokens := newMemoryRefreshTokens()
+	refreshTokens.byHash["hash:old_refresh"] = &token.RefreshToken{
+		ID:        "rft_old",
+		UserID:    "usr_existing",
+		ClientID:  "default",
+		TokenHash: "hash:old_refresh",
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	refreshTokens.byID["rft_old"] = refreshTokens.byHash["hash:old_refresh"]
+	service := NewService(users, defaultClients(), refreshTokens, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
+
+	result, err := service.Refresh(context.Background(), RefreshRequest{RefreshToken: "old_refresh"})
+	if err != nil {
+		t.Fatalf("refresh returned error: %v", err)
+	}
+	if result.Token == nil || result.Token.RefreshToken == "" {
+		t.Fatal("expected new token pair")
+	}
+	if refreshTokens.byID["rft_old"].RevokedAt == nil {
+		t.Fatal("expected old refresh token to be revoked")
 	}
 }
 
@@ -129,6 +160,45 @@ type memoryClients struct {
 	byClientID map[string]*client.Client
 }
 
+type memoryRefreshTokens struct {
+	byID   map[string]*token.RefreshToken
+	byHash map[string]*token.RefreshToken
+}
+
+func newMemoryRefreshTokens() *memoryRefreshTokens {
+	return &memoryRefreshTokens{
+		byID:   map[string]*token.RefreshToken{},
+		byHash: map[string]*token.RefreshToken{},
+	}
+}
+
+func (m *memoryRefreshTokens) Create(ctx context.Context, refreshToken *token.RefreshToken) error {
+	if refreshToken.ID == "" {
+		refreshToken.ID = "rft_test"
+	}
+	m.byID[refreshToken.ID] = refreshToken
+	m.byHash[refreshToken.TokenHash] = refreshToken
+	return nil
+}
+
+func (m *memoryRefreshTokens) FindByHash(ctx context.Context, tokenHash string) (*token.RefreshToken, error) {
+	refreshToken, ok := m.byHash[tokenHash]
+	if !ok {
+		return nil, repository.ErrNotFound
+	}
+	return refreshToken, nil
+}
+
+func (m *memoryRefreshTokens) Revoke(ctx context.Context, id string) error {
+	refreshToken, ok := m.byID[id]
+	if !ok {
+		return repository.ErrNotFound
+	}
+	now := time.Now()
+	refreshToken.RevokedAt = &now
+	return nil
+}
+
 func defaultClients() *memoryClients {
 	return &memoryClients{
 		byClientID: map[string]*client.Client{
@@ -160,6 +230,12 @@ func (fakeHasher) Compare(hash string, plain string) bool {
 	return hash == "hash:"+plain
 }
 
+type fakeTokenHasher struct{}
+
+func (fakeTokenHasher) HashToken(raw string) string {
+	return "hash:" + raw
+}
+
 type fakeIssuer struct{}
 
 func (fakeIssuer) IssuePair(ctx context.Context, claims token.Claims) (*token.Pair, error) {
@@ -168,4 +244,8 @@ func (fakeIssuer) IssuePair(ctx context.Context, claims token.Claims) (*token.Pa
 		RefreshToken: "refresh",
 		ExpiresAt:    time.Now().Add(time.Hour),
 	}, nil
+}
+
+func (fakeIssuer) RefreshTokenTTL() time.Duration {
+	return time.Hour
 }

@@ -22,6 +22,24 @@ type Pair struct {
 	ExpiresAt    time.Time
 }
 
+type RefreshToken struct {
+	ID        string
+	UserID    string
+	ClientID  string
+	TokenHash string
+	ExpiresAt time.Time
+	RevokedAt *time.Time
+	CreatedAt time.Time
+}
+
+func (t RefreshToken) IsExpired(now time.Time) bool {
+	return !t.ExpiresAt.After(now)
+}
+
+func (t RefreshToken) IsRevoked() bool {
+	return t.RevokedAt != nil
+}
+
 type JWKS struct {
 	Keys []JWK `json:"keys"`
 }

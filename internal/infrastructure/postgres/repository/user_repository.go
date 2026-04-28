@@ -51,7 +51,7 @@ func (r *UserRepository) Create(ctx context.Context, u *domainuser.User) error {
 		ID:           u.ID,
 		Username:     u.Username,
 		Email:        u.Email,
-		Phone:        u.Phone,
+		Phone:        stringPtrOrNil(u.Phone),
 		PasswordHash: u.PasswordHash,
 		Avatar:       u.Avatar,
 		Status:       string(u.Status),
@@ -74,7 +74,7 @@ func toDomainUser(row model.User) *domainuser.User {
 		ID:           row.ID,
 		Username:     row.Username,
 		Email:        row.Email,
-		Phone:        row.Phone,
+		Phone:        stringValue(row.Phone),
 		PasswordHash: row.PasswordHash,
 		Avatar:       row.Avatar,
 		Status:       domainuser.Status(row.Status),
@@ -82,6 +82,20 @@ func toDomainUser(row model.User) *domainuser.User {
 		CreatedAt:    row.CreatedAt,
 		UpdatedAt:    row.UpdatedAt,
 	}
+}
+
+func stringPtrOrNil(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 var _ domainrepo.UserRepository = (*UserRepository)(nil)
