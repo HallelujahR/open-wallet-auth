@@ -9,6 +9,7 @@ The service owns authentication. Your business applications still own their own 
 ## Features
 
 - Email/password registration and login
+- Email verification code sending and checking
 - Phone verification-code login
 - EVM wallet signature login with SIWE-compatible messages
 - Google and GitHub OAuth start/callback flow
@@ -41,6 +42,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for project layout and dependen
 
 - [Chinese integration guide](docs/INTEGRATION.zh-CN.md)
 - [Universal auth frontend demo](examples/universal-auth-demo)
+- [SMS and email provider guide](docs/PROVIDERS.zh-CN.md)
 - [Browser wallet login example](examples/browser-wallet-login)
 - [Gin API JWT verification example](examples/gin-api)
 
@@ -152,6 +154,10 @@ Important settings:
 - `wallet.nonce_ttl`: wallet challenge lifetime
 - `phone.code_ttl`: phone verification-code lifetime
 - `phone.dev_code`: local development phone code
+- `phone.enabled`: enable or disable phone-code login
+- `phone.provider.*`: custom SMS provider webhook settings
+- `email.verification_enabled`: enable or disable email verification endpoints
+- `email.provider.*`: custom email provider webhook settings
 - `oauth.google.*`: Google OAuth credentials and endpoints
 - `oauth.github.*`: GitHub OAuth credentials and endpoints
 - `management.admin_token`: token for management APIs in development

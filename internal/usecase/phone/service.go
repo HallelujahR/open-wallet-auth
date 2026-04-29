@@ -10,6 +10,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/message"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 )
 
@@ -17,6 +18,8 @@ const (
 	ErrInvalidClient = "CLIENT_INVALID"
 	ErrInvalidInput  = "PHONE_INVALID_INPUT"
 	ErrInvalidCode   = "PHONE_INVALID_CODE"
+	ErrDisabled      = "PHONE_LOGIN_DISABLED"
+	ErrSendFailed    = "PHONE_SEND_FAILED"
 )
 
 // Clock supplies time to keep phone-code flows deterministic in tests.
@@ -42,10 +45,13 @@ type Service struct {
 	refreshTokens repository.RefreshTokenRepository
 	activity      repository.ActivityRepository
 	codes         repository.PhoneCodeRepository
+	sender        message.SMSProvider
 	tokenHasher   TokenHasher
 	issuer        TokenIssuer
+	enabled       bool
 	codeTTL       time.Duration
 	devCode       string
+	exposeDevCode bool
 	clock         Clock
 }
 
@@ -56,10 +62,13 @@ type Dependencies struct {
 	RefreshTokens repository.RefreshTokenRepository
 	Activity      repository.ActivityRepository
 	Codes         repository.PhoneCodeRepository
+	Sender        message.SMSProvider
 	TokenHasher   TokenHasher
 	Issuer        TokenIssuer
+	Enabled       bool
 	CodeTTL       time.Duration
 	DevCode       string
+	ExposeDevCode bool
 	Clock         Clock
 }
 
@@ -101,10 +110,13 @@ func NewService(deps Dependencies) *Service {
 		refreshTokens: deps.RefreshTokens,
 		activity:      deps.Activity,
 		codes:         deps.Codes,
+		sender:        deps.Sender,
 		tokenHasher:   deps.TokenHasher,
 		issuer:        deps.Issuer,
+		enabled:       deps.Enabled,
 		codeTTL:       deps.CodeTTL,
 		devCode:       deps.DevCode,
+		exposeDevCode: deps.ExposeDevCode,
 		clock:         deps.Clock,
 	}
 }
@@ -113,6 +125,9 @@ func NewService(deps Dependencies) *Service {
 func (s *Service) RequestCode(ctx context.Context, req CodeRequest) (*CodeResult, error) {
 	clientID := defaultClientID(req.ClientID)
 	phone := normalizePhone(req.Phone)
+	if !s.enabled {
+		return nil, domain.NewError(ErrDisabled, "phone login is disabled")
+	}
 	if phone == "" {
 		return nil, domain.NewError(ErrInvalidInput, "phone is required")
 	}
@@ -129,7 +144,16 @@ func (s *Service) RequestCode(ctx context.Context, req CodeRequest) (*CodeResult
 	if err := s.codes.Save(ctx, phone, code, expiresAt); err != nil {
 		return nil, err
 	}
-	return &CodeResult{Phone: phone, ExpiresAt: expiresAt, DevCode: s.devCode}, nil
+	if s.sender != nil {
+		if err := s.sender.SendSMS(ctx, message.SMSMessage{Phone: phone, Code: code}); err != nil {
+			return nil, domain.WrapError(ErrSendFailed, "send phone verification code failed", err)
+		}
+	}
+	devCode := ""
+	if s.exposeDevCode {
+		devCode = s.devCode
+	}
+	return &CodeResult{Phone: phone, ExpiresAt: expiresAt, DevCode: devCode}, nil
 }
 
 // Login verifies the phone code, creates the user if needed, and issues tokens.
@@ -137,6 +161,9 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 	clientID := defaultClientID(req.ClientID)
 	phone := normalizePhone(req.Phone)
 	code := strings.TrimSpace(req.Code)
+	if !s.enabled {
+		return nil, domain.NewError(ErrDisabled, "phone login is disabled")
+	}
 	if phone == "" || code == "" {
 		return nil, domain.NewError(ErrInvalidInput, "phone and code are required")
 	}

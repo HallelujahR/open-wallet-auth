@@ -254,7 +254,17 @@
             Password
             <input id="password" type="password" value="password123" />
           </label>
+          <label>
+            Email Verification Code
+            <input id="emailCode" inputmode="numeric" value="123456" />
+          </label>
           <div class="actions">
+            <button class="action secondary" id="sendEmailCode" type="button">
+              Send Email Code
+            </button>
+            <button class="action secondary" id="verifyEmail" type="button">
+              Verify Email
+            </button>
             <button class="action" id="registerEmail" type="button">
               Register
             </button>
@@ -415,6 +425,8 @@
       function bindActions() {
         $("registerEmail").addEventListener("click", () => run(registerEmail));
         $("loginEmail").addEventListener("click", () => run(loginEmail));
+        $("sendEmailCode").addEventListener("click", () => run(sendEmailCode));
+        $("verifyEmail").addEventListener("click", () => run(verifyEmail));
         $("sendPhoneCode").addEventListener("click", plannedPhoneCode);
         $("loginPhone").addEventListener("click", plannedPhoneLogin);
         $("startGoogle").addEventListener("click", () => plannedOAuth("google"));
@@ -451,6 +463,24 @@
           password: $("password").value,
         });
         saveSession(data);
+        writeResult(data);
+      }
+
+      async function sendEmailCode() {
+        const data = await postJSON("/api/v1/email/code", {
+          email: $("email").value.trim(),
+        });
+        if (data.dev_code) {
+          $("emailCode").value = data.dev_code;
+        }
+        writeResult(data);
+      }
+
+      async function verifyEmail() {
+        const data = await postJSON("/api/v1/email/verify", {
+          email: $("email").value.trim(),
+          code: $("emailCode").value.trim(),
+        });
         writeResult(data);
       }
 

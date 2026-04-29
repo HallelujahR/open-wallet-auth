@@ -15,6 +15,7 @@ type Dependencies struct {
 	Auth             *handler.AuthHandler
 	Wallet           *handler.WalletHandler
 	Phone            *handler.PhoneHandler
+	Email            *handler.EmailHandler
 	OAuth            *handler.OAuthHandler
 	Client           *handler.ClientHandler
 	Token            middleware.TokenVerifier
@@ -70,6 +71,13 @@ func New(deps Dependencies) *gin.Engine {
 			{
 				phone.POST("/code", deps.Phone.Code)
 				phone.POST("/login", deps.Phone.Login)
+			}
+		}
+		if deps.Email != nil {
+			email := v1.Group("/email")
+			{
+				email.POST("/code", deps.Email.Code)
+				email.POST("/verify", deps.Email.Verify)
 			}
 		}
 		if deps.OAuth != nil {

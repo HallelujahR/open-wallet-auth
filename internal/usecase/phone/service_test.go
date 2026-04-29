@@ -9,6 +9,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/message"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 )
 
@@ -35,10 +36,13 @@ func newTestService() *Service {
 		RefreshTokens: newMemoryRefreshTokens(),
 		Activity:      newMemoryActivity(),
 		Codes:         newMemoryCodes(),
+		Sender:        noopSMS{},
 		TokenHasher:   fakeTokenHasher{},
 		Issuer:        fakeIssuer{},
+		Enabled:       true,
 		CodeTTL:       5 * time.Minute,
 		DevCode:       "123456",
+		ExposeDevCode: true,
 		Clock:         fixedClock{},
 	})
 }
@@ -141,6 +145,10 @@ type memoryCodes struct {
 	code      string
 	expiresAt time.Time
 }
+
+type noopSMS struct{}
+
+func (noopSMS) SendSMS(ctx context.Context, msg message.SMSMessage) error { return nil }
 
 func newMemoryCodes() *memoryCodes { return &memoryCodes{} }
 

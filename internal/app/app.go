@@ -15,7 +15,9 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/clock"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/config"
 	infrahash "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/crypto"
+	infraemail "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/email"
 	infrajwt "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/jwt"
+	inframessage "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/message"
 	infraoauth "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/oauth"
 	infraphone "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/phone"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres"
@@ -24,6 +26,7 @@ import (
 	infrawallet "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/wallet"
 	authusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/auth"
 	clientusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/client"
+	emailusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/email"
 	oauthusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/oauth"
 	phoneusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/phone"
 	walletusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/wallet"
@@ -75,16 +78,30 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	}
 	authService := authusecase.NewService(userRepo, clientRepo, refreshTokenRepo, activityRepo, hasher, tokenHasher, tokenIssuer)
 	clientService := clientusecase.NewService(clientRepo)
+	smsProvider, _ := inframessage.NewProvider(cfg.Phone.Provider)
+	_, emailProvider := inframessage.NewProvider(cfg.Email.Provider)
 	phoneService := phoneusecase.NewService(phoneusecase.Dependencies{
 		Users:         userRepo,
 		Clients:       clientRepo,
 		RefreshTokens: refreshTokenRepo,
 		Activity:      activityRepo,
 		Codes:         infraphone.NewMemoryCodeRepository(),
+		Sender:        smsProvider,
 		TokenHasher:   tokenHasher,
 		Issuer:        tokenIssuer,
+		Enabled:       cfg.Phone.Enabled,
 		CodeTTL:       cfg.Phone.CodeTTL,
 		DevCode:       cfg.Phone.DevCode,
+		ExposeDevCode: cfg.Phone.ExposeDevCode,
+		Clock:         clock.SystemClock{},
+	})
+	emailService := emailusecase.NewService(emailusecase.Dependencies{
+		Codes:         infraemail.NewMemoryCodeRepository(),
+		Sender:        emailProvider,
+		Enabled:       cfg.Email.VerificationEnabled,
+		CodeTTL:       cfg.Email.CodeTTL,
+		DevCode:       cfg.Email.DevCode,
+		ExposeDevCode: cfg.Email.ExposeDevCode,
 		Clock:         clock.SystemClock{},
 	})
 	oauthService := oauthusecase.NewService(oauthusecase.Dependencies{
@@ -138,6 +155,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 		Auth:             handler.NewAuthHandler(authService),
 		Wallet:           handler.NewWalletHandler(walletService),
 		Phone:            handler.NewPhoneHandler(phoneService),
+		Email:            handler.NewEmailHandler(emailService),
 		OAuth:            handler.NewOAuthHandler(oauthService),
 		Client:           handler.NewClientHandler(clientService),
 		Token:            tokenIssuer,

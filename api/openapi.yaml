@@ -93,6 +93,30 @@ paths:
       responses:
         "200":
           description: Logged in with phone
+  /api/v1/email/code:
+    post:
+      summary: Create an email verification code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailCodeRequest"
+      responses:
+        "200":
+          description: Email code created
+  /api/v1/email/verify:
+    post:
+      summary: Verify an email verification code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailVerifyRequest"
+      responses:
+        "200":
+          description: Email verified
   /api/v1/oauth/{provider}/start:
     get:
       summary: Create a provider OAuth authorization URL
@@ -204,5 +228,24 @@ components:
           type: string
         phone:
           type: string
+        code:
+          type: string
+    EmailCodeRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+    EmailVerifyRequest:
+      type: object
+      required:
+        - email
+        - code
+      properties:
+        email:
+          type: string
+          format: email
         code:
           type: string

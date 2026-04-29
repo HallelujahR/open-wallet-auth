@@ -17,6 +17,7 @@ type Config struct {
 	JWT        JWTConfig        `mapstructure:"jwt"`
 	Wallet     WalletConfig     `mapstructure:"wallet"`
 	Phone      PhoneConfig      `mapstructure:"phone"`
+	Email      EmailConfig      `mapstructure:"email"`
 	OAuth      OAuthConfig      `mapstructure:"oauth"`
 	Management ManagementConfig `mapstructure:"management"`
 }
@@ -78,8 +79,28 @@ type WalletConfig struct {
 
 // PhoneConfig contains phone verification-code login settings.
 type PhoneConfig struct {
-	CodeTTL time.Duration `mapstructure:"code_ttl"`
-	DevCode string        `mapstructure:"dev_code"`
+	Enabled       bool                  `mapstructure:"enabled"`
+	CodeTTL       time.Duration         `mapstructure:"code_ttl"`
+	DevCode       string                `mapstructure:"dev_code"`
+	ExposeDevCode bool                  `mapstructure:"expose_dev_code"`
+	Provider      MessageProviderConfig `mapstructure:"provider"`
+}
+
+// EmailConfig contains email verification settings.
+type EmailConfig struct {
+	VerificationEnabled bool                  `mapstructure:"verification_enabled"`
+	CodeTTL             time.Duration         `mapstructure:"code_ttl"`
+	DevCode             string                `mapstructure:"dev_code"`
+	ExposeDevCode       bool                  `mapstructure:"expose_dev_code"`
+	Provider            MessageProviderConfig `mapstructure:"provider"`
+}
+
+// MessageProviderConfig contains webhook-style message provider settings.
+type MessageProviderConfig struct {
+	Type        string            `mapstructure:"type"`
+	WebhookURL  string            `mapstructure:"webhook_url"`
+	BearerToken string            `mapstructure:"bearer_token"`
+	Headers     map[string]string `mapstructure:"headers"`
 }
 
 // OAuthConfig contains third-party OAuth provider settings.
@@ -158,8 +179,16 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.public_key_path", "./configs/jwt_public.pem")
 	v.SetDefault("jwt.active_key_id", "default")
 	v.SetDefault("wallet.nonce_ttl", "5m")
+	v.SetDefault("phone.enabled", true)
 	v.SetDefault("phone.code_ttl", "5m")
 	v.SetDefault("phone.dev_code", "123456")
+	v.SetDefault("phone.expose_dev_code", true)
+	v.SetDefault("phone.provider.type", "noop")
+	v.SetDefault("email.verification_enabled", true)
+	v.SetDefault("email.code_ttl", "15m")
+	v.SetDefault("email.dev_code", "123456")
+	v.SetDefault("email.expose_dev_code", true)
+	v.SetDefault("email.provider.type", "noop")
 	v.SetDefault("oauth.state_ttl", "10m")
 	v.SetDefault("oauth.google.auth_url", "https://accounts.google.com/o/oauth2/v2/auth")
 	v.SetDefault("oauth.google.token_url", "https://oauth2.googleapis.com/token")

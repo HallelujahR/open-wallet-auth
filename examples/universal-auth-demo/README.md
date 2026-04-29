@@ -8,6 +8,7 @@ It is designed to show how a product frontend can wire multiple login methods in
 
 - Email registration
 - Email login
+- Email verification code
 - Phone code login with the local development code
 - EVM wallet login
 - Wallet provider selection through EIP-6963 when the browser exposes multiple wallets
@@ -42,4 +43,4 @@ http://localhost:8081
 
 The Codex in-app browser cannot load wallet extensions, so wallet login must be tested in a normal browser with MetaMask or another EIP-1193 wallet installed.
 
-For local phone login, the default development code is `123456`.
+For local phone and email verification, the default development code is `123456`.

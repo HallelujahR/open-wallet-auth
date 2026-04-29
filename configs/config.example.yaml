@@ -43,8 +43,26 @@ wallet:
   nonce_ttl: 5m
 
 phone:
+  enabled: true
   code_ttl: 5m
   dev_code: "123456"
+  expose_dev_code: true
+  provider:
+    type: noop
+    webhook_url: ""
+    bearer_token: ""
+    headers: {}
+
+email:
+  verification_enabled: true
+  code_ttl: 15m
+  dev_code: "123456"
+  expose_dev_code: true
+  provider:
+    type: noop
+    webhook_url: ""
+    bearer_token: ""
+    headers: {}
 
 oauth:
   state_ttl: 10m
