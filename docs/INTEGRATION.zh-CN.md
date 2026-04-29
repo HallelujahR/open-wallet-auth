@@ -37,6 +37,10 @@ Business API
 
 Go/Gin 后端可以参考：[Gin API JWT 校验示例](../examples/gin-api)。
 
+通用前端可以参考：[通用认证前端 Demo](../examples/universal-auth-demo)。当前后端已支持邮箱密码和钱包登录；手机号、Google、GitHub 是预留接入位，前端 Demo 中展示了建议的调用入口，后端接口需要后续实现。
+
+钱包登录是否需要让用户自选钱包：建议需要。现代浏览器可能同时安装 MetaMask、Rabby、OKX Wallet 等多个 EIP-1193 钱包。Demo 支持 EIP-6963 多钱包发现，能发现多个钱包时让用户选择；如果只发现一个注入钱包，则自动使用默认钱包。
+
 示例里的业务接口不会每次请求都回调认证服务，而是通过 `/.well-known/jwks.json` 拉取公钥，在本地校验：
 
 - JWT 签名

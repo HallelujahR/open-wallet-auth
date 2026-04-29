@@ -38,6 +38,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for project layout and dependen
 ## Integration
 
 - [Chinese integration guide](docs/INTEGRATION.zh-CN.md)
+- [Universal auth frontend demo](examples/universal-auth-demo)
 - [Browser wallet login example](examples/browser-wallet-login)
 - [Gin API JWT verification example](examples/gin-api)
 

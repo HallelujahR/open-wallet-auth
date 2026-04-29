@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open Wallet Auth Universal Demo</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        background: #eef2f7;
+        color: #152033;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 24px;
+      }
+
+      main {
+        width: min(1120px, 100%);
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(320px, 420px) minmax(320px, 1fr);
+        gap: 18px;
+      }
+
+      section,
+      aside {
+        background: #ffffff;
+        border: 1px solid #d8dee8;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 10px 28px rgb(20 32 50 / 7%);
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        line-height: 1.2;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      h2 {
+        font-size: 16px;
+        margin-bottom: 12px;
+      }
+
+      .muted {
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .settings {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 18px 0;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        margin: 12px 0;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #c8d1df;
+        border-radius: 6px;
+        padding: 10px 11px;
+        font: inherit;
+        background: #ffffff;
+        color: inherit;
+      }
+
+      textarea {
+        min-height: 116px;
+        resize: vertical;
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        border: 1px solid #c8d1df;
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 16px 0;
+      }
+
+      .tab {
+        border: 0;
+        border-right: 1px solid #c8d1df;
+        background: #f8fafc;
+        color: #334155;
+        padding: 10px 8px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .tab:last-child {
+        border-right: 0;
+      }
+
+      .tab.active {
+        background: #1459b8;
+        color: #ffffff;
+      }
+
+      .panel {
+        display: none;
+      }
+
+      .panel.active {
+        display: block;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+
+      button.action {
+        border: 0;
+        border-radius: 6px;
+        padding: 10px 14px;
+        background: #1459b8;
+        color: #ffffff;
+        font: inherit;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: #334155;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.65;
+      }
+
+      pre {
+        overflow: auto;
+        border-radius: 6px;
+        background: #111827;
+        color: #dbeafe;
+        padding: 14px;
+        min-height: 180px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .token-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      @media (max-width: 860px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+
+        .tabs,
+        .settings {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          background: #101827;
+          color: #f8fafc;
+        }
+
+        section,
+        aside {
+          background: #172033;
+          border-color: #2f3b4f;
+        }
+
+        input,
+        select,
+        textarea,
+        .tabs {
+          background: #111827;
+          border-color: #334155;
+        }
+
+        .tab {
+          background: #1f2937;
+          border-color: #334155;
+          color: #dbeafe;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1>Open Wallet Auth Universal Demo</h1>
+        <p class="muted">
+          Configure the auth service once, then test email login, wallet login,
+          and planned social/phone entry points from the same page.
+        </p>
+
+        <div class="settings">
+          <label>
+            Auth Base URL
+            <input id="authBaseURL" value="http://localhost:8081" />
+          </label>
+          <label>
+            Client ID
+            <input id="clientID" value="default" />
+          </label>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Login methods">
+          <button class="tab active" data-tab="email" type="button">Email</button>
+          <button class="tab" data-tab="phone" type="button">Phone</button>
+          <button class="tab" data-tab="google" type="button">Google</button>
+          <button class="tab" data-tab="github" type="button">GitHub</button>
+          <button class="tab" data-tab="wallet" type="button">Wallet</button>
+        </div>
+
+        <div class="panel active" id="panel-email">
+          <h2>Email Login</h2>
+          <label>
+            Username
+            <input id="emailUsername" value="alice" />
+          </label>
+          <label>
+            Email
+            <input id="email" type="email" value="alice@example.com" />
+          </label>
+          <label>
+            Password
+            <input id="password" type="password" value="password123" />
+          </label>
+          <div class="actions">
+            <button class="action" id="registerEmail" type="button">
+              Register
+            </button>
+            <button class="action secondary" id="loginEmail" type="button">
+              Login
+            </button>
+          </div>
+        </div>
+
+        <div class="panel" id="panel-phone">
+          <h2>Phone Login</h2>
+          <p class="muted">
+            This UI shows the expected developer contract. Backend SMS code
+            endpoints are not implemented yet.
+          </p>
+          <label>
+            Phone
+            <input id="phone" inputmode="tel" value="+8613800000000" />
+          </label>
+          <label>
+            Code
+            <input id="phoneCode" inputmode="numeric" value="123456" />
+          </label>
+          <div class="actions">
+            <button class="action" id="sendPhoneCode" type="button">
+              Send Code
+            </button>
+            <button class="action secondary" id="loginPhone" type="button">
+              Login
+            </button>
+          </div>
+        </div>
+
+        <div class="panel" id="panel-google">
+          <h2>Google Login</h2>
+          <p class="muted">
+            OAuth redirect endpoints are planned. The button below builds the
+            conventional start URL for frontend integration review.
+          </p>
+          <label>
+            Redirect URI
+            <input id="googleRedirectURI" />
+          </label>
+          <div class="actions">
+            <button class="action" id="startGoogle" type="button">
+              Start Google OAuth
+            </button>
+          </div>
+        </div>
+
+        <div class="panel" id="panel-github">
+          <h2>GitHub Login</h2>
+          <p class="muted">
+            OAuth redirect endpoints are planned. The button below builds the
+            conventional start URL for frontend integration review.
+          </p>
+          <label>
+            Redirect URI
+            <input id="githubRedirectURI" />
+          </label>
+          <div class="actions">
+            <button class="action" id="startGitHub" type="button">
+              Start GitHub OAuth
+            </button>
+          </div>
+        </div>
+
+        <div class="panel" id="panel-wallet">
+          <h2>Wallet Login</h2>
+          <p class="muted">
+            If multiple wallets expose EIP-6963 providers, choose one from the
+            selector. Otherwise the demo uses the browser's default injected
+            wallet.
+          </p>
+          <label>
+            Wallet Provider
+            <select id="walletProvider"></select>
+          </label>
+          <label>
+            Chain ID
+            <input id="chainID" value="1" inputmode="numeric" />
+          </label>
+          <label>
+            Signed Message
+            <textarea id="signedMessage" readonly></textarea>
+          </label>
+          <div class="actions">
+            <button class="action" id="refreshWallets" type="button">
+              Refresh Wallets
+            </button>
+            <button class="action secondary" id="loginWallet" type="button">
+              Connect Wallet
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <aside>
+        <h2>Session</h2>
+        <div class="token-grid">
+          <label>
+            Access Token
+            <textarea id="accessToken" readonly></textarea>
+          </label>
+          <label>
+            Refresh Token
+            <textarea id="refreshToken" readonly></textarea>
+          </label>
+        </div>
+        <div class="actions">
+          <button class="action" id="loadMe" type="button">Load /me</button>
+          <button class="action secondary" id="clearSession" type="button">
+            Clear
+          </button>
+        </div>
+        <label>
+          Result
+          <pre id="result">Ready.</pre>
+        </label>
+      </aside>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const walletProviders = new Map();
+
+      $("googleRedirectURI").value = window.location.href;
+      $("githubRedirectURI").value = window.location.href;
+      restoreSession();
+      bindTabs();
+      bindActions();
+      discoverWallets();
+
+      window.addEventListener("eip6963:announceProvider", (event) => {
+        const detail = event.detail;
+        if (!detail || !detail.info || !detail.provider) {
+          return;
+        }
+        walletProviders.set(detail.info.uuid, detail);
+        renderWalletProviders();
+      });
+
+      function bindTabs() {
+        document.querySelectorAll(".tab").forEach((tab) => {
+          tab.addEventListener("click", () => {
+            document
+              .querySelectorAll(".tab")
+              .forEach((item) => item.classList.remove("active"));
+            document
+              .querySelectorAll(".panel")
+              .forEach((item) => item.classList.remove("active"));
+            tab.classList.add("active");
+            $(`panel-${tab.dataset.tab}`).classList.add("active");
+          });
+        });
+      }
+
+      function bindActions() {
+        $("registerEmail").addEventListener("click", () => run(registerEmail));
+        $("loginEmail").addEventListener("click", () => run(loginEmail));
+        $("sendPhoneCode").addEventListener("click", plannedPhoneCode);
+        $("loginPhone").addEventListener("click", plannedPhoneLogin);
+        $("startGoogle").addEventListener("click", () => plannedOAuth("google"));
+        $("startGitHub").addEventListener("click", () => plannedOAuth("github"));
+        $("refreshWallets").addEventListener("click", discoverWallets);
+        $("loginWallet").addEventListener("click", () => run(walletLogin));
+        $("loadMe").addEventListener("click", () => run(loadMe));
+        $("clearSession").addEventListener("click", clearSession);
+      }
+
+      function authBaseURL() {
+        return $("authBaseURL").value.replace(/\/$/, "");
+      }
+
+      function clientID() {
+        return $("clientID").value.trim() || "default";
+      }
+
+      async function registerEmail() {
+        const data = await postJSON("/api/v1/auth/register", {
+          client_id: clientID(),
+          username: $("emailUsername").value.trim(),
+          email: $("email").value.trim(),
+          password: $("password").value,
+        });
+        saveSession(data);
+        writeResult(data);
+      }
+
+      async function loginEmail() {
+        const data = await postJSON("/api/v1/auth/login", {
+          client_id: clientID(),
+          email: $("email").value.trim(),
+          password: $("password").value,
+        });
+        saveSession(data);
+        writeResult(data);
+      }
+
+      async function walletLogin() {
+        const provider = selectedWalletProvider();
+        if (!provider) {
+          throw new Error(
+            "No EIP-1193 wallet found. Open this page in Chrome with MetaMask or another wallet extension.",
+          );
+        }
+
+        const [address] = await provider.request({
+          method: "eth_requestAccounts",
+        });
+        const nonceData = await postJSON("/api/v1/wallet/nonce", {
+          address,
+          domain: window.location.host || "localhost",
+          chain_id: Number($("chainID").value || 1),
+        });
+        $("signedMessage").value = nonceData.message;
+
+        const signature = await provider.request({
+          method: "personal_sign",
+          params: [nonceData.message, address],
+        });
+
+        const data = await postJSON("/api/v1/wallet/verify", {
+          client_id: clientID(),
+          address,
+          nonce: nonceData.nonce,
+          signature,
+        });
+        saveSession(data);
+        writeResult(data);
+      }
+
+      async function loadMe() {
+        const token = $("accessToken").value.trim();
+        if (!token) {
+          throw new Error("No access token. Login first.");
+        }
+        const data = await getJSON(
+          `/api/v1/auth/me?client_id=${encodeURIComponent(clientID())}`,
+          token,
+        );
+        writeResult(data);
+      }
+
+      function plannedPhoneCode() {
+        writeResult({
+          status: "planned",
+          endpoint: "POST /api/v1/phone/code",
+          request: {
+            client_id: clientID(),
+            phone: $("phone").value.trim(),
+          },
+        });
+      }
+
+      function plannedPhoneLogin() {
+        writeResult({
+          status: "planned",
+          endpoint: "POST /api/v1/phone/login",
+          request: {
+            client_id: clientID(),
+            phone: $("phone").value.trim(),
+            code: $("phoneCode").value.trim(),
+          },
+        });
+      }
+
+      function plannedOAuth(provider) {
+        const redirect =
+          provider === "google"
+            ? $("googleRedirectURI").value.trim()
+            : $("githubRedirectURI").value.trim();
+        const url = `${authBaseURL()}/api/v1/oauth/${provider}/start?client_id=${encodeURIComponent(
+          clientID(),
+        )}&redirect_uri=${encodeURIComponent(redirect)}`;
+        writeResult({
+          status: "planned",
+          provider,
+          start_url: url,
+        });
+      }
+
+      async function postJSON(path, body) {
+        const response = await fetch(`${authBaseURL()}${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const payload = await response.json();
+        if (!response.ok || payload.code !== "OK") {
+          throw new Error(payload.message || `Request failed: ${response.status}`);
+        }
+        return payload.data;
+      }
+
+      async function getJSON(path, token) {
+        const response = await fetch(`${authBaseURL()}${path}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = await response.json();
+        if (!response.ok || payload.code !== "OK") {
+          throw new Error(payload.message || `Request failed: ${response.status}`);
+        }
+        return payload.data;
+      }
+
+      function discoverWallets() {
+        walletProviders.clear();
+        if (window.ethereum) {
+          walletProviders.set("injected", {
+            info: { uuid: "injected", name: walletName(window.ethereum) },
+            provider: window.ethereum,
+          });
+        }
+        window.dispatchEvent(new Event("eip6963:requestProvider"));
+        renderWalletProviders();
+      }
+
+      function renderWalletProviders() {
+        const select = $("walletProvider");
+        select.innerHTML = "";
+        if (walletProviders.size === 0) {
+          const option = document.createElement("option");
+          option.value = "";
+          option.textContent = "No wallet detected";
+          select.appendChild(option);
+          return;
+        }
+        walletProviders.forEach((detail, uuid) => {
+          const option = document.createElement("option");
+          option.value = uuid;
+          option.textContent = detail.info.name || uuid;
+          select.appendChild(option);
+        });
+      }
+
+      function selectedWalletProvider() {
+        const selected = walletProviders.get($("walletProvider").value);
+        if (selected) {
+          return selected.provider;
+        }
+        return window.ethereum || null;
+      }
+
+      function walletName(provider) {
+        if (provider && provider.isMetaMask) {
+          return "MetaMask";
+        }
+        return "Injected Wallet";
+      }
+
+      async function run(task) {
+        setBusy(true);
+        writeResult("Working...");
+        try {
+          await task();
+        } catch (error) {
+          writeResult(error.message);
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      function saveSession(data) {
+        if (!data || !data.token) {
+          return;
+        }
+        $("accessToken").value = data.token.access_token || "";
+        $("refreshToken").value = data.token.refresh_token || "";
+        localStorage.setItem("owa_access_token", $("accessToken").value);
+        localStorage.setItem("owa_refresh_token", $("refreshToken").value);
+      }
+
+      function restoreSession() {
+        $("accessToken").value = localStorage.getItem("owa_access_token") || "";
+        $("refreshToken").value =
+          localStorage.getItem("owa_refresh_token") || "";
+      }
+
+      function clearSession() {
+        localStorage.removeItem("owa_access_token");
+        localStorage.removeItem("owa_refresh_token");
+        $("accessToken").value = "";
+        $("refreshToken").value = "";
+        $("signedMessage").value = "";
+        writeResult("Session cleared.");
+      }
+
+      function setBusy(busy) {
+        document.querySelectorAll("button").forEach((button) => {
+          button.disabled = busy;
+        });
+      }
+
+      function writeResult(value) {
+        $("result").textContent =
+          typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      }
+    </script>
+  </body>
+</html>
