@@ -1,26 +1,54 @@
 # Open Wallet Auth
 
-Open Wallet Auth 是一个独立、开源、自托管的 Web2 + Web3 统一认证服务。
+[English](README.md)
 
-目标能力：
+Open Wallet Auth 是一个自托管的 Web2 + Web3 统一认证服务，适合需要账号密码登录、钱包签名登录、JWT/JWKS、多系统共享身份的应用。
 
-- 账号密码登录
-- 钱包签名登录
-- JWT / JWKS
-- 多应用共享登录身份
-- 用户与钱包地址绑定
+认证服务只负责认证、签发 Token、暴露 JWKS。你的业务系统仍然保留自己的用户资料、权限、订单、内容和业务数据。
+
+## 功能
+
+- 邮箱密码注册和登录
+- EVM 钱包签名登录，返回 SIWE-compatible 签名消息
+- RS256 签名的 JWT access token
+- JWKS 公钥端点，业务系统可以本地校验 token
+- Refresh token 持久化和轮换
+- 通过 `client_id` 和 JWT audience 支持多系统接入
+- 登录日志和用户-系统关系记录
+- 浏览器 CORS 配置
+- 浏览器钱包登录示例
+- Gin API JWT 校验示例
+
+## 当前状态
+
+项目处于早期开发阶段，适合做本地接入测试和架构验证。生产使用前还需要继续补安全加固，例如限流、失败登录审计、正式迁移流程、更完整的管理 API。
+
+## 架构
+
+项目采用 Clean Architecture 思路，明确区分：
+
+- HTTP delivery
+- usecase
+- domain model
+- repository interface
+- infrastructure adapter
 
 架构说明见：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
-接入说明：
+## 接入
 
 - [接入指南](docs/INTEGRATION.zh-CN.md)
 - [浏览器钱包登录示例](examples/browser-wallet-login)
 - [Gin API JWT 校验示例](examples/gin-api)
 
-## 当前状态
+典型接入流程：
 
-项目处于早期开发阶段。
+1. 为业务系统创建一个 client。
+2. 前端请求钱包 nonce。
+3. 调用钱包对返回的 message 签名。
+4. 用签名换取 access token 和 refresh token。
+5. 业务后端通过 JWKS 本地校验 access token。
+6. 业务库使用 JWT 的 `sub` 作为 `auth_user_id` 关联本地用户资料。
 
 ## 快速启动
 
@@ -41,6 +69,8 @@ JWKS 公钥：
 ```bash
 curl http://localhost:8080/.well-known/jwks.json
 ```
+
+## API 示例
 
 账号注册：
 
@@ -90,7 +120,7 @@ curl -X POST http://localhost:8080/api/v1/clients \
   -d '{"client_id":"example-app","name":"Example App"}'
 ```
 
-钱包 nonce：
+创建钱包 nonce：
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/wallet/nonce \
@@ -98,10 +128,43 @@ curl -X POST http://localhost:8080/api/v1/wallet/nonce \
   -d '{"address":"0x0000000000000000000000000000000000000001","domain":"example.com","chain_id":1}'
 ```
 
-钱包登录：
+校验钱包签名：
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/wallet/verify \
   -H 'Content-Type: application/json' \
   -d '{"client_id":"default","address":"<wallet_address>","nonce":"<nonce>","signature":"<signature>"}'
 ```
+
+## 配置
+
+示例配置在 [configs/config.example.yaml](configs/config.example.yaml)。
+
+关键配置：
+
+- `database.dsn`：PostgreSQL 连接地址
+- `jwt.issuer`：JWT issuer，业务系统校验 token 时需要匹配
+- `jwt.private_key_path`：RSA 私钥路径
+- `jwt.public_key_path`：RSA 公钥路径
+- `wallet.nonce_ttl`：钱包签名挑战有效期
+- `management.admin_token`：开发期管理接口 token
+- `http.cors_allowed_origins`：允许调用认证服务的浏览器来源
+
+## 测试
+
+```bash
+CGO_ENABLED=0 go test ./...
+CGO_ENABLED=0 go vet ./...
+CGO_ENABLED=0 go build ./cmd/server
+```
+
+## 后续计划
+
+- 登录和 nonce 接口限流
+- 失败登录审计
+- 生产环境迁移命令
+- 钱包绑定和解绑 API
+- 密码账号和钱包账号合并
+- 用户和钱包管理 API
+- 更正式的管理后台权限模型
+- 更多框架接入示例
