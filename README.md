@@ -40,6 +40,22 @@ JWKS:
 curl http://localhost:8080/.well-known/jwks.json
 ```
 
+Wallet nonce:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/wallet/nonce \
+  -H 'Content-Type: application/json' \
+  -d '{"address":"0x0000000000000000000000000000000000000001","domain":"example.com","chain_id":1}'
+```
+
+Wallet login:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/wallet/verify \
+  -H 'Content-Type: application/json' \
+  -d '{"client_id":"default","address":"<wallet_address>","nonce":"<nonce>","signature":"<signature>"}'
+```
+
 Refresh token:
 
 ```bash
@@ -62,7 +78,7 @@ curl -X POST http://localhost:8080/api/v1/clients \
 - Password login
 - JWT RS256 and JWKS
 - Refresh token rotation
-- EVM wallet SIWE login
+- EVM wallet SIWE-compatible login
 - Multi-client audience support
 - Go Gin integration example
 - NestJS integration example

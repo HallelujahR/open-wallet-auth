@@ -12,14 +12,17 @@ import (
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/handler"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/router"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/clock"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/config"
 	infrahash "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/crypto"
 	infrajwt "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/jwt"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres/model"
 	pgrepo "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres/repository"
+	infrawallet "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/wallet"
 	authusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/auth"
 	clientusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/client"
+	walletusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/wallet"
 )
 
 // Application owns process-level dependencies and lifecycle.
@@ -45,7 +48,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	}
 
 	if cfg.Database.AutoMigrate {
-		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.RefreshToken{}, &model.LoginLog{}, &model.UserClient{}); err != nil {
+		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.UserWallet{}, &model.WalletNonce{}, &model.RefreshToken{}, &model.LoginLog{}, &model.UserClient{}); err != nil {
 			return nil, fmt.Errorf("auto migrate database: %w", err)
 		}
 	}
@@ -54,6 +57,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	clientRepo := pgrepo.NewClientRepository(db)
 	refreshTokenRepo := pgrepo.NewRefreshTokenRepository(db)
 	activityRepo := pgrepo.NewActivityRepository(db)
+	walletRepo := pgrepo.NewWalletRepository(db)
 	if err := clientRepo.EnsureDefault(context.Background()); err != nil {
 		return nil, fmt.Errorf("ensure default client: %w", err)
 	}
@@ -66,11 +70,24 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	}
 	authService := authusecase.NewService(userRepo, clientRepo, refreshTokenRepo, activityRepo, hasher, tokenHasher, tokenIssuer)
 	clientService := clientusecase.NewService(clientRepo)
+	walletService := walletusecase.NewService(walletusecase.Dependencies{
+		Wallets:       walletRepo,
+		Users:         userRepo,
+		Clients:       clientRepo,
+		RefreshTokens: refreshTokenRepo,
+		Activity:      activityRepo,
+		Verifier:      infrawallet.NewEVMVerifier(),
+		TokenHasher:   tokenHasher,
+		Issuer:        tokenIssuer,
+		NonceTTL:      cfg.Wallet.NonceTTL,
+		Clock:         clock.SystemClock{},
+	})
 
 	engine := router.New(router.Dependencies{
 		Config:           cfg,
 		Logger:           logger,
 		Auth:             handler.NewAuthHandler(authService),
+		Wallet:           handler.NewWalletHandler(walletService),
 		Client:           handler.NewClientHandler(clientService),
 		Token:            tokenIssuer,
 		AudienceResolver: clientService,

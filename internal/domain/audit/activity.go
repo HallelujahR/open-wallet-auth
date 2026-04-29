@@ -8,6 +8,7 @@ type LoginMethod string
 const (
 	LoginMethodPassword LoginMethod = "password"
 	LoginMethodRefresh  LoginMethod = "refresh"
+	LoginMethodWallet   LoginMethod = "wallet"
 )
 
 // LoginLog records one authentication attempt.

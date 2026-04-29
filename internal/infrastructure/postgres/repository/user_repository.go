@@ -52,7 +52,7 @@ func (r *UserRepository) Create(ctx context.Context, u *domainuser.User) error {
 	row := model.User{
 		ID:           u.ID,
 		Username:     u.Username,
-		Email:        u.Email,
+		Email:        stringPtrOrNil(u.Email),
 		Phone:        stringPtrOrNil(u.Phone),
 		PasswordHash: u.PasswordHash,
 		Avatar:       u.Avatar,
@@ -75,7 +75,7 @@ func toDomainUser(row model.User) *domainuser.User {
 	return &domainuser.User{
 		ID:           row.ID,
 		Username:     row.Username,
-		Email:        row.Email,
+		Email:        stringValue(row.Email),
 		Phone:        stringValue(row.Phone),
 		PasswordHash: row.PasswordHash,
 		Avatar:       row.Avatar,

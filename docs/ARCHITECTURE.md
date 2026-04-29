@@ -48,8 +48,10 @@ examples
 ## Current Boundaries
 
 - Password auth lives in `internal/usecase/auth`.
+- Wallet auth lives in `internal/usecase/wallet`; EVM address and signature details are isolated in `internal/infrastructure/wallet`.
 - Client management and dynamic audience resolution live in `internal/usecase/client`.
 - Refresh token persistence is behind `repository.RefreshTokenRepository`.
+- Wallet bindings and one-time challenges are behind `repository.WalletRepository`.
 - Login activity and user-client tracking are behind `repository.ActivityRepository`.
 - JWT signing, verification, and JWKS generation live in `internal/infrastructure/jwt`.
 - HTTP handlers do not access the database directly.
@@ -57,5 +59,5 @@ examples
 ## Known Gaps
 
 - Refresh token rotation should be made transactional as the repository layer matures.
-- Failed login auditing is still pending; current activity recording covers successful registration, login, and refresh flows.
+- Failed login auditing is still pending; current activity recording covers successful registration, login, refresh, and wallet login flows.
 - Client management is protected by `X-Admin-Token`; a first-class admin/RBAC model is still pending.

@@ -15,6 +15,7 @@ type Config struct {
 	Database   DatabaseConfig   `mapstructure:"database"`
 	Redis      RedisConfig      `mapstructure:"redis"`
 	JWT        JWTConfig        `mapstructure:"jwt"`
+	Wallet     WalletConfig     `mapstructure:"wallet"`
 	Management ManagementConfig `mapstructure:"management"`
 }
 
@@ -65,6 +66,11 @@ type JWTConfig struct {
 	PrivateKeyPath  string        `mapstructure:"private_key_path"`
 	PublicKeyPath   string        `mapstructure:"public_key_path"`
 	ActiveKeyID     string        `mapstructure:"active_key_id"`
+}
+
+// WalletConfig contains wallet authentication settings.
+type WalletConfig struct {
+	NonceTTL time.Duration `mapstructure:"nonce_ttl"`
 }
 
 // ManagementConfig contains settings for management-only APIs.
@@ -124,5 +130,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.private_key_path", "./configs/jwt_private.pem")
 	v.SetDefault("jwt.public_key_path", "./configs/jwt_public.pem")
 	v.SetDefault("jwt.active_key_id", "default")
+	v.SetDefault("wallet.nonce_ttl", "5m")
 	v.SetDefault("management.admin_token", "")
 }

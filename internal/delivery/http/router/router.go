@@ -13,6 +13,7 @@ type Dependencies struct {
 	Config           *config.Config
 	Logger           *zap.Logger
 	Auth             *handler.AuthHandler
+	Wallet           *handler.WalletHandler
 	Client           *handler.ClientHandler
 	Token            middleware.TokenVerifier
 	AudienceResolver middleware.ClientAudienceResolver
@@ -52,6 +53,13 @@ func New(deps Dependencies) *gin.Engine {
 				if deps.Token != nil && deps.AudienceResolver != nil {
 					auth.GET("/me", middleware.AuthenticateClient(deps.Token, deps.AudienceResolver), deps.Auth.Me)
 				}
+			}
+		}
+		if deps.Wallet != nil {
+			wallet := v1.Group("/wallet")
+			{
+				wallet.POST("/nonce", deps.Wallet.Nonce)
+				wallet.POST("/verify", deps.Wallet.Verify)
 			}
 		}
 		if deps.Client != nil {

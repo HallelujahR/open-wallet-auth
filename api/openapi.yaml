@@ -45,6 +45,30 @@ paths:
       responses:
         "200":
           description: Current user
+  /api/v1/wallet/nonce:
+    post:
+      summary: Create a SIWE-compatible wallet login challenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletNonceRequest"
+      responses:
+        "200":
+          description: Wallet nonce and message
+  /api/v1/wallet/verify:
+    post:
+      summary: Verify a wallet signature and issue a token pair
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletVerifyRequest"
+      responses:
+        "200":
+          description: Logged in with wallet
   /.well-known/jwks.json:
     get:
       summary: JSON Web Key Set
@@ -62,3 +86,33 @@ paths:
       responses:
         "200":
           description: Created client
+components:
+  schemas:
+    WalletNonceRequest:
+      type: object
+      required:
+        - address
+        - domain
+      properties:
+        address:
+          type: string
+        domain:
+          type: string
+        chain_id:
+          type: integer
+          format: int64
+    WalletVerifyRequest:
+      type: object
+      required:
+        - address
+        - nonce
+        - signature
+      properties:
+        client_id:
+          type: string
+        address:
+          type: string
+        nonce:
+          type: string
+        signature:
+          type: string
