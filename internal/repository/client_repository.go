@@ -9,4 +9,6 @@ import (
 // ClientRepository defines persistence operations for application clients.
 type ClientRepository interface {
 	FindByClientID(ctx context.Context, clientID string) (*client.Client, error)
+	Create(ctx context.Context, client *client.Client) error
+	List(ctx context.Context) ([]client.Client, error)
 }

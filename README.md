@@ -48,6 +48,15 @@ curl -X POST http://localhost:8080/api/v1/auth/refresh \
   -d '{"refresh_token":"<refresh_token>"}'
 ```
 
+Create a client:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/clients \
+  -H 'Content-Type: application/json' \
+  -H 'X-Admin-Token: dev-admin-token' \
+  -d '{"client_id":"example-app","name":"Example App"}'
+```
+
 ## Roadmap
 
 - Password login

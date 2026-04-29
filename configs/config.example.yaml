@@ -34,3 +34,6 @@ jwt:
   private_key_path: ./configs/jwt_private.pem
   public_key_path: ./configs/jwt_public.pem
   active_key_id: default
+
+management:
+  admin_token: dev-admin-token

@@ -16,6 +16,10 @@ type TokenVerifier interface {
 	Verify(ctx context.Context, tokenString string, audience string) (*token.Claims, error)
 }
 
+type ClientAudienceResolver interface {
+	ResolveAudience(ctx context.Context, clientID string) (string, error)
+}
+
 // Authenticate validates a Bearer token and stores claims in the request context.
 func Authenticate(verifier TokenVerifier, audience string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -42,5 +46,27 @@ func Authenticate(verifier TokenVerifier, audience string) gin.HandlerFunc {
 
 		c.Set(contextkey.AuthClaims, claims)
 		c.Next()
+	}
+}
+
+// AuthenticateClient validates a token against the audience of the requested client.
+func AuthenticateClient(verifier TokenVerifier, resolver ClientAudienceResolver) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		clientID := c.GetHeader("X-Client-ID")
+		if clientID == "" {
+			clientID = c.Query("client_id")
+		}
+		if clientID == "" {
+			clientID = "default"
+		}
+
+		audience, err := resolver.ResolveAudience(c.Request.Context(), clientID)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "CLIENT_INVALID", "invalid client")
+			c.Abort()
+			return
+		}
+
+		Authenticate(verifier, audience)(c)
 	}
 }

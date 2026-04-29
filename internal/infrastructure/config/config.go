@@ -9,12 +9,13 @@ import (
 
 // Config contains all runtime configuration.
 type Config struct {
-	App      AppConfig      `mapstructure:"app"`
-	HTTP     HTTPConfig     `mapstructure:"http"`
-	Log      LogConfig      `mapstructure:"log"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Redis    RedisConfig    `mapstructure:"redis"`
-	JWT      JWTConfig      `mapstructure:"jwt"`
+	App        AppConfig        `mapstructure:"app"`
+	HTTP       HTTPConfig       `mapstructure:"http"`
+	Log        LogConfig        `mapstructure:"log"`
+	Database   DatabaseConfig   `mapstructure:"database"`
+	Redis      RedisConfig      `mapstructure:"redis"`
+	JWT        JWTConfig        `mapstructure:"jwt"`
+	Management ManagementConfig `mapstructure:"management"`
 }
 
 // AppConfig contains service identity settings.
@@ -64,6 +65,11 @@ type JWTConfig struct {
 	PrivateKeyPath  string        `mapstructure:"private_key_path"`
 	PublicKeyPath   string        `mapstructure:"public_key_path"`
 	ActiveKeyID     string        `mapstructure:"active_key_id"`
+}
+
+// ManagementConfig contains settings for management-only APIs.
+type ManagementConfig struct {
+	AdminToken string `mapstructure:"admin_token"`
 }
 
 // Load reads configuration from defaults, config files, and environment variables.
@@ -118,4 +124,5 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.private_key_path", "./configs/jwt_private.pem")
 	v.SetDefault("jwt.public_key_path", "./configs/jwt_public.pem")
 	v.SetDefault("jwt.active_key_id", "default")
+	v.SetDefault("management.admin_token", "")
 }

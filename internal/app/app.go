@@ -19,6 +19,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres/model"
 	pgrepo "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres/repository"
 	authusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/auth"
+	clientusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/client"
 )
 
 // Application owns process-level dependencies and lifecycle.
@@ -63,13 +64,17 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 		return nil, fmt.Errorf("initialize jwt service: %w", err)
 	}
 	authService := authusecase.NewService(userRepo, clientRepo, refreshTokenRepo, hasher, tokenHasher, tokenIssuer)
+	clientService := clientusecase.NewService(clientRepo)
 
 	engine := router.New(router.Dependencies{
-		Config: cfg,
-		Logger: logger,
-		Auth:   handler.NewAuthHandler(authService),
-		Token:  tokenIssuer,
-		JWKS:   handler.NewJWKSHandler(tokenIssuer),
+		Config:           cfg,
+		Logger:           logger,
+		Auth:             handler.NewAuthHandler(authService),
+		Client:           handler.NewClientHandler(clientService),
+		Token:            tokenIssuer,
+		AudienceResolver: clientService,
+		JWKS:             handler.NewJWKSHandler(tokenIssuer),
+		AdminToken:       cfg.Management.AdminToken,
 	})
 
 	server := &http.Server{

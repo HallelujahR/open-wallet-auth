@@ -220,6 +220,19 @@ func (m *memoryClients) FindByClientID(ctx context.Context, clientID string) (*c
 	return c, nil
 }
 
+func (m *memoryClients) Create(ctx context.Context, c *client.Client) error {
+	m.byClientID[c.ClientID] = c
+	return nil
+}
+
+func (m *memoryClients) List(ctx context.Context) ([]client.Client, error) {
+	clients := make([]client.Client, 0, len(m.byClientID))
+	for _, c := range m.byClientID {
+		clients = append(clients, *c)
+	}
+	return clients, nil
+}
+
 type fakeHasher struct{}
 
 func (fakeHasher) Hash(plain string) (string, error) {

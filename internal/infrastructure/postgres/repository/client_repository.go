@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
@@ -29,6 +30,56 @@ func (r *ClientRepository) FindByClientID(ctx context.Context, clientID string) 
 		return nil, mapGormError(err)
 	}
 	return toDomainClient(row), nil
+}
+
+func (r *ClientRepository) Create(ctx context.Context, c *client.Client) error {
+	now := time.Now().UTC()
+	if c.ID == "" {
+		c.ID = "cli_" + uuid.NewString()
+	}
+	if c.JWTAudience == "" {
+		c.JWTAudience = c.ClientID
+	}
+	if c.Status == "" {
+		c.Status = client.StatusActive
+	}
+	c.CreatedAt = now
+	c.UpdatedAt = now
+
+	origins, err := json.Marshal(c.AllowedOrigins)
+	if err != nil {
+		return err
+	}
+	redirectURIs, err := json.Marshal(c.AllowedRedirectURIs)
+	if err != nil {
+		return err
+	}
+
+	row := model.Client{
+		ID:                  c.ID,
+		ClientID:            c.ClientID,
+		Name:                c.Name,
+		JWTAudience:         c.JWTAudience,
+		AllowedOrigins:      datatypes.JSON(origins),
+		AllowedRedirectURIs: datatypes.JSON(redirectURIs),
+		Status:              string(c.Status),
+		CreatedAt:           c.CreatedAt,
+		UpdatedAt:           c.UpdatedAt,
+	}
+	return r.db.WithContext(ctx).Create(&row).Error
+}
+
+func (r *ClientRepository) List(ctx context.Context) ([]client.Client, error) {
+	var rows []model.Client
+	if err := r.db.WithContext(ctx).Order("created_at DESC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	clients := make([]client.Client, 0, len(rows))
+	for _, row := range rows {
+		clients = append(clients, *toDomainClient(row))
+	}
+	return clients, nil
 }
 
 // EnsureDefault creates a default client for local development and first boot.

@@ -74,3 +74,12 @@ curl -X POST http://localhost:8080/api/v1/auth/logout \
   -H 'Content-Type: application/json' \
   -d '{"refresh_token":"<refresh_token>"}'
 ```
+
+创建接入应用：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/clients \
+  -H 'Content-Type: application/json' \
+  -H 'X-Admin-Token: dev-admin-token' \
+  -d '{"client_id":"example-app","name":"Example App"}'
+```

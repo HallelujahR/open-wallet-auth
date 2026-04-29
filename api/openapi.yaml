@@ -51,3 +51,14 @@ paths:
       responses:
         "200":
           description: Public signing keys
+  /api/v1/clients:
+    get:
+      summary: List application clients
+      responses:
+        "200":
+          description: Client list
+    post:
+      summary: Create an application client
+      responses:
+        "200":
+          description: Created client

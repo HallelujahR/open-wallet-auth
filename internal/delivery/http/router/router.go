@@ -10,11 +10,14 @@ import (
 )
 
 type Dependencies struct {
-	Config *config.Config
-	Logger *zap.Logger
-	Auth   *handler.AuthHandler
-	Token  middleware.TokenVerifier
-	JWKS   *handler.JWKSHandler
+	Config           *config.Config
+	Logger           *zap.Logger
+	Auth             *handler.AuthHandler
+	Client           *handler.ClientHandler
+	Token            middleware.TokenVerifier
+	AudienceResolver middleware.ClientAudienceResolver
+	JWKS             *handler.JWKSHandler
+	AdminToken       string
 }
 
 // New creates the HTTP router and registers public and authenticated routes.
@@ -46,9 +49,16 @@ func New(deps Dependencies) *gin.Engine {
 				auth.POST("/login", deps.Auth.Login)
 				auth.POST("/refresh", deps.Auth.Refresh)
 				auth.POST("/logout", deps.Auth.Logout)
-				if deps.Token != nil {
-					auth.GET("/me", middleware.Authenticate(deps.Token, "default"), deps.Auth.Me)
+				if deps.Token != nil && deps.AudienceResolver != nil {
+					auth.GET("/me", middleware.AuthenticateClient(deps.Token, deps.AudienceResolver), deps.Auth.Me)
 				}
+			}
+		}
+		if deps.Client != nil {
+			clients := v1.Group("/clients", middleware.RequireAdminToken(deps.AdminToken))
+			{
+				clients.POST("", deps.Client.Create)
+				clients.GET("", deps.Client.List)
 			}
 		}
 	}
