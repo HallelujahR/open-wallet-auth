@@ -20,12 +20,15 @@ import (
 )
 
 // Service signs, verifies, and exposes JWT/JWKS data.
+// Service 负责 JWT 签发、校验和 JWKS 暴露，是 token 端口的基础设施实现。
 type Service struct {
 	cfg        config.JWTConfig
 	privateKey *rsa.PrivateKey
 	publicKey  *rsa.PublicKey
 }
 
+// claims is the JWT-specific representation of normalized domain claims.
+// claims 是领域 claims 在 JWT 中的具体承载结构。
 type claims struct {
 	Username    string   `json:"username,omitempty"`
 	Email       string   `json:"email,omitempty"`
@@ -37,6 +40,7 @@ type claims struct {
 }
 
 // NewService creates a JWT service from configured or generated RSA keys.
+// NewService 使用配置文件中的 RSA 私钥或临时生成密钥创建 JWT 服务。
 func NewService(cfg config.JWTConfig) (*Service, error) {
 	privateKey, err := loadOrGenerateKey(cfg)
 	if err != nil {
@@ -46,6 +50,7 @@ func NewService(cfg config.JWTConfig) (*Service, error) {
 }
 
 // IssuePair returns a signed access token and an opaque refresh token.
+// IssuePair 签发访问令牌，并生成不透明刷新令牌。
 func (s *Service) IssuePair(ctx context.Context, input token.Claims) (*token.Pair, error) {
 	now := time.Now().UTC()
 	expiresAt := now.Add(s.cfg.AccessTokenTTL)
@@ -82,6 +87,8 @@ func (s *Service) IssuePair(ctx context.Context, input token.Claims) (*token.Pai
 	}, nil
 }
 
+// IssueAccessToken signs a single access token without creating a refresh token.
+// IssueAccessToken 只签发访问令牌，不生成刷新令牌。
 func (s *Service) IssueAccessToken(ctx context.Context, input token.Claims) (string, time.Time, error) {
 	now := time.Now().UTC()
 	expiresAt := now.Add(s.cfg.AccessTokenTTL)
@@ -106,11 +113,13 @@ func (s *Service) IssueAccessToken(ctx context.Context, input token.Claims) (str
 }
 
 // RefreshTokenTTL returns the configured refresh token lifetime.
+// RefreshTokenTTL 返回配置中的刷新令牌有效期。
 func (s *Service) RefreshTokenTTL() time.Duration {
 	return s.cfg.RefreshTokenTTL
 }
 
 // GenerateRefreshToken creates a cryptographically random opaque refresh token.
+// GenerateRefreshToken 创建密码学安全的不透明刷新令牌。
 func GenerateRefreshToken() (string, error) {
 	buf := make([]byte, 32)
 	if _, err := rand.Read(buf); err != nil {
@@ -119,6 +128,8 @@ func GenerateRefreshToken() (string, error) {
 	return "rfr_" + base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
+// sign signs JWT claims with the active RSA private key and key id.
+// sign 使用当前 RSA 私钥和 kid 签名 JWT claims。
 func (s *Service) sign(c claims) (string, error) {
 	t := gojwt.NewWithClaims(gojwt.SigningMethodRS256, c)
 	t.Header["kid"] = s.cfg.ActiveKeyID
@@ -126,6 +137,7 @@ func (s *Service) sign(c claims) (string, error) {
 }
 
 // Verify validates a JWT and returns normalized claims.
+// Verify 校验 JWT 签名、issuer、audience，并返回归一化 claims。
 func (s *Service) Verify(ctx context.Context, tokenString string, audience string) (*token.Claims, error) {
 	parsed, err := gojwt.ParseWithClaims(tokenString, &claims{}, func(t *gojwt.Token) (any, error) {
 		if _, ok := t.Method.(*gojwt.SigningMethodRSA); !ok {
@@ -158,6 +170,7 @@ func (s *Service) Verify(ctx context.Context, tokenString string, audience strin
 }
 
 // JWKS returns the public signing keys in JSON Web Key Set format.
+// JWKS 以 JSON Web Key Set 格式返回公开签名密钥。
 func (s *Service) JWKS() token.JWKS {
 	return token.JWKS{
 		Keys: []token.JWK{{
@@ -171,6 +184,8 @@ func (s *Service) JWKS() token.JWKS {
 	}
 }
 
+// firstAudience returns the first audience claim used by this service.
+// firstAudience 返回本服务当前使用的第一个 audience 声明。
 func firstAudience(aud gojwt.ClaimStrings) string {
 	if len(aud) == 0 {
 		return ""
@@ -178,6 +193,8 @@ func firstAudience(aud gojwt.ClaimStrings) string {
 	return aud[0]
 }
 
+// loadOrGenerateKey loads a configured RSA private key or creates an ephemeral one.
+// loadOrGenerateKey 加载配置的 RSA 私钥；本地开发缺失时生成临时密钥。
 func loadOrGenerateKey(cfg config.JWTConfig) (*rsa.PrivateKey, error) {
 	if cfg.PrivateKeyPath == "" {
 		return rsa.GenerateKey(rand.Reader, 2048)

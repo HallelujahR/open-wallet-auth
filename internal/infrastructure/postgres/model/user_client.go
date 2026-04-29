@@ -3,6 +3,7 @@ package model
 import "time"
 
 // UserClient maps to the user_clients table.
+// UserClient 映射 user_clients 数据表。
 type UserClient struct {
 	ID           string    `gorm:"primaryKey;type:varchar(64)"`
 	UserID       string    `gorm:"type:varchar(64);not null;uniqueIndex:idx_user_client"`
@@ -15,6 +16,8 @@ type UserClient struct {
 	UpdatedAt    time.Time `gorm:"type:timestamptz;not null"`
 }
 
+// TableName returns the physical table name for GORM.
+// TableName 返回 GORM 使用的物理表名。
 func (UserClient) TableName() string {
 	return "user_clients"
 }

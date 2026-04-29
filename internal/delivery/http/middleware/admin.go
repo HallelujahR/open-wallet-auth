@@ -11,6 +11,7 @@ import (
 const AdminTokenHeader = "X-Admin-Token"
 
 // RequireAdminToken protects management endpoints with a configured shared token.
+// RequireAdminToken 使用配置的管理 token 保护管理类接口。
 func RequireAdminToken(adminToken string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if adminToken == "" {

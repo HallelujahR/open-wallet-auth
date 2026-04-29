@@ -10,6 +10,7 @@ import (
 )
 
 // Recovery converts panics into safe HTTP 500 responses and structured logs.
+// Recovery 将 panic 转为安全的 500 响应，并记录结构化错误日志。
 func Recovery(logger *zap.Logger) gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered any) {
 		logger.Error("panic recovered",

@@ -12,6 +12,8 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/logger"
 )
 
+// main loads configuration, builds the application, and handles graceful shutdown.
+// main 加载配置、装配应用，并处理优雅关闭。
 func main() {
 	cfg, err := config.Load()
 	if err != nil {

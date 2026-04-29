@@ -20,6 +20,7 @@ import (
 const authClaimsKey = "auth_claims"
 
 // AuthClaims is the normalized identity payload used by business handlers.
+// AuthClaims 是业务接口使用的统一身份信息。
 type AuthClaims struct {
 	UserID      string
 	ClientID    string
@@ -41,6 +42,7 @@ type jwtClaims struct {
 }
 
 // JWKSVerifier fetches and caches Open Wallet Auth public signing keys.
+// JWKSVerifier 拉取并缓存 Open Wallet Auth 的公开签名密钥。
 type JWKSVerifier struct {
 	jwksURL    string
 	issuer     string
@@ -54,6 +56,7 @@ type JWKSVerifier struct {
 }
 
 // NewJWKSVerifier creates a verifier for one business application audience.
+// NewJWKSVerifier 为指定业务系统 audience 创建 JWT 校验器。
 func NewJWKSVerifier(jwksURL string, issuer string, audience string) *JWKSVerifier {
 	return &JWKSVerifier{
 		jwksURL:    jwksURL,
@@ -66,6 +69,7 @@ func NewJWKSVerifier(jwksURL string, issuer string, audience string) *JWKSVerifi
 }
 
 // Verify checks token signature and standard claims, then returns business-friendly claims.
+// Verify 校验 token 签名和标准声明，并返回业务友好的 claims。
 func (v *JWKSVerifier) Verify(ctx context.Context, rawToken string) (*AuthClaims, error) {
 	claims := &jwtClaims{}
 	parsed, err := jwt.ParseWithClaims(rawToken, claims, func(token *jwt.Token) (any, error) {
@@ -96,6 +100,8 @@ func (v *JWKSVerifier) Verify(ctx context.Context, rawToken string) (*AuthClaims
 	}, nil
 }
 
+// key returns a cached RSA public key by kid, refreshing JWKS when needed.
+// key 按 kid 返回缓存的 RSA 公钥，缺失时刷新 JWKS。
 func (v *JWKSVerifier) key(ctx context.Context, kid string) (*rsa.PublicKey, error) {
 	v.mu.RLock()
 	key := v.keyByID[kid]
@@ -118,6 +124,8 @@ func (v *JWKSVerifier) key(ctx context.Context, kid string) (*rsa.PublicKey, err
 	return key, nil
 }
 
+// refresh downloads JWKS and rebuilds the local key cache.
+// refresh 下载 JWKS 并重建本地公钥缓存。
 func (v *JWKSVerifier) refresh(ctx context.Context) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, v.jwksURL, nil)
 	if err != nil {
@@ -164,6 +172,8 @@ func (v *JWKSVerifier) refresh(ctx context.Context) error {
 	return nil
 }
 
+// rsaPublicKey converts JWK modulus/exponent fields into an RSA public key.
+// rsaPublicKey 将 JWK 的模数和指数转换为 RSA 公钥。
 func rsaPublicKey(encodedN string, encodedE string) (*rsa.PublicKey, error) {
 	nBytes, err := base64.RawURLEncoding.DecodeString(encodedN)
 	if err != nil {
@@ -184,6 +194,7 @@ func rsaPublicKey(encodedN string, encodedE string) (*rsa.PublicKey, error) {
 }
 
 // JWTMiddleware protects business API routes with Open Wallet Auth JWTs.
+// JWTMiddleware 使用 Open Wallet Auth JWT 保护业务接口。
 func JWTMiddleware(verifier *JWKSVerifier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rawToken, ok := bearerToken(c.GetHeader("Authorization"))
@@ -203,6 +214,8 @@ func JWTMiddleware(verifier *JWKSVerifier) gin.HandlerFunc {
 	}
 }
 
+// bearerToken extracts the Bearer token value from an Authorization header.
+// bearerToken 从 Authorization 请求头中提取 Bearer token。
 func bearerToken(header string) (string, bool) {
 	parts := strings.SplitN(header, " ", 2)
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.TrimSpace(parts[1]) == "" {
@@ -212,6 +225,7 @@ func bearerToken(header string) (string, bool) {
 }
 
 // MustAuthClaims returns verified identity claims from the Gin context.
+// MustAuthClaims 从 Gin 上下文中读取已校验的身份 claims。
 func MustAuthClaims(c *gin.Context) *AuthClaims {
 	claims, ok := c.MustGet(authClaimsKey).(*AuthClaims)
 	if !ok {
@@ -220,6 +234,8 @@ func MustAuthClaims(c *gin.Context) *AuthClaims {
 	return claims
 }
 
+// main runs a minimal business API that trusts Open Wallet Auth JWTs.
+// main 启动一个最小业务 API 示例，用于演示如何信任认证服务 JWT。
 func main() {
 	jwksURL := env("OWA_JWKS_URL", "http://localhost:8080/.well-known/jwks.json")
 	issuer := env("OWA_ISSUER", "open-wallet-auth")
@@ -250,6 +266,8 @@ func main() {
 	}
 }
 
+// env reads an environment variable with a fallback default.
+// env 读取环境变量，未设置时返回默认值。
 func env(key string, fallback string) string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {

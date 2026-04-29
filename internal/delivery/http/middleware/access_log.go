@@ -10,6 +10,7 @@ import (
 )
 
 // AccessLog writes one structured log entry for each HTTP request.
+// AccessLog 为每个 HTTP 请求写入一条结构化访问日志。
 func AccessLog(logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()

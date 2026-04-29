@@ -33,6 +33,7 @@ import (
 )
 
 // Application owns process-level dependencies and lifecycle.
+// Application 持有进程级依赖和生命周期控制。
 type Application struct {
 	cfg    *config.Config
 	logger *zap.Logger
@@ -41,6 +42,7 @@ type Application struct {
 }
 
 // New wires infrastructure adapters, usecases, and HTTP delivery.
+// New 装配基础设施适配器、用例服务和 HTTP 交付层。
 func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	if cfg == nil {
 		return nil, errors.New("config is required")
@@ -183,6 +185,8 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	}, nil
 }
 
+// Start runs the HTTP server until the context is cancelled or the server exits.
+// Start 启动 HTTP 服务，直到上下文取消或服务退出。
 func (a *Application) Start(ctx context.Context) error {
 	errCh := make(chan error, 1)
 	go func() {
@@ -206,6 +210,8 @@ func (a *Application) Start(ctx context.Context) error {
 	}
 }
 
+// Shutdown gracefully stops the HTTP server and closes database resources.
+// Shutdown 优雅停止 HTTP 服务，并关闭数据库资源。
 func (a *Application) Shutdown(ctx context.Context) error {
 	a.logger.Info("shutting down http server", zap.Duration("timeout", 10*time.Second))
 	if err := a.server.Shutdown(ctx); err != nil {

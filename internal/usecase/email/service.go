@@ -17,6 +17,7 @@ const (
 )
 
 // Clock supplies time to keep email verification flows deterministic in tests.
+// Clock 抽象时间来源，便于测试邮箱验证码过期逻辑。
 type Clock interface {
 	Now() time.Time
 }
@@ -48,6 +49,7 @@ type Service struct {
 }
 
 // Dependencies contains external ports required by email verification.
+// Dependencies 汇总邮箱验证用例需要的验证码仓储、邮件发送和时间端口。
 type Dependencies struct {
 	Codes         repository.EmailCodeRepository
 	Sender        EmailProvider
@@ -59,11 +61,13 @@ type Dependencies struct {
 }
 
 // CodeRequest is the input for requesting an email verification code.
+// CodeRequest 是申请邮箱验证码的用例输入。
 type CodeRequest struct {
 	Email string
 }
 
 // CodeResult describes the created email verification code.
+// CodeResult 描述已创建邮箱验证码的过期信息。
 type CodeResult struct {
 	Email     string
 	ExpiresAt time.Time
@@ -71,18 +75,21 @@ type CodeResult struct {
 }
 
 // VerifyRequest is the input for verifying an email code.
+// VerifyRequest 是校验邮箱验证码的用例输入。
 type VerifyRequest struct {
 	Email string
 	Code  string
 }
 
 // VerifyResult describes a successful email verification.
+// VerifyResult 描述邮箱验证码校验成功的结果。
 type VerifyResult struct {
 	Email    string
 	Verified bool
 }
 
 // NewService creates the email verification usecase service.
+// NewService 创建邮箱验证用例服务，并注入外部端口。
 func NewService(deps Dependencies) *Service {
 	return &Service{
 		codes:         deps.Codes,
@@ -146,6 +153,8 @@ func (s *Service) VerifyCode(ctx context.Context, req VerifyRequest) (*VerifyRes
 	return &VerifyResult{Email: email, Verified: true}, nil
 }
 
+// normalizeEmail trims spaces and lowercases emails for consistent verification.
+// normalizeEmail 去除空白并转小写，保证邮箱验证码存取口径一致。
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }

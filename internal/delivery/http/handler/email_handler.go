@@ -13,16 +13,19 @@ import (
 )
 
 // EmailHandler exposes email verification endpoints.
+// EmailHandler 暴露邮箱验证码接口。
 type EmailHandler struct {
 	email *emailusecase.Service
 }
 
 // NewEmailHandler creates an EmailHandler bound to the email usecase service.
+// NewEmailHandler 创建绑定邮箱验证用例服务的 HTTP handler。
 func NewEmailHandler(email *emailusecase.Service) *EmailHandler {
 	return &EmailHandler{email: email}
 }
 
 // Code creates and sends an email verification code.
+// Code 创建并发送邮箱验证码。
 func (h *EmailHandler) Code(c *gin.Context) {
 	var req dto.EmailCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -42,6 +45,7 @@ func (h *EmailHandler) Code(c *gin.Context) {
 }
 
 // Verify checks an email verification code.
+// Verify 校验邮箱验证码。
 func (h *EmailHandler) Verify(c *gin.Context) {
 	var req dto.EmailVerifyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -56,6 +60,8 @@ func (h *EmailHandler) Verify(c *gin.Context) {
 	response.OK(c, dto.EmailVerifyResponse{Email: result.Email, Verified: result.Verified})
 }
 
+// writeEmailError maps email usecase errors to HTTP responses.
+// writeEmailError 将邮箱验证用例错误映射为 HTTP 响应。
 func writeEmailError(c *gin.Context, err error) {
 	var appErr *domain.Error
 	if errors.As(err, &appErr) {

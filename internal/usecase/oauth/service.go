@@ -24,6 +24,7 @@ const (
 )
 
 // Clock supplies time to keep OAuth state flows deterministic in tests.
+// Clock 抽象时间来源，便于测试 OAuth state 过期逻辑。
 type Clock interface {
 	Now() time.Time
 }
@@ -54,23 +55,27 @@ type StateStore interface {
 }
 
 // TokenIssuer issues access and refresh tokens for OAuth login.
+// TokenIssuer 是 OAuth 登录的 token 签发端口。
 type TokenIssuer interface {
 	IssuePair(ctx context.Context, claims token.Claims) (*token.Pair, error)
 	RefreshTokenTTL() time.Duration
 }
 
 // TokenHasher hashes opaque refresh tokens before persistence.
+// TokenHasher 在刷新令牌入库前做单向哈希。
 type TokenHasher interface {
 	HashToken(raw string) string
 }
 
 // StateValue records trusted values from the OAuth start request.
+// StateValue 保存 OAuth 发起阶段已校验的可信参数。
 type StateValue struct {
 	ClientID    string
 	RedirectURI string
 }
 
 // Service orchestrates OAuth start and callback login.
+// Service 编排 OAuth 授权发起、回调、账号归并和 token 签发流程。
 type Service struct {
 	users         repository.UserRepository
 	clients       repository.ClientRepository
@@ -86,6 +91,7 @@ type Service struct {
 }
 
 // Dependencies contains external ports required by OAuth login.
+// Dependencies 汇总 OAuth 用例需要的仓储、state、provider 和 token 端口。
 type Dependencies struct {
 	Users         repository.UserRepository
 	Clients       repository.ClientRepository
@@ -101,6 +107,7 @@ type Dependencies struct {
 }
 
 // StartRequest is the input for creating an OAuth authorization URL.
+// StartRequest 是创建第三方授权地址的用例输入。
 type StartRequest struct {
 	Provider    string
 	ClientID    string
@@ -108,6 +115,7 @@ type StartRequest struct {
 }
 
 // StartResult contains the provider redirect URL.
+// StartResult 返回前端需要跳转的第三方授权地址。
 type StartResult struct {
 	Provider string
 	AuthURL  string
@@ -115,6 +123,7 @@ type StartResult struct {
 }
 
 // CallbackRequest is the input for completing OAuth login.
+// CallbackRequest 是完成 OAuth 回调登录的用例输入。
 type CallbackRequest struct {
 	Provider  string
 	Code      string
@@ -124,6 +133,7 @@ type CallbackRequest struct {
 }
 
 // CallbackResult is returned after a successful OAuth callback.
+// CallbackResult 是 OAuth 回调登录成功后的用例输出。
 type CallbackResult struct {
 	UserID   string
 	Username string
@@ -132,6 +142,7 @@ type CallbackResult struct {
 }
 
 // NewService creates the OAuth usecase service.
+// NewService 创建 OAuth 用例服务，并按 provider name 建立查找表。
 func NewService(deps Dependencies) *Service {
 	providers := make(map[string]Provider, len(deps.Providers))
 	for _, provider := range deps.Providers {
@@ -251,6 +262,8 @@ func (s *Service) Callback(ctx context.Context, req CallbackRequest) (*CallbackR
 	return &CallbackResult{UserID: u.ID, Username: u.Username, Email: u.Email, Token: pair}, nil
 }
 
+// resolveUser links an OAuth profile to an existing or newly created local user.
+// resolveUser 将第三方账号资料归并到已有用户，或创建新的本地用户。
 func (s *Service) resolveUser(ctx context.Context, provider string, profile *ProviderUser, account *oauthdomain.Account) (*user.User, error) {
 	if account != nil {
 		return s.users.FindByID(ctx, account.UserID)
@@ -289,6 +302,8 @@ func (s *Service) resolveUser(ctx context.Context, provider string, profile *Pro
 	return u, nil
 }
 
+// provider returns a configured provider adapter by normalized provider name.
+// provider 根据归一化后的服务商名称返回对应适配器。
 func (s *Service) provider(name string) (Provider, error) {
 	provider, ok := s.providers[strings.ToLower(strings.TrimSpace(name))]
 	if !ok {
@@ -297,6 +312,8 @@ func (s *Service) provider(name string) (Provider, error) {
 	return provider, nil
 }
 
+// randomState creates a cryptographically random OAuth state value.
+// randomState 创建密码学安全的 OAuth state，用于防止回调伪造。
 func randomState() (string, error) {
 	buf := make([]byte, 24)
 	if _, err := rand.Read(buf); err != nil {
@@ -305,6 +322,8 @@ func randomState() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
+// defaultClientID normalizes an empty client id to the built-in default client.
+// defaultClientID 将空 client_id 归一化为内置 default 业务系统。
 func defaultClientID(clientID string) string {
 	clientID = strings.TrimSpace(clientID)
 	if clientID == "" {

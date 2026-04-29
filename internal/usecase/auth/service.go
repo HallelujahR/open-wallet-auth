@@ -22,23 +22,27 @@ const (
 )
 
 // PasswordHasher hashes and verifies user passwords.
+// PasswordHasher 是密码哈希端口，具体算法由 infrastructure 注入。
 type PasswordHasher interface {
 	Hash(plain string) (string, error)
 	Compare(hash string, plain string) bool
 }
 
 // TokenIssuer issues access and refresh tokens.
+// TokenIssuer 是 token 签发端口，用例层不直接依赖 JWT 实现。
 type TokenIssuer interface {
 	IssuePair(ctx context.Context, claims token.Claims) (*token.Pair, error)
 	RefreshTokenTTL() time.Duration
 }
 
 // TokenHasher hashes opaque refresh tokens before persistence.
+// TokenHasher 在刷新令牌入库前做单向哈希，避免明文落库。
 type TokenHasher interface {
 	HashToken(raw string) string
 }
 
 // Service orchestrates registration, login, refresh, and logout usecases.
+// Service 编排注册、登录、刷新和登出业务流程，不直接处理 HTTP 或数据库细节。
 type Service struct {
 	users         repository.UserRepository
 	clients       repository.ClientRepository
@@ -50,6 +54,7 @@ type Service struct {
 }
 
 // LoginRequest is the input for password login.
+// LoginRequest 是邮箱密码登录的用例输入。
 type LoginRequest struct {
 	ClientID  string
 	Email     string
@@ -59,6 +64,7 @@ type LoginRequest struct {
 }
 
 // LoginResult is returned after a successful password login.
+// LoginResult 是邮箱密码登录成功后的用例输出。
 type LoginResult struct {
 	UserID   string
 	Username string
@@ -67,6 +73,7 @@ type LoginResult struct {
 }
 
 // RegisterRequest is the input for email/password registration.
+// RegisterRequest 是邮箱密码注册的用例输入。
 type RegisterRequest struct {
 	ClientID  string
 	Username  string
@@ -77,6 +84,7 @@ type RegisterRequest struct {
 }
 
 // RegisterResult is returned after successful registration.
+// RegisterResult 是注册成功后的用例输出。
 type RegisterResult struct {
 	UserID   string
 	Username string
@@ -85,6 +93,7 @@ type RegisterResult struct {
 }
 
 // RefreshRequest is the input for refresh token rotation.
+// RefreshRequest 是刷新令牌轮换的用例输入。
 type RefreshRequest struct {
 	RefreshToken string
 	IP           string
@@ -92,6 +101,7 @@ type RefreshRequest struct {
 }
 
 // RefreshResult is returned after successful refresh token rotation.
+// RefreshResult 是刷新令牌轮换成功后的用例输出。
 type RefreshResult struct {
 	UserID   string
 	Username string
@@ -100,11 +110,13 @@ type RefreshResult struct {
 }
 
 // LogoutRequest is the input for refresh token revocation.
+// LogoutRequest 是登出时吊销刷新令牌的用例输入。
 type LogoutRequest struct {
 	RefreshToken string
 }
 
 // NewService creates the auth usecase service with its required ports.
+// NewService 创建认证用例服务，并通过端口注入外部依赖。
 func NewService(
 	users repository.UserRepository,
 	clients repository.ClientRepository,
@@ -125,6 +137,8 @@ func NewService(
 	}
 }
 
+// Login verifies email/password credentials and issues a token pair.
+// Login 校验邮箱密码并签发访问令牌与刷新令牌。
 func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, error) {
 	req.ClientID = defaultClientID(req.ClientID)
 	req.Email = strings.TrimSpace(req.Email)
@@ -172,6 +186,8 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 	}, nil
 }
 
+// Register creates a password user and immediately issues a token pair.
+// Register 创建邮箱密码用户，并在注册成功后直接签发 token。
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (*RegisterResult, error) {
 	req.ClientID = defaultClientID(req.ClientID)
 	req.Email = strings.TrimSpace(req.Email)
@@ -237,6 +253,8 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*RegisterR
 	}, nil
 }
 
+// Refresh rotates a valid refresh token and returns a fresh token pair.
+// Refresh 轮换有效刷新令牌，旧令牌吊销后签发新的 token 组合。
 func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*RefreshResult, error) {
 	raw := strings.TrimSpace(req.RefreshToken)
 	if raw == "" {
@@ -291,6 +309,8 @@ func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*RefreshResu
 	}, nil
 }
 
+// Logout revokes a refresh token so it can no longer be rotated.
+// Logout 吊销刷新令牌，使其无法继续换取新的 token。
 func (s *Service) Logout(ctx context.Context, req LogoutRequest) error {
 	raw := strings.TrimSpace(req.RefreshToken)
 	if raw == "" {
@@ -307,6 +327,8 @@ func (s *Service) Logout(ctx context.Context, req LogoutRequest) error {
 	return s.refreshTokens.Revoke(ctx, refreshToken.ID)
 }
 
+// storeRefreshToken hashes and persists the opaque refresh token.
+// storeRefreshToken 将刷新令牌哈希后落库，避免保存明文 token。
 func (s *Service) storeRefreshToken(ctx context.Context, userID string, clientID string, raw string) error {
 	return s.refreshTokens.Create(ctx, &token.RefreshToken{
 		UserID:    userID,
@@ -316,6 +338,8 @@ func (s *Service) storeRefreshToken(ctx context.Context, userID string, clientID
 	})
 }
 
+// recordSuccessfulLogin writes audit data and the user-client activity relation.
+// recordSuccessfulLogin 记录登录审计日志，并维护用户与业务系统的最近登录关系。
 func (s *Service) recordSuccessfulLogin(ctx context.Context, userID string, clientID string, method audit.LoginMethod, ip string, userAgent string) error {
 	if s.activity == nil {
 		return nil
@@ -333,6 +357,8 @@ func (s *Service) recordSuccessfulLogin(ctx context.Context, userID string, clie
 	return s.activity.UpsertUserClientLogin(ctx, userID, clientID)
 }
 
+// defaultClientID normalizes an empty client id to the built-in default client.
+// defaultClientID 将空 client_id 归一化为内置 default 业务系统。
 func defaultClientID(clientID string) string {
 	clientID = strings.TrimSpace(clientID)
 	if clientID == "" {

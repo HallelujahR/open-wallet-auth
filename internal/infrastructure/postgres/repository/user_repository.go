@@ -13,15 +13,19 @@ import (
 )
 
 // UserRepository persists users in PostgreSQL.
+// UserRepository 是用户仓储端口的 PostgreSQL 适配器。
 type UserRepository struct {
 	db *gorm.DB
 }
 
 // NewUserRepository creates a PostgreSQL user repository.
+// NewUserRepository 创建 PostgreSQL 用户仓储。
 func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
+// FindByID loads a user by internal user id.
+// FindByID 按内部用户 ID 查询用户。
 func (r *UserRepository) FindByID(ctx context.Context, id string) (*domainuser.User, error) {
 	var row model.User
 	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&row).Error; err != nil {
@@ -30,6 +34,8 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*domainuser.U
 	return toDomainUser(row), nil
 }
 
+// FindByEmail loads a user by normalized email.
+// FindByEmail 按归一化邮箱查询用户。
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domainuser.User, error) {
 	var row model.User
 	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&row).Error; err != nil {
@@ -38,6 +44,8 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 	return toDomainUser(row), nil
 }
 
+// FindByPhone loads a user by phone number.
+// FindByPhone 按手机号查询用户。
 func (r *UserRepository) FindByPhone(ctx context.Context, phone string) (*domainuser.User, error) {
 	var row model.User
 	if err := r.db.WithContext(ctx).Where("phone = ?", phone).First(&row).Error; err != nil {
@@ -46,6 +54,8 @@ func (r *UserRepository) FindByPhone(ctx context.Context, phone string) (*domain
 	return toDomainUser(row), nil
 }
 
+// Create persists a new user and fills default identity fields.
+// Create 持久化新用户，并补齐默认 ID、状态和时间字段。
 func (r *UserRepository) Create(ctx context.Context, u *domainuser.User) error {
 	now := time.Now().UTC()
 	if u.ID == "" {
@@ -71,6 +81,8 @@ func (r *UserRepository) Create(ctx context.Context, u *domainuser.User) error {
 	return r.db.WithContext(ctx).Create(&row).Error
 }
 
+// UpdateLoginInfo stores the latest successful login time.
+// UpdateLoginInfo 更新用户最近一次成功登录时间。
 func (r *UserRepository) UpdateLoginInfo(ctx context.Context, userID string) error {
 	now := time.Now().UTC()
 	return r.db.WithContext(ctx).
@@ -79,6 +91,8 @@ func (r *UserRepository) UpdateLoginInfo(ctx context.Context, userID string) err
 		Updates(map[string]any{"last_login_at": now, "updated_at": now}).Error
 }
 
+// toDomainUser converts a database row into the domain user entity.
+// toDomainUser 将数据库行转换为领域用户实体。
 func toDomainUser(row model.User) *domainuser.User {
 	return &domainuser.User{
 		ID:           row.ID,
@@ -94,6 +108,8 @@ func toDomainUser(row model.User) *domainuser.User {
 	}
 }
 
+// stringPtrOrNil converts an empty string to nil for nullable columns.
+// stringPtrOrNil 将空字符串转换为 nil，以适配可空数据库字段。
 func stringPtrOrNil(value string) *string {
 	if value == "" {
 		return nil
@@ -101,6 +117,8 @@ func stringPtrOrNil(value string) *string {
 	return &value
 }
 
+// stringValue converts a nullable database string into a domain string.
+// stringValue 将可空数据库字符串转换为领域层字符串。
 func stringValue(value *string) string {
 	if value == nil {
 		return ""

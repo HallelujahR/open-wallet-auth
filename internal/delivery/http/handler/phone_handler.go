@@ -13,16 +13,19 @@ import (
 )
 
 // PhoneHandler exposes phone-code authentication endpoints.
+// PhoneHandler 暴露手机号验证码认证接口。
 type PhoneHandler struct {
 	phone *phoneusecase.Service
 }
 
 // NewPhoneHandler creates a PhoneHandler bound to the phone usecase service.
+// NewPhoneHandler 创建绑定手机号登录用例服务的 HTTP handler。
 func NewPhoneHandler(phone *phoneusecase.Service) *PhoneHandler {
 	return &PhoneHandler{phone: phone}
 }
 
 // Code creates a short-lived phone verification code.
+// Code 创建短期有效的手机号验证码。
 func (h *PhoneHandler) Code(c *gin.Context) {
 	var req dto.PhoneCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -45,6 +48,7 @@ func (h *PhoneHandler) Code(c *gin.Context) {
 }
 
 // Login verifies a phone code and returns a token pair.
+// Login 校验手机号验证码并返回 token 组合。
 func (h *PhoneHandler) Login(c *gin.Context) {
 	var req dto.PhoneLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -77,6 +81,8 @@ func (h *PhoneHandler) Login(c *gin.Context) {
 	})
 }
 
+// writePhoneError maps phone usecase errors to HTTP responses.
+// writePhoneError 将手机号登录用例错误映射为 HTTP 响应。
 func writePhoneError(c *gin.Context, err error) {
 	var appErr *domain.Error
 	if errors.As(err, &appErr) {

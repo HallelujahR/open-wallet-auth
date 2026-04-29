@@ -13,16 +13,19 @@ import (
 )
 
 // WalletHandler exposes wallet challenge and signature-login endpoints.
+// WalletHandler 暴露钱包挑战值和签名登录接口。
 type WalletHandler struct {
 	wallet *walletusecase.Service
 }
 
 // NewWalletHandler creates a WalletHandler bound to the wallet usecase service.
+// NewWalletHandler 创建绑定钱包用例服务的 HTTP handler。
 func NewWalletHandler(wallet *walletusecase.Service) *WalletHandler {
 	return &WalletHandler{wallet: wallet}
 }
 
 // Nonce creates the SIWE-compatible message that the browser wallet signs.
+// Nonce 创建浏览器钱包需要签名的 SIWE 兼容消息。
 func (h *WalletHandler) Nonce(c *gin.Context) {
 	var req dto.WalletNonceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -48,6 +51,7 @@ func (h *WalletHandler) Nonce(c *gin.Context) {
 }
 
 // Verify checks the wallet signature and returns an auth token pair.
+// Verify 校验钱包签名并返回认证 token。
 func (h *WalletHandler) Verify(c *gin.Context) {
 	var req dto.WalletVerifyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -84,6 +88,8 @@ func (h *WalletHandler) Verify(c *gin.Context) {
 	})
 }
 
+// writeWalletError maps wallet usecase errors to HTTP responses.
+// writeWalletError 将钱包用例错误映射为 HTTP 响应。
 func writeWalletError(c *gin.Context, err error) {
 	var appErr *domain.Error
 	if errors.As(err, &appErr) {

@@ -14,16 +14,19 @@ import (
 )
 
 // ClientHandler exposes application client management endpoints.
+// ClientHandler 暴露业务系统 client 管理接口。
 type ClientHandler struct {
 	clients *clientusecase.Service
 }
 
 // NewClientHandler creates a client management handler.
+// NewClientHandler 创建 client 管理 HTTP handler。
 func NewClientHandler(clients *clientusecase.Service) *ClientHandler {
 	return &ClientHandler{clients: clients}
 }
 
 // Create registers a new application client.
+// Create 注册新的业务系统 client。
 func (h *ClientHandler) Create(c *gin.Context) {
 	var req dto.CreateClientRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -47,6 +50,7 @@ func (h *ClientHandler) Create(c *gin.Context) {
 }
 
 // List returns all configured application clients.
+// List 返回所有已配置的业务系统 client。
 func (h *ClientHandler) List(c *gin.Context) {
 	clients, err := h.clients.List(c.Request.Context())
 	if err != nil {
@@ -61,6 +65,8 @@ func (h *ClientHandler) List(c *gin.Context) {
 	response.OK(c, data)
 }
 
+// writeClientError maps client usecase errors to HTTP responses.
+// writeClientError 将 client 用例错误映射为 HTTP 响应。
 func writeClientError(c *gin.Context, err error) {
 	var appErr *domain.Error
 	if errors.As(err, &appErr) {
@@ -75,6 +81,8 @@ func writeClientError(c *gin.Context, err error) {
 	response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 }
 
+// toClientResponse converts a domain client to its HTTP DTO.
+// toClientResponse 将领域 client 转换为 HTTP 响应 DTO。
 func toClientResponse(client clientdomain.Client) dto.ClientResponse {
 	return dto.ClientResponse{
 		ID:                  client.ID,

@@ -10,6 +10,7 @@ import (
 const RequestIDHeader = "X-Request-ID"
 
 // RequestID ensures every request has a stable request id.
+// RequestID 确保每个请求都有稳定的链路 ID。
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := c.GetHeader(RequestIDHeader)

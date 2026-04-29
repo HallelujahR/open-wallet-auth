@@ -22,17 +22,20 @@ const (
 )
 
 // Clock supplies time to keep phone-code flows deterministic in tests.
+// Clock 抽象时间来源，便于测试验证码过期逻辑。
 type Clock interface {
 	Now() time.Time
 }
 
 // TokenIssuer issues access and refresh tokens for phone login.
+// TokenIssuer 是手机号登录的 token 签发端口。
 type TokenIssuer interface {
 	IssuePair(ctx context.Context, claims token.Claims) (*token.Pair, error)
 	RefreshTokenTTL() time.Duration
 }
 
 // TokenHasher hashes opaque refresh tokens before persistence.
+// TokenHasher 在刷新令牌入库前做单向哈希。
 type TokenHasher interface {
 	HashToken(raw string) string
 }
@@ -69,6 +72,7 @@ type Service struct {
 }
 
 // Dependencies contains external ports required by phone login.
+// Dependencies 汇总手机号登录用例需要的仓储、短信和 token 端口。
 type Dependencies struct {
 	Users         repository.UserRepository
 	Clients       repository.ClientRepository
@@ -86,12 +90,14 @@ type Dependencies struct {
 }
 
 // CodeRequest is the input for requesting a phone verification code.
+// CodeRequest 是申请手机号验证码的用例输入。
 type CodeRequest struct {
 	ClientID string
 	Phone    string
 }
 
 // CodeResult describes the created phone verification code.
+// CodeResult 描述已创建验证码的过期信息。
 type CodeResult struct {
 	Phone     string
 	ExpiresAt time.Time
@@ -99,6 +105,7 @@ type CodeResult struct {
 }
 
 // LoginRequest is the input for phone-code login.
+// LoginRequest 是手机号验证码登录的用例输入。
 type LoginRequest struct {
 	ClientID  string
 	Phone     string
@@ -108,6 +115,7 @@ type LoginRequest struct {
 }
 
 // LoginResult is returned after a successful phone-code login.
+// LoginResult 是手机号验证码登录成功后的用例输出。
 type LoginResult struct {
 	UserID   string
 	Username string
@@ -116,6 +124,7 @@ type LoginResult struct {
 }
 
 // NewService creates the phone usecase service.
+// NewService 创建手机号登录用例服务，并注入外部端口。
 func NewService(deps Dependencies) *Service {
 	return &Service{
 		users:         deps.Users,
@@ -251,10 +260,14 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 	return &LoginResult{UserID: u.ID, Username: u.Username, Phone: u.Phone, Token: pair}, nil
 }
 
+// normalizePhone trims surrounding spaces before phone validation and storage.
+// normalizePhone 去除手机号两侧空白，保持验证码和用户查找口径一致。
 func normalizePhone(phone string) string {
 	return strings.ReplaceAll(strings.TrimSpace(phone), " ", "")
 }
 
+// safePhoneSuffix returns a short suffix for generating readable usernames.
+// safePhoneSuffix 返回手机号后缀，用于生成可读的默认用户名。
 func safePhoneSuffix(phone string) string {
 	phone = strings.TrimLeft(phone, "+")
 	if len(phone) <= 4 {
@@ -263,6 +276,8 @@ func safePhoneSuffix(phone string) string {
 	return phone[len(phone)-4:]
 }
 
+// defaultClientID normalizes an empty client id to the built-in default client.
+// defaultClientID 将空 client_id 归一化为内置 default 业务系统。
 func defaultClientID(clientID string) string {
 	clientID = strings.TrimSpace(clientID)
 	if clientID == "" {

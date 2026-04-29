@@ -16,11 +16,13 @@ const (
 )
 
 // Service manages application clients that can request tokens.
+// Service 管理可接入认证服务并申请 token 的业务系统 client。
 type Service struct {
 	clients repository.ClientRepository
 }
 
 // CreateRequest is the input for creating an application client.
+// CreateRequest 是创建业务系统 client 的用例输入。
 type CreateRequest struct {
 	ClientID            string
 	Name                string
@@ -30,11 +32,13 @@ type CreateRequest struct {
 }
 
 // NewService creates the client usecase service.
+// NewService 创建 client 管理用例服务。
 func NewService(clients repository.ClientRepository) *Service {
 	return &Service{clients: clients}
 }
 
 // Create registers a new application client.
+// Create 注册一个新的业务系统 client。
 func (s *Service) Create(ctx context.Context, req CreateRequest) (*clientdomain.Client, error) {
 	req.ClientID = strings.TrimSpace(req.ClientID)
 	req.Name = strings.TrimSpace(req.Name)
@@ -69,6 +73,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*clientdomain.
 }
 
 // List returns all configured application clients.
+// List 返回当前已配置的所有业务系统 client。
 func (s *Service) List(ctx context.Context) ([]clientdomain.Client, error) {
 	return s.clients.List(ctx)
 }

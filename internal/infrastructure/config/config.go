@@ -8,6 +8,7 @@ import (
 )
 
 // Config contains all runtime configuration.
+// Config 汇总服务运行所需的全部配置。
 type Config struct {
 	App        AppConfig        `mapstructure:"app"`
 	HTTP       HTTPConfig       `mapstructure:"http"`
@@ -126,6 +127,7 @@ type ManagementConfig struct {
 }
 
 // Load reads configuration from defaults, config files, and environment variables.
+// Load 按默认值、配置文件、环境变量的优先级读取运行配置。
 func Load() (*Config, error) {
 	v := viper.New()
 	v.SetConfigName("config")
@@ -152,6 +154,8 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
+// setDefaults defines safe local-development defaults for every config section.
+// setDefaults 为每个配置段设置本地开发可用的默认值。
 func setDefaults(v *viper.Viper) {
 	v.SetDefault("app.name", "open-wallet-auth")
 	v.SetDefault("app.env", "development")

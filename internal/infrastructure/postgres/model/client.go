@@ -7,6 +7,7 @@ import (
 )
 
 // Client maps to the clients table.
+// Client 映射 clients 数据表。
 type Client struct {
 	ID                  string         `gorm:"primaryKey;type:varchar(64)"`
 	ClientID            string         `gorm:"type:varchar(128);not null;uniqueIndex"`
@@ -19,6 +20,8 @@ type Client struct {
 	UpdatedAt           time.Time      `gorm:"type:timestamptz;not null"`
 }
 
+// TableName returns the physical table name for GORM.
+// TableName 返回 GORM 使用的物理表名。
 func (Client) TableName() string {
 	return "clients"
 }

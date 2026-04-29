@@ -3,6 +3,7 @@ package model
 import "time"
 
 // User maps to the users table.
+// User 映射 users 数据表。
 type User struct {
 	ID           string     `gorm:"primaryKey;type:varchar(64)"`
 	Username     string     `gorm:"type:varchar(128);not null"`
@@ -16,6 +17,8 @@ type User struct {
 	UpdatedAt    time.Time  `gorm:"type:timestamptz;not null"`
 }
 
+// TableName returns the physical table name for GORM.
+// TableName 返回 GORM 使用的物理表名。
 func (User) TableName() string {
 	return "users"
 }

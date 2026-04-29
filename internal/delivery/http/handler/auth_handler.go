@@ -15,16 +15,19 @@ import (
 )
 
 // AuthHandler exposes authentication usecases as HTTP endpoints.
+// AuthHandler 将认证用例暴露为 HTTP 接口。
 type AuthHandler struct {
 	auth *authusecase.Service
 }
 
 // NewAuthHandler creates an AuthHandler bound to the auth usecase service.
+// NewAuthHandler 创建绑定认证用例服务的 HTTP handler。
 func NewAuthHandler(auth *authusecase.Service) *AuthHandler {
 	return &AuthHandler{auth: auth}
 }
 
 // Register handles email/password registration and returns a token pair.
+// Register 处理邮箱密码注册请求，并返回 token 组合。
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req dto.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -61,6 +64,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 // Login handles email/password authentication and returns a token pair.
+// Login 处理邮箱密码登录请求，并返回 token 组合。
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -96,6 +100,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 // Refresh rotates a refresh token and returns a new token pair.
+// Refresh 轮换刷新令牌，并返回新的 token 组合。
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req dto.RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -129,6 +134,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 }
 
 // Logout revokes a refresh token.
+// Logout 吊销刷新令牌。
 func (h *AuthHandler) Logout(c *gin.Context) {
 	var req dto.LogoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -147,6 +153,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 // Me returns the authenticated user claims injected by auth middleware.
+// Me 返回认证中间件注入的当前用户 claims。
 func (h *AuthHandler) Me(c *gin.Context) {
 	claims, ok := c.Get(contextkey.AuthClaims)
 	if !ok {
@@ -167,6 +174,8 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	})
 }
 
+// writeAuthError maps usecase/domain errors to stable HTTP responses.
+// writeAuthError 将用例/领域错误映射为稳定的 HTTP 响应。
 func writeAuthError(c *gin.Context, err error) {
 	var appErr *domain.Error
 	if errors.As(err, &appErr) {

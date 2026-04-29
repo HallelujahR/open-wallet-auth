@@ -7,6 +7,7 @@ import (
 )
 
 // CORS allows browser-based clients to call the auth service from configured origins.
+// CORS 允许配置中的浏览器来源调用认证服务。
 func CORS(allowedOrigins []string) gin.HandlerFunc {
 	allowed := make(map[string]struct{}, len(allowedOrigins))
 	allowAll := false

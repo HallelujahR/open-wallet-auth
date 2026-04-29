@@ -33,14 +33,20 @@ func NewWebhookProvider(cfg WebhookConfig) *WebhookProvider {
 	return &WebhookProvider{cfg: cfg, httpClient: &http.Client{Timeout: 10 * time.Second}}
 }
 
+// SendSMS forwards an SMS verification message to the configured webhook.
+// SendSMS 将短信验证码消息转发到配置的 webhook。
 func (p *WebhookProvider) SendSMS(ctx context.Context, msg phoneusecase.SMSMessage) error {
 	return p.send(ctx, map[string]any{"type": "sms", "phone": msg.Phone, "code": msg.Code})
 }
 
+// SendEmail forwards an email verification message to the configured webhook.
+// SendEmail 将邮箱验证码消息转发到配置的 webhook。
 func (p *WebhookProvider) SendEmail(ctx context.Context, msg emailusecase.EmailMessage) error {
 	return p.send(ctx, map[string]any{"type": "email", "email": msg.Email, "subject": msg.Subject, "code": msg.Code})
 }
 
+// send posts a provider-neutral JSON payload to the external message gateway.
+// send 将通用 JSON 消息发送到外部消息网关。
 func (p *WebhookProvider) send(ctx context.Context, body any) error {
 	if p.cfg.URL == "" {
 		return errors.New("message webhook url is required")

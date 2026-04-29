@@ -14,15 +14,19 @@ import (
 )
 
 // ActivityRepository persists login logs and user-client activity in PostgreSQL.
+// ActivityRepository 是登录审计和用户-client 活动仓储的 PostgreSQL 适配器。
 type ActivityRepository struct {
 	db *gorm.DB
 }
 
 // NewActivityRepository creates a PostgreSQL activity repository.
+// NewActivityRepository 创建 PostgreSQL 活动仓储。
 func NewActivityRepository(db *gorm.DB) *ActivityRepository {
 	return &ActivityRepository{db: db}
 }
 
+// RecordLogin stores one login audit event.
+// RecordLogin 记录一次登录审计事件。
 func (r *ActivityRepository) RecordLogin(ctx context.Context, log *audit.LoginLog) error {
 	now := time.Now().UTC()
 	if log.ID == "" {
@@ -46,6 +50,8 @@ func (r *ActivityRepository) RecordLogin(ctx context.Context, log *audit.LoginLo
 	return r.db.WithContext(ctx).Create(&row).Error
 }
 
+// UpsertUserClientLogin maintains the user-client relationship and counters.
+// UpsertUserClientLogin 维护用户与业务系统的登录关系和次数统计。
 func (r *ActivityRepository) UpsertUserClientLogin(ctx context.Context, userID string, clientID string) error {
 	now := time.Now().UTC()
 	row := model.UserClient{

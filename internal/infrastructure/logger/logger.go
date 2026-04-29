@@ -10,6 +10,7 @@ import (
 )
 
 // New creates a configured zap logger.
+// New 根据配置创建 zap 结构化日志器。
 func New(cfg config.LogConfig) (*zap.Logger, error) {
 	level := zapcore.InfoLevel
 	if err := level.Set(strings.ToLower(cfg.Level)); err != nil {
@@ -27,6 +28,7 @@ func New(cfg config.LogConfig) (*zap.Logger, error) {
 }
 
 // Error returns a zap error field.
+// Error 返回统一的 zap 错误字段。
 func Error(err error) zap.Field {
 	return zap.Error(err)
 }

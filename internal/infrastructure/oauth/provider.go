@@ -15,6 +15,7 @@ import (
 )
 
 // ProviderConfig contains OAuth provider endpoints and credentials.
+// ProviderConfig 保存 OAuth 服务商端点和凭证配置。
 type ProviderConfig struct {
 	Name         string
 	ClientID     string
@@ -26,24 +27,32 @@ type ProviderConfig struct {
 }
 
 // HTTPProvider implements OAuth code exchange and userinfo loading with net/http.
+// HTTPProvider 使用标准 HTTP 实现 OAuth 授权码交换和用户信息获取。
 type HTTPProvider struct {
 	cfg        ProviderConfig
 	httpClient *http.Client
 }
 
 // NewHTTPProvider creates a generic HTTP OAuth provider adapter.
+// NewHTTPProvider 创建通用 OAuth HTTP 适配器。
 func NewHTTPProvider(cfg ProviderConfig) *HTTPProvider {
 	return &HTTPProvider{cfg: cfg, httpClient: &http.Client{Timeout: 10 * time.Second}}
 }
 
+// Name returns the normalized provider name used by the usecase registry.
+// Name 返回用例层 provider 注册表使用的归一化服务商名称。
 func (p *HTTPProvider) Name() string {
 	return strings.ToLower(p.cfg.Name)
 }
 
+// Configured reports whether all required provider settings are present.
+// Configured 判断该 OAuth 服务商是否已经具备完整配置。
 func (p *HTTPProvider) Configured() bool {
 	return p.cfg.ClientID != "" && p.cfg.ClientSecret != "" && p.cfg.AuthURL != "" && p.cfg.TokenURL != "" && p.cfg.UserInfoURL != ""
 }
 
+// AuthURL builds the provider authorization URL for browser redirection.
+// AuthURL 构造浏览器需要跳转的第三方授权地址。
 func (p *HTTPProvider) AuthURL(state string, redirectURI string) string {
 	values := url.Values{}
 	values.Set("client_id", p.cfg.ClientID)
@@ -56,6 +65,8 @@ func (p *HTTPProvider) AuthURL(state string, redirectURI string) string {
 	return p.cfg.AuthURL + "?" + values.Encode()
 }
 
+// FetchUser exchanges the code and returns a normalized provider profile.
+// FetchUser 用授权码换取访问令牌，并返回归一化的第三方用户资料。
 func (p *HTTPProvider) FetchUser(ctx context.Context, code string, redirectURI string) (*oauthusecase.ProviderUser, error) {
 	if !p.Configured() {
 		return nil, errors.New("oauth provider is not configured")
@@ -67,6 +78,8 @@ func (p *HTTPProvider) FetchUser(ctx context.Context, code string, redirectURI s
 	return p.fetchUser(ctx, accessToken)
 }
 
+// exchangeToken calls the provider token endpoint with the authorization code.
+// exchangeToken 调用服务商 token endpoint，用授权码换取 access_token。
 func (p *HTTPProvider) exchangeToken(ctx context.Context, code string, redirectURI string) (string, error) {
 	form := url.Values{}
 	form.Set("client_id", p.cfg.ClientID)
@@ -105,6 +118,8 @@ func (p *HTTPProvider) exchangeToken(ctx context.Context, code string, redirectU
 	return payload.AccessToken, nil
 }
 
+// fetchUser loads raw userinfo and converts it into the usecase provider model.
+// fetchUser 拉取原始用户信息，并转换为用例层统一用户模型。
 func (p *HTTPProvider) fetchUser(ctx context.Context, accessToken string) (*oauthusecase.ProviderUser, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.cfg.UserInfoURL, nil)
 	if err != nil {
@@ -129,6 +144,8 @@ func (p *HTTPProvider) fetchUser(ctx context.Context, accessToken string) (*oaut
 	return normalizeUser(p.Name(), raw), nil
 }
 
+// normalizeUser maps provider-specific JSON into a normalized ProviderUser.
+// normalizeUser 将不同服务商的 JSON 字段映射为统一 ProviderUser。
 func normalizeUser(provider string, raw map[string]any) *oauthusecase.ProviderUser {
 	switch provider {
 	case "github":
@@ -148,6 +165,8 @@ func normalizeUser(provider string, raw map[string]any) *oauthusecase.ProviderUs
 	}
 }
 
+// firstString returns the first non-empty string-like value.
+// firstString 返回第一个非空的字符串型值。
 func firstString(values ...any) string {
 	for _, value := range values {
 		if s := stringValue(value); s != "" {
@@ -157,6 +176,8 @@ func firstString(values ...any) string {
 	return ""
 }
 
+// stringValue converts simple JSON values to stable string identifiers.
+// stringValue 将简单 JSON 值转换为稳定字符串标识。
 func stringValue(value any) string {
 	switch v := value.(type) {
 	case string:
@@ -168,6 +189,8 @@ func stringValue(value any) string {
 	}
 }
 
+// jsonNumber renders a JSON number without scientific notation surprises.
+// jsonNumber 将 JSON 数字渲染为字符串，避免科学计数法带来的标识变化。
 func jsonNumber(value float64) string {
 	raw, _ := json.Marshal(value)
 	return string(raw)

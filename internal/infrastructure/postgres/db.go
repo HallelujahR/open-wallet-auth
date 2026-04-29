@@ -12,6 +12,7 @@ import (
 )
 
 // Open creates a GORM PostgreSQL connection and configures its pool.
+// Open 创建 GORM PostgreSQL 连接，并配置底层连接池。
 func Open(cfg config.DatabaseConfig) (*gorm.DB, *sql.DB, error) {
 	db, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),

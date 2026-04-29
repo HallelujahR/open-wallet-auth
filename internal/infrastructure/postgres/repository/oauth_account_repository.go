@@ -13,15 +13,19 @@ import (
 )
 
 // OAuthAccountRepository persists third-party OAuth account links.
+// OAuthAccountRepository 是第三方账号绑定仓储端口的 PostgreSQL 适配器。
 type OAuthAccountRepository struct {
 	db *gorm.DB
 }
 
 // NewOAuthAccountRepository creates a PostgreSQL OAuth account repository.
+// NewOAuthAccountRepository 创建 PostgreSQL OAuth 账号仓储。
 func NewOAuthAccountRepository(db *gorm.DB) *OAuthAccountRepository {
 	return &OAuthAccountRepository{db: db}
 }
 
+// FindByProviderSubject loads a linked OAuth account by provider identity.
+// FindByProviderSubject 按服务商和第三方用户 ID 查询绑定账号。
 func (r *OAuthAccountRepository) FindByProviderSubject(ctx context.Context, provider string, subject string) (*oauth.Account, error) {
 	var row model.OAuthAccount
 	if err := r.db.WithContext(ctx).Where("provider = ? AND provider_subject = ?", provider, subject).First(&row).Error; err != nil {
@@ -30,6 +34,8 @@ func (r *OAuthAccountRepository) FindByProviderSubject(ctx context.Context, prov
 	return toDomainOAuthAccount(row), nil
 }
 
+// Create persists a new OAuth account link.
+// Create 持久化新的第三方账号绑定。
 func (r *OAuthAccountRepository) Create(ctx context.Context, account *oauth.Account) error {
 	now := time.Now().UTC()
 	if account.ID == "" {
@@ -52,6 +58,8 @@ func (r *OAuthAccountRepository) Create(ctx context.Context, account *oauth.Acco
 	return r.db.WithContext(ctx).Create(&row).Error
 }
 
+// toDomainOAuthAccount converts a database row into a domain OAuth account.
+// toDomainOAuthAccount 将数据库行转换为领域 OAuth 账号实体。
 func toDomainOAuthAccount(row model.OAuthAccount) *oauth.Account {
 	return &oauth.Account{
 		ID:                row.ID,

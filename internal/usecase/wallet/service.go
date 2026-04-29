@@ -25,28 +25,33 @@ const (
 )
 
 // Clock supplies time to keep wallet flows deterministic in tests.
+// Clock 抽象时间来源，便于测试钱包 nonce 过期逻辑。
 type Clock interface {
 	Now() time.Time
 }
 
 // AddressVerifier validates and normalizes wallet addresses.
+// AddressVerifier 是钱包地址校验端口，用例层不绑定具体链 SDK。
 type AddressVerifier interface {
 	NormalizeAddress(address string) (string, error)
 	VerifyMessage(address string, message string, signature string) (bool, error)
 }
 
 // TokenIssuer issues access and refresh tokens for wallet login.
+// TokenIssuer 是钱包登录的 token 签发端口。
 type TokenIssuer interface {
 	IssuePair(ctx context.Context, claims token.Claims) (*token.Pair, error)
 	RefreshTokenTTL() time.Duration
 }
 
 // TokenHasher hashes opaque refresh tokens before persistence.
+// TokenHasher 在刷新令牌入库前做单向哈希。
 type TokenHasher interface {
 	HashToken(raw string) string
 }
 
 // Service orchestrates wallet nonce and verification usecases.
+// Service 编排钱包 nonce、签名校验、用户绑定与 token 签发流程。
 type Service struct {
 	wallets       repository.WalletRepository
 	users         repository.UserRepository
@@ -61,6 +66,7 @@ type Service struct {
 }
 
 // Dependencies contains external ports required by the wallet usecase.
+// Dependencies 汇总钱包用例需要的仓储、签名校验和 token 端口。
 type Dependencies struct {
 	Wallets       repository.WalletRepository
 	Users         repository.UserRepository
@@ -75,6 +81,7 @@ type Dependencies struct {
 }
 
 // NonceRequest is the input for creating a wallet login nonce.
+// NonceRequest 是创建钱包登录挑战值的用例输入。
 type NonceRequest struct {
 	Address string
 	Domain  string
@@ -82,6 +89,7 @@ type NonceRequest struct {
 }
 
 // NonceResult contains a wallet login nonce and its expiration time.
+// NonceResult 返回前端需要签名的消息、nonce 和过期时间。
 type NonceResult struct {
 	Nonce     string
 	Message   string
@@ -89,6 +97,7 @@ type NonceResult struct {
 }
 
 // VerifyRequest is the input for wallet signature login.
+// VerifyRequest 是钱包签名登录的用例输入。
 type VerifyRequest struct {
 	ClientID  string
 	Address   string
@@ -99,6 +108,7 @@ type VerifyRequest struct {
 }
 
 // VerifyResult is returned after a successful wallet signature login.
+// VerifyResult 是钱包签名登录成功后的用例输出。
 type VerifyResult struct {
 	UserID   string
 	Username string
@@ -108,6 +118,7 @@ type VerifyResult struct {
 }
 
 // NewService creates the wallet usecase service.
+// NewService 创建钱包登录用例服务，并注入所有外部端口。
 func NewService(deps Dependencies) *Service {
 	return &Service{
 		wallets:       deps.Wallets,
@@ -124,6 +135,7 @@ func NewService(deps Dependencies) *Service {
 }
 
 // CreateNonce creates a short-lived challenge message for wallet login.
+// CreateNonce 创建短期有效的钱包签名挑战消息。
 func (s *Service) CreateNonce(ctx context.Context, req NonceRequest) (*NonceResult, error) {
 	address, err := s.normalizeAddress(req.Address)
 	if err != nil {
@@ -163,6 +175,7 @@ func (s *Service) CreateNonce(ctx context.Context, req NonceRequest) (*NonceResu
 }
 
 // VerifySignature validates a wallet signature, creates the user if needed, and issues tokens.
+// VerifySignature 校验钱包签名，必要时创建用户并签发 token。
 func (s *Service) VerifySignature(ctx context.Context, req VerifyRequest) (*VerifyResult, error) {
 	clientID := defaultClientID(req.ClientID)
 	address, err := s.normalizeAddress(req.Address)
@@ -254,6 +267,7 @@ func (s *Service) VerifySignature(ctx context.Context, req VerifyRequest) (*Veri
 }
 
 // BuildSIWEMessage returns the exact message clients must ask wallets to sign.
+// BuildSIWEMessage 构造前端钱包必须签名的 SIWE 兼容消息。
 func BuildSIWEMessage(nonce *walletdomain.Nonce) string {
 	return fmt.Sprintf("%s wants you to sign in with your Ethereum account:\n%s\n\nSign in to Open Wallet Auth.\n\nURI: %s\nVersion: 1\nChain ID: %d\nNonce: %s\nIssued At: %s",
 		nonce.Domain,
@@ -265,6 +279,8 @@ func BuildSIWEMessage(nonce *walletdomain.Nonce) string {
 	)
 }
 
+// messageURI normalizes a domain into a URI value for the SIWE message.
+// messageURI 将域名归一化为 SIWE 消息中的 URI 字段。
 func messageURI(domain string) string {
 	if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
 		return domain
@@ -272,6 +288,8 @@ func messageURI(domain string) string {
 	return "https://" + domain
 }
 
+// createWalletUser creates a local user profile for a first-time wallet address.
+// createWalletUser 为首次使用的钱包地址创建本地用户资料。
 func (s *Service) createWalletUser(ctx context.Context, address string) (*user.User, error) {
 	shortAddress := address
 	if len(address) > 12 {
@@ -287,6 +305,8 @@ func (s *Service) createWalletUser(ctx context.Context, address string) (*user.U
 	return u, nil
 }
 
+// storeRefreshToken hashes and persists a wallet-login refresh token.
+// storeRefreshToken 将钱包登录刷新令牌哈希后写入仓储。
 func (s *Service) storeRefreshToken(ctx context.Context, userID string, clientID string, raw string) error {
 	return s.refreshTokens.Create(ctx, &token.RefreshToken{
 		UserID:    userID,
@@ -296,6 +316,8 @@ func (s *Service) storeRefreshToken(ctx context.Context, userID string, clientID
 	})
 }
 
+// recordSuccessfulLogin writes wallet login audit data.
+// recordSuccessfulLogin 记录钱包登录审计日志和用户-client 关系。
 func (s *Service) recordSuccessfulLogin(ctx context.Context, userID string, clientID string, ip string, userAgent string) error {
 	if s.activity == nil {
 		return nil
@@ -313,6 +335,8 @@ func (s *Service) recordSuccessfulLogin(ctx context.Context, userID string, clie
 	return s.activity.UpsertUserClientLogin(ctx, userID, clientID)
 }
 
+// normalizeAddress delegates address validation to the injected verifier port.
+// normalizeAddress 通过注入的钱包校验端口完成地址格式化和校验。
 func (s *Service) normalizeAddress(address string) (string, error) {
 	if s.verifier == nil {
 		return "", errors.New("wallet verifier is required")
@@ -320,6 +344,8 @@ func (s *Service) normalizeAddress(address string) (string, error) {
 	return s.verifier.NormalizeAddress(strings.TrimSpace(address))
 }
 
+// randomNonce creates a cryptographically random URL-safe nonce.
+// randomNonce 创建密码学安全、URL 友好的随机 nonce。
 func randomNonce() (string, error) {
 	buf := make([]byte, 24)
 	if _, err := rand.Read(buf); err != nil {
@@ -328,6 +354,8 @@ func randomNonce() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
+// defaultClientID normalizes an empty client id to the built-in default client.
+// defaultClientID 将空 client_id 归一化为内置 default 业务系统。
 func defaultClientID(clientID string) string {
 	clientID = strings.TrimSpace(clientID)
 	if clientID == "" {

@@ -25,6 +25,7 @@ type Dependencies struct {
 }
 
 // New creates the HTTP router and registers public and authenticated routes.
+// New 创建 HTTP 路由并注册公开、认证和管理接口。
 func New(deps Dependencies) *gin.Engine {
 	if deps.Config.App.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)

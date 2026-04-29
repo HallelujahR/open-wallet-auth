@@ -3,6 +3,7 @@ package model
 import "time"
 
 // OAuthAccount maps to the oauth_accounts table.
+// OAuthAccount 映射 oauth_accounts 数据表。
 type OAuthAccount struct {
 	ID                string    `gorm:"primaryKey;type:varchar(64)"`
 	UserID            string    `gorm:"type:varchar(64);not null;index"`
@@ -15,6 +16,8 @@ type OAuthAccount struct {
 	UpdatedAt         time.Time `gorm:"type:timestamptz;not null"`
 }
 
+// TableName returns the physical table name for GORM.
+// TableName 返回 GORM 使用的物理表名。
 func (OAuthAccount) TableName() string {
 	return "oauth_accounts"
 }
