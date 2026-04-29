@@ -24,6 +24,7 @@ Integration guide:
 
 - [中文接入指南](docs/INTEGRATION.zh-CN.md)
 - [Browser wallet login example](examples/browser-wallet-login)
+- [Gin API JWT verification example](examples/gin-api)
 
 ## Quick Start
 

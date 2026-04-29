@@ -35,6 +35,16 @@ Business API
 - 在 API 网关或后端中校验 JWT。
 - 用 JWT 中的 `sub` 作为认证服务用户 ID，用 `client_id` 区分登录来源，用 `wallets` 读取已验证的钱包地址。
 
+Go/Gin 后端可以参考：[Gin API JWT 校验示例](../examples/gin-api)。
+
+示例里的业务接口不会每次请求都回调认证服务，而是通过 `/.well-known/jwks.json` 拉取公钥，在本地校验：
+
+- JWT 签名
+- `issuer`
+- `audience`
+- 过期时间
+- `kid` 对应的公钥
+
 ## 用户表怎么处理
 
 认证服务的 `users` 表只表示统一身份，不等于业务系统的完整用户资料表。
