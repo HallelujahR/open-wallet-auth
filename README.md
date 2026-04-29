@@ -20,6 +20,11 @@ The service follows Clean Architecture with explicit boundaries between:
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the current project layout and dependency rules.
 
+Integration guide:
+
+- [中文接入指南](docs/INTEGRATION.zh-CN.md)
+- [Browser wallet login example](examples/browser-wallet-login)
+
 ## Quick Start
 
 ```bash

@@ -27,12 +27,13 @@ type AppConfig struct {
 
 // HTTPConfig contains HTTP server settings.
 type HTTPConfig struct {
-	Host              string        `mapstructure:"host"`
-	Port              int           `mapstructure:"port"`
-	ReadHeaderTimeout time.Duration `mapstructure:"read_header_timeout"`
-	ReadTimeout       time.Duration `mapstructure:"read_timeout"`
-	WriteTimeout      time.Duration `mapstructure:"write_timeout"`
-	IdleTimeout       time.Duration `mapstructure:"idle_timeout"`
+	Host               string        `mapstructure:"host"`
+	Port               int           `mapstructure:"port"`
+	ReadHeaderTimeout  time.Duration `mapstructure:"read_header_timeout"`
+	ReadTimeout        time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout       time.Duration `mapstructure:"write_timeout"`
+	IdleTimeout        time.Duration `mapstructure:"idle_timeout"`
+	CORSAllowedOrigins []string      `mapstructure:"cors_allowed_origins"`
 }
 
 // LogConfig contains structured logging settings.
@@ -114,6 +115,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("http.read_timeout", "15s")
 	v.SetDefault("http.write_timeout", "15s")
 	v.SetDefault("http.idle_timeout", "60s")
+	v.SetDefault("http.cors_allowed_origins", []string{"http://localhost:3000", "http://localhost:5173", "null"})
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
 	v.SetDefault("database.driver", "postgres")

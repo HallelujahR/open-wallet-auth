@@ -29,6 +29,7 @@ func New(deps Dependencies) *gin.Engine {
 
 	engine := gin.New()
 	engine.Use(middleware.RequestID())
+	engine.Use(middleware.CORS(deps.Config.HTTP.CORSAllowedOrigins))
 	engine.Use(middleware.Recovery(deps.Logger))
 	engine.Use(middleware.AccessLog(deps.Logger))
 

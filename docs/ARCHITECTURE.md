@@ -55,6 +55,7 @@ examples
 - Login activity and user-client tracking are behind `repository.ActivityRepository`.
 - JWT signing, verification, and JWKS generation live in `internal/infrastructure/jwt`.
 - HTTP handlers do not access the database directly.
+- Browser CORS is handled as HTTP middleware from runtime config; business client ownership still belongs to the client usecase.
 
 ## Known Gaps
 

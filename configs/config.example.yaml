@@ -9,6 +9,10 @@ http:
   read_timeout: 15s
   write_timeout: 15s
   idle_timeout: 60s
+  cors_allowed_origins:
+    - http://localhost:3000
+    - http://localhost:5173
+    - "null"
 
 log:
   level: info
