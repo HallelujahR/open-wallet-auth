@@ -38,6 +38,14 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 	return toDomainUser(row), nil
 }
 
+func (r *UserRepository) FindByPhone(ctx context.Context, phone string) (*domainuser.User, error) {
+	var row model.User
+	if err := r.db.WithContext(ctx).Where("phone = ?", phone).First(&row).Error; err != nil {
+		return nil, mapGormError(err)
+	}
+	return toDomainUser(row), nil
+}
+
 func (r *UserRepository) Create(ctx context.Context, u *domainuser.User) error {
 	now := time.Now().UTC()
 	if u.ID == "" {

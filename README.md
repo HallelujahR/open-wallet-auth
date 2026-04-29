@@ -9,7 +9,9 @@ The service owns authentication. Your business applications still own their own 
 ## Features
 
 - Email/password registration and login
+- Phone verification-code login
 - EVM wallet signature login with SIWE-compatible messages
+- Google and GitHub OAuth start/callback flow
 - JWT access tokens signed with RS256
 - JWKS endpoint for local token verification in business APIs
 - Refresh token persistence and rotation
@@ -148,6 +150,10 @@ Important settings:
 - `jwt.private_key_path`: RSA private key path
 - `jwt.public_key_path`: RSA public key path
 - `wallet.nonce_ttl`: wallet challenge lifetime
+- `phone.code_ttl`: phone verification-code lifetime
+- `phone.dev_code`: local development phone code
+- `oauth.google.*`: Google OAuth credentials and endpoints
+- `oauth.github.*`: GitHub OAuth credentials and endpoints
 - `management.admin_token`: token for management APIs in development
 - `http.cors_allowed_origins`: browser origins allowed to call the auth service
 

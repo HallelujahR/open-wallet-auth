@@ -69,6 +69,75 @@ paths:
       responses:
         "200":
           description: Logged in with wallet
+  /api/v1/phone/code:
+    post:
+      summary: Create a phone verification code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhoneCodeRequest"
+      responses:
+        "200":
+          description: Phone code created
+  /api/v1/phone/login:
+    post:
+      summary: Verify phone code and issue a token pair
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhoneLoginRequest"
+      responses:
+        "200":
+          description: Logged in with phone
+  /api/v1/oauth/{provider}/start:
+    get:
+      summary: Create a provider OAuth authorization URL
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+        - name: client_id
+          in: query
+          schema:
+            type: string
+        - name: redirect_uri
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OAuth authorization URL
+  /api/v1/oauth/{provider}/callback:
+    get:
+      summary: Complete provider OAuth login
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Logged in with OAuth provider
   /.well-known/jwks.json:
     get:
       summary: JSON Web Key Set
@@ -115,4 +184,25 @@ components:
         nonce:
           type: string
         signature:
+          type: string
+    PhoneCodeRequest:
+      type: object
+      required:
+        - phone
+      properties:
+        client_id:
+          type: string
+        phone:
+          type: string
+    PhoneLoginRequest:
+      type: object
+      required:
+        - phone
+        - code
+      properties:
+        client_id:
+          type: string
+        phone:
+          type: string
+        code:
           type: string

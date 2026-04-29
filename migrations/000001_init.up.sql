@@ -34,6 +34,19 @@ CREATE TABLE IF NOT EXISTS user_wallets (
   UNIQUE (chain_type, address)
 );
 
+CREATE TABLE IF NOT EXISTS oauth_accounts (
+  id VARCHAR(64) PRIMARY KEY,
+  user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider VARCHAR(32) NOT NULL,
+  provider_subject VARCHAR(255) NOT NULL,
+  provider_email VARCHAR(255),
+  provider_username VARCHAR(255),
+  provider_avatar_url VARCHAR(512),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (provider, provider_subject)
+);
+
 CREATE TABLE IF NOT EXISTS wallet_nonces (
   id VARCHAR(64) PRIMARY KEY,
   address VARCHAR(128) NOT NULL,
@@ -81,4 +94,5 @@ CREATE TABLE IF NOT EXISTS login_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_wallet_nonces_address ON wallet_nonces(address);
+CREATE INDEX IF NOT EXISTS idx_oauth_accounts_user_id ON oauth_accounts(user_id);
 CREATE INDEX IF NOT EXISTS idx_login_logs_user_client ON login_logs(user_id, client_id);

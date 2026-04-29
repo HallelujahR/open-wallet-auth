@@ -14,6 +14,8 @@ type Dependencies struct {
 	Logger           *zap.Logger
 	Auth             *handler.AuthHandler
 	Wallet           *handler.WalletHandler
+	Phone            *handler.PhoneHandler
+	OAuth            *handler.OAuthHandler
 	Client           *handler.ClientHandler
 	Token            middleware.TokenVerifier
 	AudienceResolver middleware.ClientAudienceResolver
@@ -61,6 +63,20 @@ func New(deps Dependencies) *gin.Engine {
 			{
 				wallet.POST("/nonce", deps.Wallet.Nonce)
 				wallet.POST("/verify", deps.Wallet.Verify)
+			}
+		}
+		if deps.Phone != nil {
+			phone := v1.Group("/phone")
+			{
+				phone.POST("/code", deps.Phone.Code)
+				phone.POST("/login", deps.Phone.Login)
+			}
+		}
+		if deps.OAuth != nil {
+			oauth := v1.Group("/oauth")
+			{
+				oauth.GET("/:provider/start", deps.OAuth.Start)
+				oauth.GET("/:provider/callback", deps.OAuth.Callback)
 			}
 		}
 		if deps.Client != nil {

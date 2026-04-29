@@ -8,16 +8,11 @@ It is designed to show how a product frontend can wire multiple login methods in
 
 - Email registration
 - Email login
+- Phone code login with the local development code
 - EVM wallet login
 - Wallet provider selection through EIP-6963 when the browser exposes multiple wallets
-
-## UI Placeholders
-
-These tabs are included to document the intended frontend contract, but the backend endpoints are not implemented yet:
-
-- Phone login
-- Google login
-- GitHub login
+- Google OAuth start/callback when provider credentials are configured
+- GitHub OAuth start/callback when provider credentials are configured
 
 ## Run
 
@@ -46,3 +41,5 @@ http://localhost:8081
 ```
 
 The Codex in-app browser cannot load wallet extensions, so wallet login must be tested in a normal browser with MetaMask or another EIP-1193 wallet installed.
+
+For local phone login, the default development code is `123456`.

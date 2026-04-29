@@ -9,6 +9,8 @@ const (
 	LoginMethodPassword LoginMethod = "password"
 	LoginMethodRefresh  LoginMethod = "refresh"
 	LoginMethodWallet   LoginMethod = "wallet"
+	LoginMethodPhone    LoginMethod = "phone"
+	LoginMethodOAuth    LoginMethod = "oauth"
 )
 
 // LoginLog records one authentication attempt.

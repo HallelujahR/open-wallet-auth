@@ -184,11 +184,15 @@ func (m *memoryWallets) MarkNonceUsed(ctx context.Context, nonceID string) error
 }
 
 type memoryUsers struct {
-	byID map[string]*user.User
+	byID    map[string]*user.User
+	byPhone map[string]*user.User
 }
 
 func newMemoryUsers() *memoryUsers {
-	return &memoryUsers{byID: map[string]*user.User{}}
+	return &memoryUsers{
+		byID:    map[string]*user.User{},
+		byPhone: map[string]*user.User{},
+	}
 }
 
 func (m *memoryUsers) FindByID(ctx context.Context, id string) (*user.User, error) {
@@ -203,11 +207,22 @@ func (m *memoryUsers) FindByEmail(ctx context.Context, email string) (*user.User
 	return nil, repository.ErrNotFound
 }
 
+func (m *memoryUsers) FindByPhone(ctx context.Context, phone string) (*user.User, error) {
+	u, ok := m.byPhone[phone]
+	if !ok {
+		return nil, repository.ErrNotFound
+	}
+	return u, nil
+}
+
 func (m *memoryUsers) Create(ctx context.Context, u *user.User) error {
 	if u.ID == "" {
 		u.ID = "usr_test"
 	}
 	m.byID[u.ID] = u
+	if u.Phone != "" {
+		m.byPhone[u.Phone] = u
+	}
 	return nil
 }
 

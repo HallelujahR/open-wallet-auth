@@ -267,8 +267,8 @@
         <div class="panel" id="panel-phone">
           <h2>Phone Login</h2>
           <p class="muted">
-            This UI shows the expected developer contract. Backend SMS code
-            endpoints are not implemented yet.
+            Local development returns the configured dev code in the response.
+            Production deployments should replace this with an SMS provider.
           </p>
           <label>
             Phone
@@ -500,25 +500,27 @@
       }
 
       function plannedPhoneCode() {
-        writeResult({
-          status: "planned",
-          endpoint: "POST /api/v1/phone/code",
-          request: {
+        run(async () => {
+          const data = await postJSON("/api/v1/phone/code", {
             client_id: clientID(),
             phone: $("phone").value.trim(),
-          },
+          });
+          if (data.dev_code) {
+            $("phoneCode").value = data.dev_code;
+          }
+          writeResult(data);
         });
       }
 
       function plannedPhoneLogin() {
-        writeResult({
-          status: "planned",
-          endpoint: "POST /api/v1/phone/login",
-          request: {
+        run(async () => {
+          const data = await postJSON("/api/v1/phone/login", {
             client_id: clientID(),
             phone: $("phone").value.trim(),
             code: $("phoneCode").value.trim(),
-          },
+          });
+          saveSession(data);
+          writeResult(data);
         });
       }
 
@@ -530,10 +532,13 @@
         const url = `${authBaseURL()}/api/v1/oauth/${provider}/start?client_id=${encodeURIComponent(
           clientID(),
         )}&redirect_uri=${encodeURIComponent(redirect)}`;
-        writeResult({
-          status: "planned",
-          provider,
-          start_url: url,
+        run(async () => {
+          const response = await fetch(url);
+          const payload = await response.json();
+          if (!response.ok || payload.code !== "OK") {
+            throw new Error(payload.message || `Request failed: ${response.status}`);
+          }
+          writeResult(payload.data);
         });
       }
 

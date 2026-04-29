@@ -13,6 +13,7 @@ var ErrNotFound = errors.New("repository: not found")
 type UserRepository interface {
 	FindByID(ctx context.Context, id string) (*user.User, error)
 	FindByEmail(ctx context.Context, email string) (*user.User, error)
+	FindByPhone(ctx context.Context, phone string) (*user.User, error)
 	Create(ctx context.Context, u *user.User) error
 	UpdateLoginInfo(ctx context.Context, userID string) error
 }

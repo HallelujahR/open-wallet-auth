@@ -16,12 +16,16 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/config"
 	infrahash "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/crypto"
 	infrajwt "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/jwt"
+	infraoauth "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/oauth"
+	infraphone "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/phone"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres/model"
 	pgrepo "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres/repository"
 	infrawallet "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/wallet"
 	authusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/auth"
 	clientusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/client"
+	oauthusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/oauth"
+	phoneusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/phone"
 	walletusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/wallet"
 )
 
@@ -48,7 +52,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	}
 
 	if cfg.Database.AutoMigrate {
-		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.UserWallet{}, &model.WalletNonce{}, &model.RefreshToken{}, &model.LoginLog{}, &model.UserClient{}); err != nil {
+		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.UserWallet{}, &model.OAuthAccount{}, &model.WalletNonce{}, &model.RefreshToken{}, &model.LoginLog{}, &model.UserClient{}); err != nil {
 			return nil, fmt.Errorf("auto migrate database: %w", err)
 		}
 	}
@@ -58,6 +62,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	refreshTokenRepo := pgrepo.NewRefreshTokenRepository(db)
 	activityRepo := pgrepo.NewActivityRepository(db)
 	walletRepo := pgrepo.NewWalletRepository(db)
+	oauthAccountRepo := pgrepo.NewOAuthAccountRepository(db)
 	if err := clientRepo.EnsureDefault(context.Background()); err != nil {
 		return nil, fmt.Errorf("ensure default client: %w", err)
 	}
@@ -70,6 +75,50 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	}
 	authService := authusecase.NewService(userRepo, clientRepo, refreshTokenRepo, activityRepo, hasher, tokenHasher, tokenIssuer)
 	clientService := clientusecase.NewService(clientRepo)
+	phoneService := phoneusecase.NewService(phoneusecase.Dependencies{
+		Users:         userRepo,
+		Clients:       clientRepo,
+		RefreshTokens: refreshTokenRepo,
+		Activity:      activityRepo,
+		Codes:         infraphone.NewMemoryCodeRepository(),
+		TokenHasher:   tokenHasher,
+		Issuer:        tokenIssuer,
+		CodeTTL:       cfg.Phone.CodeTTL,
+		DevCode:       cfg.Phone.DevCode,
+		Clock:         clock.SystemClock{},
+	})
+	oauthService := oauthusecase.NewService(oauthusecase.Dependencies{
+		Users:         userRepo,
+		Clients:       clientRepo,
+		RefreshTokens: refreshTokenRepo,
+		Activity:      activityRepo,
+		Accounts:      oauthAccountRepo,
+		States:        infraoauth.NewMemoryStateStore(),
+		Providers: []oauthusecase.Provider{
+			infraoauth.NewHTTPProvider(infraoauth.ProviderConfig{
+				Name:         "google",
+				ClientID:     cfg.OAuth.Google.ClientID,
+				ClientSecret: cfg.OAuth.Google.ClientSecret,
+				AuthURL:      cfg.OAuth.Google.AuthURL,
+				TokenURL:     cfg.OAuth.Google.TokenURL,
+				UserInfoURL:  cfg.OAuth.Google.UserInfoURL,
+				Scopes:       cfg.OAuth.Google.Scopes,
+			}),
+			infraoauth.NewHTTPProvider(infraoauth.ProviderConfig{
+				Name:         "github",
+				ClientID:     cfg.OAuth.GitHub.ClientID,
+				ClientSecret: cfg.OAuth.GitHub.ClientSecret,
+				AuthURL:      cfg.OAuth.GitHub.AuthURL,
+				TokenURL:     cfg.OAuth.GitHub.TokenURL,
+				UserInfoURL:  cfg.OAuth.GitHub.UserInfoURL,
+				Scopes:       cfg.OAuth.GitHub.Scopes,
+			}),
+		},
+		TokenHasher: tokenHasher,
+		Issuer:      tokenIssuer,
+		StateTTL:    cfg.OAuth.StateTTL,
+		Clock:       clock.SystemClock{},
+	})
 	walletService := walletusecase.NewService(walletusecase.Dependencies{
 		Wallets:       walletRepo,
 		Users:         userRepo,
@@ -88,6 +137,8 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 		Logger:           logger,
 		Auth:             handler.NewAuthHandler(authService),
 		Wallet:           handler.NewWalletHandler(walletService),
+		Phone:            handler.NewPhoneHandler(phoneService),
+		OAuth:            handler.NewOAuthHandler(oauthService),
 		Client:           handler.NewClientHandler(clientService),
 		Token:            tokenIssuer,
 		AudienceResolver: clientService,

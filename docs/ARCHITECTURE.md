@@ -49,6 +49,8 @@ examples
 
 - Password auth lives in `internal/usecase/auth`.
 - Wallet auth lives in `internal/usecase/wallet`; EVM address and signature details are isolated in `internal/infrastructure/wallet`.
+- Phone auth lives in `internal/usecase/phone`; verification-code storage is behind `repository.PhoneCodeRepository`.
+- OAuth auth lives in `internal/usecase/oauth`; provider HTTP exchange and state storage are isolated in `internal/infrastructure/oauth`.
 - Client management and dynamic audience resolution live in `internal/usecase/client`.
 - Refresh token persistence is behind `repository.RefreshTokenRepository`.
 - Wallet bindings and one-time challenges are behind `repository.WalletRepository`.

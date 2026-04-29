@@ -16,6 +16,8 @@ type Config struct {
 	Redis      RedisConfig      `mapstructure:"redis"`
 	JWT        JWTConfig        `mapstructure:"jwt"`
 	Wallet     WalletConfig     `mapstructure:"wallet"`
+	Phone      PhoneConfig      `mapstructure:"phone"`
+	OAuth      OAuthConfig      `mapstructure:"oauth"`
 	Management ManagementConfig `mapstructure:"management"`
 }
 
@@ -72,6 +74,29 @@ type JWTConfig struct {
 // WalletConfig contains wallet authentication settings.
 type WalletConfig struct {
 	NonceTTL time.Duration `mapstructure:"nonce_ttl"`
+}
+
+// PhoneConfig contains phone verification-code login settings.
+type PhoneConfig struct {
+	CodeTTL time.Duration `mapstructure:"code_ttl"`
+	DevCode string        `mapstructure:"dev_code"`
+}
+
+// OAuthConfig contains third-party OAuth provider settings.
+type OAuthConfig struct {
+	StateTTL time.Duration       `mapstructure:"state_ttl"`
+	Google   OAuthProviderConfig `mapstructure:"google"`
+	GitHub   OAuthProviderConfig `mapstructure:"github"`
+}
+
+// OAuthProviderConfig contains one OAuth provider's credentials.
+type OAuthProviderConfig struct {
+	ClientID     string   `mapstructure:"client_id"`
+	ClientSecret string   `mapstructure:"client_secret"`
+	AuthURL      string   `mapstructure:"auth_url"`
+	TokenURL     string   `mapstructure:"token_url"`
+	UserInfoURL  string   `mapstructure:"user_info_url"`
+	Scopes       []string `mapstructure:"scopes"`
 }
 
 // ManagementConfig contains settings for management-only APIs.
@@ -133,5 +158,16 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.public_key_path", "./configs/jwt_public.pem")
 	v.SetDefault("jwt.active_key_id", "default")
 	v.SetDefault("wallet.nonce_ttl", "5m")
+	v.SetDefault("phone.code_ttl", "5m")
+	v.SetDefault("phone.dev_code", "123456")
+	v.SetDefault("oauth.state_ttl", "10m")
+	v.SetDefault("oauth.google.auth_url", "https://accounts.google.com/o/oauth2/v2/auth")
+	v.SetDefault("oauth.google.token_url", "https://oauth2.googleapis.com/token")
+	v.SetDefault("oauth.google.user_info_url", "https://openidconnect.googleapis.com/v1/userinfo")
+	v.SetDefault("oauth.google.scopes", []string{"openid", "email", "profile"})
+	v.SetDefault("oauth.github.auth_url", "https://github.com/login/oauth/authorize")
+	v.SetDefault("oauth.github.token_url", "https://github.com/login/oauth/access_token")
+	v.SetDefault("oauth.github.user_info_url", "https://api.github.com/user")
+	v.SetDefault("oauth.github.scopes", []string{"read:user", "user:email"})
 	v.SetDefault("management.admin_token", "")
 }

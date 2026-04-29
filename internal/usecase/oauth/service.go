@@ -1,0 +1,309 @@
+package oauth
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"errors"
+	"strings"
+	"time"
+
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
+	oauthdomain "github.com/open-wallet-auth/open-wallet-auth/internal/domain/oauth"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
+)
+
+const (
+	ErrInvalidClient   = "CLIENT_INVALID"
+	ErrInvalidProvider = "OAUTH_INVALID_PROVIDER"
+	ErrInvalidState    = "OAUTH_INVALID_STATE"
+	ErrProviderFailed  = "OAUTH_PROVIDER_FAILED"
+)
+
+// Clock supplies time to keep OAuth state flows deterministic in tests.
+type Clock interface {
+	Now() time.Time
+}
+
+// ProviderUser is the normalized profile returned by an OAuth provider.
+type ProviderUser struct {
+	Subject   string
+	Email     string
+	Username  string
+	AvatarURL string
+}
+
+// Provider hides third-party OAuth implementation details from usecases.
+type Provider interface {
+	Name() string
+	AuthURL(state string, redirectURI string) string
+	FetchUser(ctx context.Context, code string, redirectURI string) (*ProviderUser, error)
+	Configured() bool
+}
+
+// StateStore persists short-lived OAuth state between start and callback.
+type StateStore interface {
+	Save(ctx context.Context, state string, value StateValue, expiresAt time.Time) error
+	Take(ctx context.Context, state string, now time.Time) (*StateValue, error)
+}
+
+// TokenIssuer issues access and refresh tokens for OAuth login.
+type TokenIssuer interface {
+	IssuePair(ctx context.Context, claims token.Claims) (*token.Pair, error)
+	RefreshTokenTTL() time.Duration
+}
+
+// TokenHasher hashes opaque refresh tokens before persistence.
+type TokenHasher interface {
+	HashToken(raw string) string
+}
+
+// StateValue records trusted values from the OAuth start request.
+type StateValue struct {
+	ClientID    string
+	RedirectURI string
+}
+
+// Service orchestrates OAuth start and callback login.
+type Service struct {
+	users         repository.UserRepository
+	clients       repository.ClientRepository
+	refreshTokens repository.RefreshTokenRepository
+	activity      repository.ActivityRepository
+	accounts      repository.OAuthAccountRepository
+	states        StateStore
+	providers     map[string]Provider
+	tokenHasher   TokenHasher
+	issuer        TokenIssuer
+	stateTTL      time.Duration
+	clock         Clock
+}
+
+// Dependencies contains external ports required by OAuth login.
+type Dependencies struct {
+	Users         repository.UserRepository
+	Clients       repository.ClientRepository
+	RefreshTokens repository.RefreshTokenRepository
+	Activity      repository.ActivityRepository
+	Accounts      repository.OAuthAccountRepository
+	States        StateStore
+	Providers     []Provider
+	TokenHasher   TokenHasher
+	Issuer        TokenIssuer
+	StateTTL      time.Duration
+	Clock         Clock
+}
+
+// StartRequest is the input for creating an OAuth authorization URL.
+type StartRequest struct {
+	Provider    string
+	ClientID    string
+	RedirectURI string
+}
+
+// StartResult contains the provider redirect URL.
+type StartResult struct {
+	Provider string
+	AuthURL  string
+	State    string
+}
+
+// CallbackRequest is the input for completing OAuth login.
+type CallbackRequest struct {
+	Provider  string
+	Code      string
+	State     string
+	IP        string
+	UserAgent string
+}
+
+// CallbackResult is returned after a successful OAuth callback.
+type CallbackResult struct {
+	UserID   string
+	Username string
+	Email    string
+	Token    *token.Pair
+}
+
+// NewService creates the OAuth usecase service.
+func NewService(deps Dependencies) *Service {
+	providers := make(map[string]Provider, len(deps.Providers))
+	for _, provider := range deps.Providers {
+		if provider != nil {
+			providers[provider.Name()] = provider
+		}
+	}
+	return &Service{
+		users:         deps.Users,
+		clients:       deps.Clients,
+		refreshTokens: deps.RefreshTokens,
+		activity:      deps.Activity,
+		accounts:      deps.Accounts,
+		states:        deps.States,
+		providers:     providers,
+		tokenHasher:   deps.TokenHasher,
+		issuer:        deps.Issuer,
+		stateTTL:      deps.StateTTL,
+		clock:         deps.Clock,
+	}
+}
+
+// Start validates the client and returns a provider authorization URL.
+func (s *Service) Start(ctx context.Context, req StartRequest) (*StartResult, error) {
+	provider, err := s.provider(req.Provider)
+	if err != nil {
+		return nil, err
+	}
+	if !provider.Configured() {
+		return nil, domain.NewError(ErrProviderFailed, "oauth provider is not configured")
+	}
+	clientID := defaultClientID(req.ClientID)
+	client, err := s.clients.FindByClientID(ctx, clientID)
+	if err != nil || client == nil || !client.IsActive() {
+		return nil, domain.NewError(ErrInvalidClient, "invalid client")
+	}
+	redirectURI := strings.TrimSpace(req.RedirectURI)
+	if redirectURI == "" {
+		return nil, domain.NewError(ErrInvalidState, "redirect_uri is required")
+	}
+	state, err := randomState()
+	if err != nil {
+		return nil, err
+	}
+	if err := s.states.Save(ctx, state, StateValue{ClientID: client.ClientID, RedirectURI: redirectURI}, s.clock.Now().UTC().Add(s.stateTTL)); err != nil {
+		return nil, err
+	}
+	return &StartResult{Provider: provider.Name(), AuthURL: provider.AuthURL(state, redirectURI), State: state}, nil
+}
+
+// Callback exchanges an OAuth code for a provider user, links the account, and issues tokens.
+func (s *Service) Callback(ctx context.Context, req CallbackRequest) (*CallbackResult, error) {
+	provider, err := s.provider(req.Provider)
+	if err != nil {
+		return nil, err
+	}
+	state, err := s.states.Take(ctx, strings.TrimSpace(req.State), s.clock.Now().UTC())
+	if err != nil || state == nil {
+		return nil, domain.NewError(ErrInvalidState, "invalid oauth state")
+	}
+	client, err := s.clients.FindByClientID(ctx, state.ClientID)
+	if err != nil || client == nil || !client.IsActive() {
+		return nil, domain.NewError(ErrInvalidClient, "invalid client")
+	}
+	profile, err := provider.FetchUser(ctx, strings.TrimSpace(req.Code), state.RedirectURI)
+	if err != nil || profile == nil || profile.Subject == "" {
+		return nil, domain.WrapError(ErrProviderFailed, "oauth provider request failed", err)
+	}
+
+	account, err := s.accounts.FindByProviderSubject(ctx, provider.Name(), profile.Subject)
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return nil, err
+	}
+	u, err := s.resolveUser(ctx, provider.Name(), profile, account)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := s.issuer.IssuePair(ctx, token.Claims{
+		UserID:   u.ID,
+		ClientID: client.ClientID,
+		Audience: client.JWTAudience,
+		Username: u.Username,
+		Email:    u.Email,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := s.refreshTokens.Create(ctx, &token.RefreshToken{
+		UserID:    u.ID,
+		ClientID:  client.ClientID,
+		TokenHash: s.tokenHasher.HashToken(pair.RefreshToken),
+		ExpiresAt: s.clock.Now().UTC().Add(s.issuer.RefreshTokenTTL()),
+	}); err != nil {
+		return nil, err
+	}
+	if err := s.users.UpdateLoginInfo(ctx, u.ID); err != nil {
+		return nil, err
+	}
+	if s.activity != nil {
+		if err := s.activity.RecordLogin(ctx, &audit.LoginLog{
+			UserID:      u.ID,
+			ClientID:    client.ClientID,
+			LoginMethod: audit.LoginMethodOAuth,
+			IP:          req.IP,
+			UserAgent:   req.UserAgent,
+			Success:     true,
+		}); err != nil {
+			return nil, err
+		}
+		if err := s.activity.UpsertUserClientLogin(ctx, u.ID, client.ClientID); err != nil {
+			return nil, err
+		}
+	}
+	return &CallbackResult{UserID: u.ID, Username: u.Username, Email: u.Email, Token: pair}, nil
+}
+
+func (s *Service) resolveUser(ctx context.Context, provider string, profile *ProviderUser, account *oauthdomain.Account) (*user.User, error) {
+	if account != nil {
+		return s.users.FindByID(ctx, account.UserID)
+	}
+	var u *user.User
+	var err error
+	if profile.Email != "" {
+		u, err = s.users.FindByEmail(ctx, profile.Email)
+		if err != nil && !errors.Is(err, repository.ErrNotFound) {
+			return nil, err
+		}
+	}
+	if u == nil {
+		username := strings.TrimSpace(profile.Username)
+		if username == "" {
+			username = provider + "_" + profile.Subject
+		}
+		u = &user.User{Username: username, Email: profile.Email, Avatar: profile.AvatarURL, Status: user.StatusActive}
+		if err := s.users.Create(ctx, u); err != nil {
+			return nil, err
+		}
+	}
+	if !u.IsActive() {
+		return nil, domain.NewError(ErrProviderFailed, "oauth user is unavailable")
+	}
+	if err := s.accounts.Create(ctx, &oauthdomain.Account{
+		UserID:            u.ID,
+		Provider:          provider,
+		ProviderSubject:   profile.Subject,
+		ProviderEmail:     profile.Email,
+		ProviderUsername:  profile.Username,
+		ProviderAvatarURL: profile.AvatarURL,
+	}); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+func (s *Service) provider(name string) (Provider, error) {
+	provider, ok := s.providers[strings.ToLower(strings.TrimSpace(name))]
+	if !ok {
+		return nil, domain.NewError(ErrInvalidProvider, "invalid oauth provider")
+	}
+	return provider, nil
+}
+
+func randomState() (string, error) {
+	buf := make([]byte, 24)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
+}
+
+func defaultClientID(clientID string) string {
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" {
+		return "default"
+	}
+	return clientID
+}

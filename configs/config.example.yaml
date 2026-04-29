@@ -42,5 +42,31 @@ jwt:
 wallet:
   nonce_ttl: 5m
 
+phone:
+  code_ttl: 5m
+  dev_code: "123456"
+
+oauth:
+  state_ttl: 10m
+  google:
+    client_id: ""
+    client_secret: ""
+    auth_url: https://accounts.google.com/o/oauth2/v2/auth
+    token_url: https://oauth2.googleapis.com/token
+    user_info_url: https://openidconnect.googleapis.com/v1/userinfo
+    scopes:
+      - openid
+      - email
+      - profile
+  github:
+    client_id: ""
+    client_secret: ""
+    auth_url: https://github.com/login/oauth/authorize
+    token_url: https://github.com/login/oauth/access_token
+    user_info_url: https://api.github.com/user
+    scopes:
+      - read:user
+      - user:email
+
 management:
   admin_token: dev-admin-token
