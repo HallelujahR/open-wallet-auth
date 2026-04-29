@@ -50,11 +50,12 @@ examples
 - Password auth lives in `internal/usecase/auth`.
 - Client management and dynamic audience resolution live in `internal/usecase/client`.
 - Refresh token persistence is behind `repository.RefreshTokenRepository`.
+- Login activity and user-client tracking are behind `repository.ActivityRepository`.
 - JWT signing, verification, and JWKS generation live in `internal/infrastructure/jwt`.
 - HTTP handlers do not access the database directly.
 
 ## Known Gaps
 
 - Refresh token rotation should be made transactional as the repository layer matures.
-- Login logs and user-client activity tracking are still pending.
+- Failed login auditing is still pending; current activity recording covers successful registration, login, and refresh flows.
 - Client management is protected by `X-Admin-Token`; a first-class admin/RBAC model is still pending.

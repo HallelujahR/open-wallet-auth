@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
@@ -42,6 +43,7 @@ type Service struct {
 	users         repository.UserRepository
 	clients       repository.ClientRepository
 	refreshTokens repository.RefreshTokenRepository
+	activity      repository.ActivityRepository
 	hasher        PasswordHasher
 	tokenHasher   TokenHasher
 	issuer        TokenIssuer
@@ -49,9 +51,11 @@ type Service struct {
 
 // LoginRequest is the input for password login.
 type LoginRequest struct {
-	ClientID string
-	Email    string
-	Password string
+	ClientID  string
+	Email     string
+	Password  string
+	IP        string
+	UserAgent string
 }
 
 // LoginResult is returned after a successful password login.
@@ -64,10 +68,12 @@ type LoginResult struct {
 
 // RegisterRequest is the input for email/password registration.
 type RegisterRequest struct {
-	ClientID string
-	Username string
-	Email    string
-	Password string
+	ClientID  string
+	Username  string
+	Email     string
+	Password  string
+	IP        string
+	UserAgent string
 }
 
 // RegisterResult is returned after successful registration.
@@ -81,6 +87,8 @@ type RegisterResult struct {
 // RefreshRequest is the input for refresh token rotation.
 type RefreshRequest struct {
 	RefreshToken string
+	IP           string
+	UserAgent    string
 }
 
 // RefreshResult is returned after successful refresh token rotation.
@@ -101,6 +109,7 @@ func NewService(
 	users repository.UserRepository,
 	clients repository.ClientRepository,
 	refreshTokens repository.RefreshTokenRepository,
+	activity repository.ActivityRepository,
 	hasher PasswordHasher,
 	tokenHasher TokenHasher,
 	issuer TokenIssuer,
@@ -109,6 +118,7 @@ func NewService(
 		users:         users,
 		clients:       clients,
 		refreshTokens: refreshTokens,
+		activity:      activity,
 		hasher:        hasher,
 		tokenHasher:   tokenHasher,
 		issuer:        issuer,
@@ -148,6 +158,9 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 	}
 
 	if err := s.users.UpdateLoginInfo(ctx, u.ID); err != nil {
+		return nil, err
+	}
+	if err := s.recordSuccessfulLogin(ctx, u.ID, client.ClientID, audit.LoginMethodPassword, req.IP, req.UserAgent); err != nil {
 		return nil, err
 	}
 
@@ -212,6 +225,9 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*RegisterR
 	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken); err != nil {
 		return nil, err
 	}
+	if err := s.recordSuccessfulLogin(ctx, u.ID, client.ClientID, audit.LoginMethodPassword, req.IP, req.UserAgent); err != nil {
+		return nil, err
+	}
 
 	return &RegisterResult{
 		UserID:   u.ID,
@@ -263,6 +279,9 @@ func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*RefreshResu
 	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken); err != nil {
 		return nil, err
 	}
+	if err := s.recordSuccessfulLogin(ctx, u.ID, client.ClientID, audit.LoginMethodRefresh, req.IP, req.UserAgent); err != nil {
+		return nil, err
+	}
 
 	return &RefreshResult{
 		UserID:   u.ID,
@@ -295,6 +314,23 @@ func (s *Service) storeRefreshToken(ctx context.Context, userID string, clientID
 		TokenHash: s.tokenHasher.HashToken(raw),
 		ExpiresAt: time.Now().UTC().Add(s.issuer.RefreshTokenTTL()),
 	})
+}
+
+func (s *Service) recordSuccessfulLogin(ctx context.Context, userID string, clientID string, method audit.LoginMethod, ip string, userAgent string) error {
+	if s.activity == nil {
+		return nil
+	}
+	if err := s.activity.RecordLogin(ctx, &audit.LoginLog{
+		UserID:      userID,
+		ClientID:    clientID,
+		LoginMethod: method,
+		IP:          ip,
+		UserAgent:   userAgent,
+		Success:     true,
+	}); err != nil {
+		return err
+	}
+	return s.activity.UpsertUserClientLogin(ctx, userID, clientID)
 }
 
 func defaultClientID(clientID string) string {

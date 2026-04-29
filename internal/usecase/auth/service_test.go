@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
@@ -15,7 +16,7 @@ import (
 
 func TestServiceRegisterSuccess(t *testing.T) {
 	users := newMemoryUsers()
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
 
 	result, err := service.Register(context.Background(), RegisterRequest{
 		ClientID: "default",
@@ -41,7 +42,7 @@ func TestServiceRegisterRejectsExistingEmail(t *testing.T) {
 		Email:  "alice@example.com",
 		Status: user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
 
 	_, err := service.Register(context.Background(), RegisterRequest{
 		ClientID: "default",
@@ -67,7 +68,7 @@ func TestServiceLoginRejectsInvalidPassword(t *testing.T) {
 		PasswordHash: "hash:correct",
 		Status:       user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
 
 	_, err := service.Login(context.Background(), LoginRequest{
 		ClientID: "default",
@@ -101,7 +102,8 @@ func TestServiceRefreshRotatesRefreshToken(t *testing.T) {
 		ExpiresAt: time.Now().Add(time.Hour),
 	}
 	refreshTokens.byID["rft_old"] = refreshTokens.byHash["hash:old_refresh"]
-	service := NewService(users, defaultClients(), refreshTokens, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
+	activity := newMemoryActivity()
+	service := NewService(users, defaultClients(), refreshTokens, activity, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{})
 
 	result, err := service.Refresh(context.Background(), RefreshRequest{RefreshToken: "old_refresh"})
 	if err != nil {
@@ -112,6 +114,9 @@ func TestServiceRefreshRotatesRefreshToken(t *testing.T) {
 	}
 	if refreshTokens.byID["rft_old"].RevokedAt == nil {
 		t.Fatal("expected old refresh token to be revoked")
+	}
+	if activity.loginCount != 1 || activity.userClientCount != 1 {
+		t.Fatal("expected refresh activity to be recorded")
 	}
 }
 
@@ -163,6 +168,25 @@ type memoryClients struct {
 type memoryRefreshTokens struct {
 	byID   map[string]*token.RefreshToken
 	byHash map[string]*token.RefreshToken
+}
+
+type memoryActivity struct {
+	loginCount      int
+	userClientCount int
+}
+
+func newMemoryActivity() *memoryActivity {
+	return &memoryActivity{}
+}
+
+func (m *memoryActivity) RecordLogin(ctx context.Context, log *audit.LoginLog) error {
+	m.loginCount++
+	return nil
+}
+
+func (m *memoryActivity) UpsertUserClientLogin(ctx context.Context, userID string, clientID string) error {
+	m.userClientCount++
+	return nil
 }
 
 func newMemoryRefreshTokens() *memoryRefreshTokens {

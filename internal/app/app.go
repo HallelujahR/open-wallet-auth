@@ -45,7 +45,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	}
 
 	if cfg.Database.AutoMigrate {
-		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.RefreshToken{}); err != nil {
+		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.RefreshToken{}, &model.LoginLog{}, &model.UserClient{}); err != nil {
 			return nil, fmt.Errorf("auto migrate database: %w", err)
 		}
 	}
@@ -53,6 +53,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	userRepo := pgrepo.NewUserRepository(db)
 	clientRepo := pgrepo.NewClientRepository(db)
 	refreshTokenRepo := pgrepo.NewRefreshTokenRepository(db)
+	activityRepo := pgrepo.NewActivityRepository(db)
 	if err := clientRepo.EnsureDefault(context.Background()); err != nil {
 		return nil, fmt.Errorf("ensure default client: %w", err)
 	}
@@ -63,7 +64,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("initialize jwt service: %w", err)
 	}
-	authService := authusecase.NewService(userRepo, clientRepo, refreshTokenRepo, hasher, tokenHasher, tokenIssuer)
+	authService := authusecase.NewService(userRepo, clientRepo, refreshTokenRepo, activityRepo, hasher, tokenHasher, tokenIssuer)
 	clientService := clientusecase.NewService(clientRepo)
 
 	engine := router.New(router.Dependencies{

@@ -33,10 +33,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	result, err := h.auth.Register(c.Request.Context(), authusecase.RegisterRequest{
-		ClientID: req.ClientID,
-		Username: req.Username,
-		Email:    req.Email,
-		Password: req.Password,
+		ClientID:  req.ClientID,
+		Username:  req.Username,
+		Email:     req.Email,
+		Password:  req.Password,
+		IP:        c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
 	})
 	if err != nil {
 		writeAuthError(c, err)
@@ -67,9 +69,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	result, err := h.auth.Login(c.Request.Context(), authusecase.LoginRequest{
-		ClientID: req.ClientID,
-		Email:    req.Email,
-		Password: req.Password,
+		ClientID:  req.ClientID,
+		Email:     req.Email,
+		Password:  req.Password,
+		IP:        c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
 	})
 	if err != nil {
 		writeAuthError(c, err)
@@ -101,6 +105,8 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 	result, err := h.auth.Refresh(c.Request.Context(), authusecase.RefreshRequest{
 		RefreshToken: req.RefreshToken,
+		IP:           c.ClientIP(),
+		UserAgent:    c.Request.UserAgent(),
 	})
 	if err != nil {
 		writeAuthError(c, err)
