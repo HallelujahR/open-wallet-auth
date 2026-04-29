@@ -10,7 +10,6 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
-	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/message"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 )
 
@@ -38,14 +37,28 @@ type TokenHasher interface {
 	HashToken(raw string) string
 }
 
+// SMSMessage describes the verification SMS content requested by the phone usecase.
+// SMSMessage 描述手机号登录用例请求发送的短信验证码内容。
+type SMSMessage struct {
+	Phone string
+	Code  string
+}
+
+// SMSProvider sends verification SMS messages through an external adapter.
+// SMSProvider 是短信发送端口，具体云厂商实现应放在 infrastructure 层。
+type SMSProvider interface {
+	SendSMS(ctx context.Context, msg SMSMessage) error
+}
+
 // Service orchestrates phone verification-code login.
+// Service 只编排验证码、用户、token，不直接依赖任何短信云厂商 SDK。
 type Service struct {
 	users         repository.UserRepository
 	clients       repository.ClientRepository
 	refreshTokens repository.RefreshTokenRepository
 	activity      repository.ActivityRepository
 	codes         repository.PhoneCodeRepository
-	sender        message.SMSProvider
+	sender        SMSProvider
 	tokenHasher   TokenHasher
 	issuer        TokenIssuer
 	enabled       bool
@@ -62,7 +75,7 @@ type Dependencies struct {
 	RefreshTokens repository.RefreshTokenRepository
 	Activity      repository.ActivityRepository
 	Codes         repository.PhoneCodeRepository
-	Sender        message.SMSProvider
+	Sender        SMSProvider
 	TokenHasher   TokenHasher
 	Issuer        TokenIssuer
 	Enabled       bool
@@ -122,6 +135,7 @@ func NewService(deps Dependencies) *Service {
 }
 
 // RequestCode creates a short-lived verification code for phone login.
+// RequestCode 通过 SMSProvider 端口发送验证码，真实供应商由 infrastructure 注入。
 func (s *Service) RequestCode(ctx context.Context, req CodeRequest) (*CodeResult, error) {
 	clientID := defaultClientID(req.ClientID)
 	phone := normalizePhone(req.Phone)
@@ -145,7 +159,7 @@ func (s *Service) RequestCode(ctx context.Context, req CodeRequest) (*CodeResult
 		return nil, err
 	}
 	if s.sender != nil {
-		if err := s.sender.SendSMS(ctx, message.SMSMessage{Phone: phone, Code: code}); err != nil {
+		if err := s.sender.SendSMS(ctx, SMSMessage{Phone: phone, Code: code}); err != nil {
 			return nil, domain.WrapError(ErrSendFailed, "send phone verification code failed", err)
 		}
 	}
@@ -157,6 +171,7 @@ func (s *Service) RequestCode(ctx context.Context, req CodeRequest) (*CodeResult
 }
 
 // Login verifies the phone code, creates the user if needed, and issues tokens.
+// Login 消费验证码后统一走本服务 JWT/refresh-token 签发流程。
 func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, error) {
 	clientID := defaultClientID(req.ClientID)
 	phone := normalizePhone(req.Phone)

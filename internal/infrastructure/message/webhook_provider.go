@@ -7,9 +7,13 @@ import (
 	"errors"
 	"net/http"
 	"time"
+
+	emailusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/email"
+	phoneusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/phone"
 )
 
 // WebhookConfig configures a generic HTTP message provider.
+// WebhookConfig 用于把短信/邮件发送委托给用户自己的 HTTP 消息网关。
 type WebhookConfig struct {
 	URL         string
 	BearerToken string
@@ -17,21 +21,23 @@ type WebhookConfig struct {
 }
 
 // WebhookProvider sends SMS and email messages to a user-defined webhook.
+// WebhookProvider 是通用服务商 Demo，可在外部网关里再接阿里云、腾讯云、SendGrid 等。
 type WebhookProvider struct {
 	cfg        WebhookConfig
 	httpClient *http.Client
 }
 
 // NewWebhookProvider creates a webhook-backed message provider.
+// NewWebhookProvider 根据配置创建 webhook 发送适配器。
 func NewWebhookProvider(cfg WebhookConfig) *WebhookProvider {
 	return &WebhookProvider{cfg: cfg, httpClient: &http.Client{Timeout: 10 * time.Second}}
 }
 
-func (p *WebhookProvider) SendSMS(ctx context.Context, msg SMSMessage) error {
+func (p *WebhookProvider) SendSMS(ctx context.Context, msg phoneusecase.SMSMessage) error {
 	return p.send(ctx, map[string]any{"type": "sms", "phone": msg.Phone, "code": msg.Code})
 }
 
-func (p *WebhookProvider) SendEmail(ctx context.Context, msg EmailMessage) error {
+func (p *WebhookProvider) SendEmail(ctx context.Context, msg emailusecase.EmailMessage) error {
 	return p.send(ctx, map[string]any{"type": "email", "email": msg.Email, "subject": msg.Subject, "code": msg.Code})
 }
 

@@ -1,37 +1,20 @@
 package message
 
-import "context"
+import (
+	"context"
 
-// SMSMessage describes a phone verification message.
-type SMSMessage struct {
-	Phone string
-	Code  string
-}
-
-// EmailMessage describes an email verification message.
-type EmailMessage struct {
-	Email   string
-	Subject string
-	Code    string
-}
-
-// SMSProvider sends phone verification messages.
-type SMSProvider interface {
-	SendSMS(ctx context.Context, msg SMSMessage) error
-}
-
-// EmailProvider sends email verification messages.
-type EmailProvider interface {
-	SendEmail(ctx context.Context, msg EmailMessage) error
-}
+	emailusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/email"
+	phoneusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/phone"
+)
 
 // NoopProvider accepts messages without sending them.
+// NoopProvider 本地开发时吞掉消息，不调用真实短信或邮件服务商。
 type NoopProvider struct{}
 
-func (NoopProvider) SendSMS(ctx context.Context, msg SMSMessage) error {
+func (NoopProvider) SendSMS(ctx context.Context, msg phoneusecase.SMSMessage) error {
 	return nil
 }
 
-func (NoopProvider) SendEmail(ctx context.Context, msg EmailMessage) error {
+func (NoopProvider) SendEmail(ctx context.Context, msg emailusecase.EmailMessage) error {
 	return nil
 }

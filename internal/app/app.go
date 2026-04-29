@@ -76,6 +76,8 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("initialize jwt service: %w", err)
 	}
+	// Wire usecases with ports only; concrete adapters stay in infrastructure.
+	// 这里只做依赖装配：usecase 接收端口，具体实现留在 infrastructure 层。
 	authService := authusecase.NewService(userRepo, clientRepo, refreshTokenRepo, activityRepo, hasher, tokenHasher, tokenIssuer)
 	clientService := clientusecase.NewService(clientRepo)
 	smsProvider, _ := inframessage.NewProvider(cfg.Phone.Provider)

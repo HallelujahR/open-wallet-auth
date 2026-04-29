@@ -29,6 +29,7 @@ type Clock interface {
 }
 
 // ProviderUser is the normalized profile returned by an OAuth provider.
+// ProviderUser 是第三方 OAuth 用户资料的统一表示，避免 usecase 依赖 Google/GitHub 原始响应。
 type ProviderUser struct {
 	Subject   string
 	Email     string
@@ -37,6 +38,7 @@ type ProviderUser struct {
 }
 
 // Provider hides third-party OAuth implementation details from usecases.
+// Provider 是 OAuth 服务商端口，具体 HTTP token/userinfo 交换实现放在 infrastructure 层。
 type Provider interface {
 	Name() string
 	AuthURL(state string, redirectURI string) string
@@ -45,6 +47,7 @@ type Provider interface {
 }
 
 // StateStore persists short-lived OAuth state between start and callback.
+// StateStore 保存 OAuth start/callback 之间的短期 state，防止回调伪造和跨 client 混用。
 type StateStore interface {
 	Save(ctx context.Context, state string, value StateValue, expiresAt time.Time) error
 	Take(ctx context.Context, state string, now time.Time) (*StateValue, error)
@@ -152,6 +155,7 @@ func NewService(deps Dependencies) *Service {
 }
 
 // Start validates the client and returns a provider authorization URL.
+// Start 只生成授权地址，不直接接触第三方 HTTP 细节。
 func (s *Service) Start(ctx context.Context, req StartRequest) (*StartResult, error) {
 	provider, err := s.provider(req.Provider)
 	if err != nil {
@@ -180,6 +184,7 @@ func (s *Service) Start(ctx context.Context, req StartRequest) (*StartResult, er
 }
 
 // Callback exchanges an OAuth code for a provider user, links the account, and issues tokens.
+// Callback 完成第三方身份到本地用户的映射，并统一签发本服务 JWT。
 func (s *Service) Callback(ctx context.Context, req CallbackRequest) (*CallbackResult, error) {
 	provider, err := s.provider(req.Provider)
 	if err != nil {

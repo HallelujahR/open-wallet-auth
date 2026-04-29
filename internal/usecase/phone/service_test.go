@@ -9,7 +9,6 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
-	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/message"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 )
 
@@ -148,7 +147,7 @@ type memoryCodes struct {
 
 type noopSMS struct{}
 
-func (noopSMS) SendSMS(ctx context.Context, msg message.SMSMessage) error { return nil }
+func (noopSMS) SendSMS(ctx context.Context, msg SMSMessage) error { return nil }
 
 func newMemoryCodes() *memoryCodes { return &memoryCodes{} }
 
