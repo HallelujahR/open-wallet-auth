@@ -2,11 +2,12 @@ package wallet
 
 import (
 	"encoding/hex"
+	"fmt"
+	"strconv"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
+	"golang.org/x/crypto/sha3"
 )
 
 // EVMVerifier validates Ethereum-style addresses and personal_sign signatures.
@@ -23,10 +24,12 @@ func NewEVMVerifier() *EVMVerifier {
 // NormalizeAddress 校验地址格式并返回 checksum 形式的 EVM 地址。
 func (v *EVMVerifier) NormalizeAddress(address string) (string, error) {
 	address = strings.TrimSpace(address)
-	if !common.IsHexAddress(address) {
+	raw := strings.TrimPrefix(address, "0x")
+	raw = strings.TrimPrefix(raw, "0X")
+	if len(raw) != 40 || !isHex(raw) {
 		return "", ErrInvalidAddress
 	}
-	return common.HexToAddress(address).Hex(), nil
+	return checksumAddress(strings.ToLower(raw)), nil
 }
 
 // VerifyMessage recovers the signer from a personal_sign signature.
@@ -46,12 +49,72 @@ func (v *EVMVerifier) VerifyMessage(address string, message string, signature st
 		sig[64] -= 27
 	}
 
-	pubKey, err := crypto.SigToPub(accounts.TextHash([]byte(message)), sig)
+	compactSig := make([]byte, 65)
+	compactSig[0] = sig[64] + 27
+	copy(compactSig[1:33], sig[:32])
+	copy(compactSig[33:], sig[32:64])
+
+	pubKey, _, err := ecdsa.RecoverCompact(compactSig, personalSignHash(message))
 	if err != nil {
 		return false, err
 	}
-	recovered := crypto.PubkeyToAddress(*pubKey).Hex()
+	recovered := publicKeyToAddress(pubKey.SerializeUncompressed())
 	return strings.EqualFold(recovered, normalized), nil
+}
+
+// personalSignHash returns the EIP-191 hash used by eth_personalSign.
+// personalSignHash 返回 eth_personalSign 使用的 EIP-191 消息哈希。
+func personalSignHash(message string) []byte {
+	prefix := fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(message))
+	return keccak256([]byte(prefix + message))
+}
+
+// publicKeyToAddress derives an EIP-55 checksum address from an uncompressed public key.
+// publicKeyToAddress 从未压缩公钥推导 EIP-55 checksum 地址。
+func publicKeyToAddress(uncompressed []byte) string {
+	hash := keccak256(uncompressed[1:])
+	return checksumAddress(hex.EncodeToString(hash[12:]))
+}
+
+// checksumAddress formats a lowercase hex address using the EIP-55 checksum.
+// checksumAddress 按 EIP-55 checksum 格式化小写十六进制地址。
+func checksumAddress(lowerHex string) string {
+	hash := hex.EncodeToString(keccak256([]byte(lowerHex)))
+	var builder strings.Builder
+	builder.WriteString("0x")
+	for i, char := range lowerHex {
+		if char >= '0' && char <= '9' {
+			builder.WriteRune(char)
+			continue
+		}
+		nibble, _ := strconv.ParseUint(hash[i:i+1], 16, 8)
+		if nibble >= 8 {
+			builder.WriteString(strings.ToUpper(string(char)))
+			continue
+		}
+		builder.WriteRune(char)
+	}
+	return builder.String()
+}
+
+// keccak256 hashes data with Ethereum's legacy Keccak-256 variant.
+// keccak256 使用以太坊采用的 legacy Keccak-256 变体计算哈希。
+func keccak256(data []byte) []byte {
+	hasher := sha3.NewLegacyKeccak256()
+	_, _ = hasher.Write(data)
+	return hasher.Sum(nil)
+}
+
+// isHex reports whether a string contains only hexadecimal characters.
+// isHex 判断字符串是否只包含十六进制字符。
+func isHex(value string) bool {
+	for _, char := range value {
+		if (char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F') {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // ErrInvalidAddress is returned when a wallet address is malformed.

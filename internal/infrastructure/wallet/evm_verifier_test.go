@@ -4,23 +4,21 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 )
 
 func TestEVMVerifierVerifyMessage(t *testing.T) {
-	privateKey, err := crypto.GenerateKey()
+	privateKey, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		t.Fatalf("generate key: %v", err)
 	}
-	address := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+	address := publicKeyToAddress(privateKey.PubKey().SerializeUncompressed())
 	message := "example.com wants you to sign in"
 
-	signature, err := crypto.Sign(accounts.TextHash([]byte(message)), privateKey)
-	if err != nil {
-		t.Fatalf("sign message: %v", err)
-	}
-	signature[64] += 27
+	compactSignature := ecdsa.SignCompact(privateKey, personalSignHash(message), false)
+	signature := append([]byte{}, compactSignature[1:]...)
+	signature = append(signature, compactSignature[0])
 
 	ok, err := NewEVMVerifier().VerifyMessage(address, message, "0x"+hex.EncodeToString(signature))
 	if err != nil {
