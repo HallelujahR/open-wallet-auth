@@ -1,0 +1,13 @@
+.git
+.github
+.DS_Store
+.env
+*.log
+bin/
+tmp/
+coverage.out
+configs/config.yaml
+configs/jwt_private.pem
+configs/jwt_public.pem
+docs/
+examples/

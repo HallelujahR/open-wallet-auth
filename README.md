@@ -1,5 +1,9 @@
 # Open Wallet Auth
 
+[![CI](https://github.com/HallelujahR/open-wallet-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/HallelujahR/open-wallet-auth/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/HallelujahR/open-wallet-auth)](https://goreportcard.com/report/github.com/HallelujahR/open-wallet-auth)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 [简体中文](README.zh-CN.md)
 
 Open Wallet Auth is a self-hosted Web2 + Web3 authentication service for applications that want password login, wallet signature login, JWT/JWKS, and shared identity across multiple systems.
@@ -47,11 +51,20 @@ This project is moving beyond MVP for local integration and architecture validat
 
 The service follows Clean Architecture with explicit boundaries between:
 
-- HTTP delivery
-- usecases
-- domain models
-- repository interfaces
-- infrastructure adapters
+```mermaid
+flowchart LR
+  Browser["Browser / App UI"] --> HTTP["delivery/http"]
+  HTTP --> Usecase["usecase"]
+  Usecase --> Domain["domain"]
+  Usecase --> RepoPorts["repository interfaces"]
+  Infra["infrastructure adapters"] --> RepoPorts
+  Infra --> External["PostgreSQL / Redis / JWT / OAuth / SMS / Email"]
+```
+
+- HTTP delivery owns request/response mapping only.
+- Usecases orchestrate authentication and account-binding workflows.
+- Domain models hold core identity, token, wallet, OAuth, and audit concepts.
+- Repository interfaces are ports; infrastructure adapters implement them.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for project layout and dependency rules.
 
@@ -61,6 +74,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for project layout and dependen
 - [Universal auth frontend demo](examples/universal-auth-demo)
 - [Admin console demo](examples/admin-console)
 - [SMS and email provider guide](docs/PROVIDERS.zh-CN.md)
+- [Open source readiness checklist](docs/OPEN_SOURCE_READINESS.zh-CN.md)
 - [Browser wallet login example](examples/browser-wallet-login)
 - [Gin API JWT verification example](examples/gin-api)
 
@@ -75,31 +89,47 @@ Typical integration flow:
 
 ## Quick Start
 
+Run the backend and open the universal demo in about five minutes:
+
 ```bash
 cp configs/config.example.yaml configs/config.yaml
 docker compose up -d postgres redis
 go run ./cmd/migrate -direction up
-go run ./cmd/server
+OWA_HTTP_PORT=8081 go run ./cmd/server
+```
+
+In another terminal, serve the browser demos:
+
+```bash
+python3 -m http.server 5173
 ```
 
 Health check:
 
 ```bash
-curl http://localhost:8080/healthz
+curl http://localhost:8081/healthz
 ```
 
 JWKS:
 
 ```bash
-curl http://localhost:8080/.well-known/jwks.json
+curl http://localhost:8081/.well-known/jwks.json
 ```
+
+Open the universal demo:
+
+```text
+http://localhost:5173/examples/universal-auth-demo/
+```
+
+Use `http://localhost:8081` as the Auth Base URL. The local development email and phone verification code is `123456`.
 
 ## API Examples
 
 Register:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/register \
+curl -X POST http://localhost:8081/api/v1/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"client_id":"default","username":"alice","email":"alice@example.com","password":"password123"}'
 ```
@@ -107,7 +137,7 @@ curl -X POST http://localhost:8080/api/v1/auth/register \
 Login:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/login \
+curl -X POST http://localhost:8081/api/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"client_id":"default","email":"alice@example.com","password":"password123"}'
 ```
@@ -115,21 +145,21 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 Current user:
 
 ```bash
-curl http://localhost:8080/api/v1/auth/me \
+curl http://localhost:8081/api/v1/auth/me \
   -H "Authorization: Bearer <access_token>"
 ```
 
 Current user profile:
 
 ```bash
-curl http://localhost:8080/api/v1/profile \
+curl http://localhost:8081/api/v1/profile \
   -H "Authorization: Bearer <access_token>"
 ```
 
 Update display profile:
 
 ```bash
-curl -X PATCH http://localhost:8080/api/v1/profile \
+curl -X PATCH http://localhost:8081/api/v1/profile \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer <access_token>" \
   -d '{"username":"alice_new","avatar":"https://example.com/avatar.png"}'
@@ -138,7 +168,7 @@ curl -X PATCH http://localhost:8080/api/v1/profile \
 Change current password:
 
 ```bash
-curl -X PATCH http://localhost:8080/api/v1/auth/password \
+curl -X PATCH http://localhost:8081/api/v1/auth/password \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer <access_token>" \
   -d '{"current_password":"password123","new_password":"new-password123"}'
@@ -147,7 +177,7 @@ curl -X PATCH http://localhost:8080/api/v1/auth/password \
 Reset a password with an email code:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/password/reset \
+curl -X POST http://localhost:8081/api/v1/auth/password/reset \
   -H 'Content-Type: application/json' \
   -d '{"email":"alice@example.com","code":"123456","new_password":"new-password123"}'
 ```
@@ -155,7 +185,7 @@ curl -X POST http://localhost:8080/api/v1/auth/password/reset \
 Bind an email to the current user:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/bind/email \
+curl -X POST http://localhost:8081/api/v1/auth/bind/email \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer <access_token>" \
   -d '{"email":"alice@example.com","code":"123456"}'
@@ -164,7 +194,7 @@ curl -X POST http://localhost:8080/api/v1/auth/bind/email \
 Bind a phone number to the current user:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/bind/phone \
+curl -X POST http://localhost:8081/api/v1/auth/bind/phone \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer <access_token>" \
   -d '{"phone":"+8613800000000","code":"123456"}'
@@ -173,24 +203,24 @@ curl -X POST http://localhost:8080/api/v1/auth/bind/phone \
 Bind a Google or GitHub account to the current user:
 
 ```bash
-curl "http://localhost:8080/api/v1/oauth/github/bind/start?client_id=default&redirect_uri=http://localhost:8081/oauth/callback" \
+curl "http://localhost:8081/api/v1/oauth/github/bind/start?client_id=default&redirect_uri=http://localhost:8081/oauth/callback" \
   -H "Authorization: Bearer <access_token>"
 ```
 
 Unbind a login method from the current user:
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/auth/bind/email \
+curl -X DELETE http://localhost:8081/api/v1/auth/bind/email \
   -H "Authorization: Bearer <access_token>"
 
-curl -X DELETE http://localhost:8080/api/v1/auth/wallets/<wallet_id> \
+curl -X DELETE http://localhost:8081/api/v1/auth/wallets/<wallet_id> \
   -H "Authorization: Bearer <access_token>"
 ```
 
 Refresh token:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/refresh \
+curl -X POST http://localhost:8081/api/v1/auth/refresh \
   -H 'Content-Type: application/json' \
   -d '{"refresh_token":"<refresh_token>"}'
 ```
@@ -198,7 +228,7 @@ curl -X POST http://localhost:8080/api/v1/auth/refresh \
 Logout:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/logout \
+curl -X POST http://localhost:8081/api/v1/auth/logout \
   -H 'Content-Type: application/json' \
   -d '{"refresh_token":"<refresh_token>"}'
 ```
@@ -206,7 +236,7 @@ curl -X POST http://localhost:8080/api/v1/auth/logout \
 Create a client:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/clients \
+curl -X POST http://localhost:8081/api/v1/clients \
   -H 'Content-Type: application/json' \
   -H 'X-Admin-Token: dev-admin-token' \
   -d '{"client_id":"example-app","name":"Example App"}'
@@ -215,14 +245,14 @@ curl -X POST http://localhost:8080/api/v1/clients \
 List identity users for internal operations:
 
 ```bash
-curl http://localhost:8080/api/v1/admin/users \
+curl http://localhost:8081/api/v1/admin/users \
   -H 'X-Admin-Token: dev-admin-token'
 ```
 
 Create a wallet nonce:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/wallet/nonce \
+curl -X POST http://localhost:8081/api/v1/wallet/nonce \
   -H 'Content-Type: application/json' \
   -d '{"address":"0x0000000000000000000000000000000000000001","domain":"example.com","chain_id":1}'
 ```
@@ -230,7 +260,7 @@ curl -X POST http://localhost:8080/api/v1/wallet/nonce \
 Verify a wallet signature:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/wallet/verify \
+curl -X POST http://localhost:8081/api/v1/wallet/verify \
   -H 'Content-Type: application/json' \
   -d '{"client_id":"default","address":"<wallet_address>","nonce":"<nonce>","signature":"<signature>"}'
 ```
@@ -238,7 +268,7 @@ curl -X POST http://localhost:8080/api/v1/wallet/verify \
 Bind a wallet to the current user:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/wallet/bind \
+curl -X POST http://localhost:8081/api/v1/wallet/bind \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer <access_token>" \
   -d '{"address":"<wallet_address>","nonce":"<nonce>","signature":"<signature>"}'

@@ -1,5 +1,9 @@
 # Open Wallet Auth
 
+[![CI](https://github.com/HallelujahR/open-wallet-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/HallelujahR/open-wallet-auth/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/HallelujahR/open-wallet-auth)](https://goreportcard.com/report/github.com/HallelujahR/open-wallet-auth)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 [English](README.md)
 
 Open Wallet Auth 是一个自托管的 Web2 + Web3 统一认证服务，适合需要账号密码登录、钱包签名登录、JWT/JWKS、多系统共享身份的应用。
@@ -45,13 +49,22 @@ Open Wallet Auth 是一个自托管的 Web2 + Web3 统一认证服务，适合�
 
 ## 架构
 
-项目采用 Clean Architecture 思路，明确区分：
+项目采用 Clean Architecture 思路，边界如下：
 
-- HTTP delivery
-- usecase
-- domain model
-- repository interface
-- infrastructure adapter
+```mermaid
+flowchart LR
+  Browser["浏览器 / 业务前端"] --> HTTP["delivery/http"]
+  HTTP --> Usecase["usecase"]
+  Usecase --> Domain["domain"]
+  Usecase --> RepoPorts["repository interfaces"]
+  Infra["infrastructure adapters"] --> RepoPorts
+  Infra --> External["PostgreSQL / Redis / JWT / OAuth / 短信 / 邮件"]
+```
+
+- HTTP delivery 只负责请求/响应映射。
+- usecase 编排认证、绑定、解绑、审计等业务流程。
+- domain 保存身份、token、钱包、OAuth、审计等核心概念。
+- repository interfaces 是端口，infrastructure adapters 负责具体实现。
 
 架构说明见：[docs/ARCHITECTURE.zh-CN.md](docs/ARCHITECTURE.zh-CN.md)
 
@@ -61,6 +74,7 @@ Open Wallet Auth 是一个自托管的 Web2 + Web3 统一认证服务，适合�
 - [通用认证前端 Demo](examples/universal-auth-demo)
 - [身份管理控制台 Demo](examples/admin-console)
 - [短信和邮件服务商接入](docs/PROVIDERS.zh-CN.md)
+- [开源发布收敛检查](docs/OPEN_SOURCE_READINESS.zh-CN.md)
 - [浏览器钱包登录示例](examples/browser-wallet-login)
 - [Gin API JWT 校验示例](examples/gin-api)
 
@@ -75,31 +89,47 @@ Open Wallet Auth 是一个自托管的 Web2 + Web3 统一认证服务，适合�
 
 ## 快速启动
 
+约 5 分钟跑通后端和通用 Demo：
+
 ```bash
 cp configs/config.example.yaml configs/config.yaml
 docker compose up -d postgres redis
 go run ./cmd/migrate -direction up
-go run ./cmd/server
+OWA_HTTP_PORT=8081 go run ./cmd/server
+```
+
+另开一个终端启动 Demo 静态服务：
+
+```bash
+python3 -m http.server 5173
 ```
 
 健康检查：
 
 ```bash
-curl http://localhost:8080/healthz
+curl http://localhost:8081/healthz
 ```
 
 JWKS 公钥：
 
 ```bash
-curl http://localhost:8080/.well-known/jwks.json
+curl http://localhost:8081/.well-known/jwks.json
 ```
+
+打开通用 Demo：
+
+```text
+http://localhost:5173/examples/universal-auth-demo/
+```
+
+页面中的“认证服务地址”填写 `http://localhost:8081`。本地开发的邮箱/手机号验证码默认是 `123456`。
 
 ## API 示例
 
 账号注册：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/register \
+curl -X POST http://localhost:8081/api/v1/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"client_id":"default","username":"alice","email":"alice@example.com","password":"password123"}'
 ```
@@ -107,7 +137,7 @@ curl -X POST http://localhost:8080/api/v1/auth/register \
 账号登录：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/login \
+curl -X POST http://localhost:8081/api/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"client_id":"default","email":"alice@example.com","password":"password123"}'
 ```
@@ -115,21 +145,21 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 当前用户：
 
 ```bash
-curl http://localhost:8080/api/v1/auth/me \
+curl http://localhost:8081/api/v1/auth/me \
   -H "Authorization: Bearer <access_token>"
 ```
 
 当前用户资料：
 
 ```bash
-curl http://localhost:8080/api/v1/profile \
+curl http://localhost:8081/api/v1/profile \
   -H "Authorization: Bearer <access_token>"
 ```
 
 更新展示资料：
 
 ```bash
-curl -X PATCH http://localhost:8080/api/v1/profile \
+curl -X PATCH http://localhost:8081/api/v1/profile \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer <access_token>" \
   -d '{"username":"alice_new","avatar":"https://example.com/avatar.png"}'
@@ -138,7 +168,7 @@ curl -X PATCH http://localhost:8080/api/v1/profile \
 修改当前用户密码：
 
 ```bash
-curl -X PATCH http://localhost:8080/api/v1/auth/password \
+curl -X PATCH http://localhost:8081/api/v1/auth/password \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer <access_token>" \
   -d '{"current_password":"password123","new_password":"new-password123"}'
@@ -147,7 +177,7 @@ curl -X PATCH http://localhost:8080/api/v1/auth/password \
 使用邮箱验证码重置密码：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/password/reset \
+curl -X POST http://localhost:8081/api/v1/auth/password/reset \
   -H 'Content-Type: application/json' \
   -d '{"email":"alice@example.com","code":"123456","new_password":"new-password123"}'
 ```
@@ -155,7 +185,7 @@ curl -X POST http://localhost:8080/api/v1/auth/password/reset \
 给当前用户绑定邮箱：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/bind/email \
+curl -X POST http://localhost:8081/api/v1/auth/bind/email \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer <access_token>" \
   -d '{"email":"alice@example.com","code":"123456"}'
@@ -164,7 +194,7 @@ curl -X POST http://localhost:8080/api/v1/auth/bind/email \
 给当前用户绑定手机号：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/bind/phone \
+curl -X POST http://localhost:8081/api/v1/auth/bind/phone \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer <access_token>" \
   -d '{"phone":"+8613800000000","code":"123456"}'
@@ -173,24 +203,24 @@ curl -X POST http://localhost:8080/api/v1/auth/bind/phone \
 给当前用户绑定 Google 或 GitHub 账号：
 
 ```bash
-curl "http://localhost:8080/api/v1/oauth/github/bind/start?client_id=default&redirect_uri=http://localhost:8081/oauth/callback" \
+curl "http://localhost:8081/api/v1/oauth/github/bind/start?client_id=default&redirect_uri=http://localhost:8081/oauth/callback" \
   -H "Authorization: Bearer <access_token>"
 ```
 
 解绑当前用户的登录方式：
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/auth/bind/email \
+curl -X DELETE http://localhost:8081/api/v1/auth/bind/email \
   -H "Authorization: Bearer <access_token>"
 
-curl -X DELETE http://localhost:8080/api/v1/auth/wallets/<wallet_id> \
+curl -X DELETE http://localhost:8081/api/v1/auth/wallets/<wallet_id> \
   -H "Authorization: Bearer <access_token>"
 ```
 
 刷新 Token：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/refresh \
+curl -X POST http://localhost:8081/api/v1/auth/refresh \
   -H 'Content-Type: application/json' \
   -d '{"refresh_token":"<refresh_token>"}'
 ```
@@ -198,7 +228,7 @@ curl -X POST http://localhost:8080/api/v1/auth/refresh \
 退出登录：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/logout \
+curl -X POST http://localhost:8081/api/v1/auth/logout \
   -H 'Content-Type: application/json' \
   -d '{"refresh_token":"<refresh_token>"}'
 ```
@@ -206,7 +236,7 @@ curl -X POST http://localhost:8080/api/v1/auth/logout \
 创建接入应用：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/clients \
+curl -X POST http://localhost:8081/api/v1/clients \
   -H 'Content-Type: application/json' \
   -H 'X-Admin-Token: dev-admin-token' \
   -d '{"client_id":"example-app","name":"Example App"}'
@@ -215,14 +245,14 @@ curl -X POST http://localhost:8080/api/v1/clients \
 查询内部身份用户：
 
 ```bash
-curl http://localhost:8080/api/v1/admin/users \
+curl http://localhost:8081/api/v1/admin/users \
   -H 'X-Admin-Token: dev-admin-token'
 ```
 
 创建钱包 nonce：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/wallet/nonce \
+curl -X POST http://localhost:8081/api/v1/wallet/nonce \
   -H 'Content-Type: application/json' \
   -d '{"address":"0x0000000000000000000000000000000000000001","domain":"example.com","chain_id":1}'
 ```
@@ -230,7 +260,7 @@ curl -X POST http://localhost:8080/api/v1/wallet/nonce \
 校验钱包签名：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/wallet/verify \
+curl -X POST http://localhost:8081/api/v1/wallet/verify \
   -H 'Content-Type: application/json' \
   -d '{"client_id":"default","address":"<wallet_address>","nonce":"<nonce>","signature":"<signature>"}'
 ```
@@ -238,7 +268,7 @@ curl -X POST http://localhost:8080/api/v1/wallet/verify \
 给当前用户绑定钱包：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/wallet/bind \
+curl -X POST http://localhost:8081/api/v1/wallet/bind \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer <access_token>" \
   -d '{"address":"<wallet_address>","nonce":"<nonce>","signature":"<signature>"}'
