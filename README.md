@@ -70,6 +70,7 @@ Typical integration flow:
 ```bash
 cp configs/config.example.yaml configs/config.yaml
 docker compose up -d postgres redis
+go run ./cmd/migrate -direction up
 go run ./cmd/server
 ```
 
@@ -219,11 +220,11 @@ Important settings:
 CGO_ENABLED=0 go test ./...
 CGO_ENABLED=0 go vet ./...
 CGO_ENABLED=0 go build ./cmd/server
+CGO_ENABLED=0 go build ./cmd/migrate
 ```
 
 ## Roadmap
 
-- Production migration command
 - Wallet binding and unbinding APIs
 - More account-linking policies for existing wallet-only users
 - Password recovery hardening and audit events

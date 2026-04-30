@@ -17,6 +17,9 @@ The domain layer must not import Gin, GORM, Redis, JWT libraries, or database pa
 cmd/server
   Process entrypoint. It loads config, initializes logging, and starts the app.
 
+cmd/migrate
+  Production database migration command. It runs versioned SQL files from migrations.
+
 internal/app
   Dependency wiring and application lifecycle.
 
