@@ -9,5 +9,6 @@ import (
 // ActivityRepository records login events and user-client activity.
 type ActivityRepository interface {
 	RecordLogin(ctx context.Context, log *audit.LoginLog) error
+	RecordSecurityEvent(ctx context.Context, event *audit.SecurityEvent) error
 	UpsertUserClientLogin(ctx context.Context, userID string, clientID string) error
 }

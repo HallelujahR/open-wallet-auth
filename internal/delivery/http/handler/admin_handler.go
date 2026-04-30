@@ -181,6 +181,32 @@ func (h *AdminHandler) ListLoginLogs(c *gin.Context) {
 	})
 }
 
+// ListSecurityEvents returns paginated sensitive-operation audit events.
+// ListSecurityEvents 返回分页敏感操作审计事件。
+func (h *AdminHandler) ListSecurityEvents(c *gin.Context) {
+	result, err := h.admin.ListSecurityEvents(c.Request.Context(), adminusecase.SecurityEventListRequest{
+		UserID:    c.Query("user_id"),
+		EventType: c.Query("event_type"),
+		Page:      intQuery(c, "page", 1),
+		PageSize:  intQuery(c, "page_size", 20),
+	})
+	if err != nil {
+		writeAdminError(c, err)
+		return
+	}
+
+	items := make([]dto.AdminSecurityEventResponse, 0, len(result.Events))
+	for _, event := range result.Events {
+		items = append(items, toAdminSecurityEventResponse(event))
+	}
+	response.OK(c, dto.AdminSecurityEventListResponse{
+		Items:    items,
+		Total:    result.Total,
+		Page:     result.Page,
+		PageSize: result.PageSize,
+	})
+}
+
 // writeAdminError maps admin usecase errors to HTTP responses.
 // writeAdminError 将身份管理用例错误映射为 HTTP 响应。
 func writeAdminError(c *gin.Context, err error) {
@@ -295,6 +321,23 @@ func toAdminLoginLogResponse(log audit.LoginLog) dto.AdminLoginLogResponse {
 		Success:     log.Success,
 		FailureCode: log.FailureCode,
 		CreatedAt:   formatTime(log.CreatedAt),
+	}
+}
+
+// toAdminSecurityEventResponse converts a security audit event to a management DTO.
+// toAdminSecurityEventResponse 将安全操作审计事件转换为管理接口 DTO。
+func toAdminSecurityEventResponse(event audit.SecurityEvent) dto.AdminSecurityEventResponse {
+	return dto.AdminSecurityEventResponse{
+		ID:          event.ID,
+		UserID:      event.UserID,
+		EventType:   string(event.EventType),
+		TargetType:  event.TargetType,
+		TargetID:    event.TargetID,
+		IP:          event.IP,
+		UserAgent:   event.UserAgent,
+		Success:     event.Success,
+		FailureCode: event.FailureCode,
+		CreatedAt:   formatTime(event.CreatedAt),
 	}
 }
 

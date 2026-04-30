@@ -213,6 +213,8 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		UserID:          authClaims.UserID,
 		CurrentPassword: req.CurrentPassword,
 		NewPassword:     req.NewPassword,
+		IP:              c.ClientIP(),
+		UserAgent:       c.Request.UserAgent(),
 	}); err != nil {
 		writeAuthError(c, err)
 		return
@@ -234,6 +236,8 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		Email:       req.Email,
 		Code:        req.Code,
 		NewPassword: req.NewPassword,
+		IP:          c.ClientIP(),
+		UserAgent:   c.Request.UserAgent(),
 	}); err != nil {
 		writeAuthError(c, err)
 		return
@@ -257,9 +261,11 @@ func (h *AuthHandler) BindEmail(c *gin.Context) {
 		return
 	}
 	result, err := h.auth.BindEmail(c.Request.Context(), authusecase.BindEmailRequest{
-		UserID: authClaims.UserID,
-		Email:  req.Email,
-		Code:   req.Code,
+		UserID:    authClaims.UserID,
+		Email:     req.Email,
+		Code:      req.Code,
+		IP:        c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
 	})
 	if err != nil {
 		writeAuthError(c, err)
@@ -283,9 +289,11 @@ func (h *AuthHandler) BindPhone(c *gin.Context) {
 		return
 	}
 	result, err := h.auth.BindPhone(c.Request.Context(), authusecase.BindPhoneRequest{
-		UserID: authClaims.UserID,
-		Phone:  req.Phone,
-		Code:   req.Code,
+		UserID:    authClaims.UserID,
+		Phone:     req.Phone,
+		Code:      req.Code,
+		IP:        c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
 	})
 	if err != nil {
 		writeAuthError(c, err)
@@ -335,6 +343,8 @@ func (h *AuthHandler) UnbindWallet(c *gin.Context) {
 	if err := h.auth.UnbindWallet(c.Request.Context(), authusecase.UnbindRequest{
 		UserID:    authClaims.UserID,
 		BindingID: c.Param("wallet_id"),
+		IP:        c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
 	}); err != nil {
 		writeAuthError(c, err)
 		return
@@ -353,6 +363,8 @@ func (h *AuthHandler) UnbindOAuthAccount(c *gin.Context) {
 	if err := h.auth.UnbindOAuthAccount(c.Request.Context(), authusecase.UnbindRequest{
 		UserID:    authClaims.UserID,
 		BindingID: c.Param("account_id"),
+		IP:        c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
 	}); err != nil {
 		writeAuthError(c, err)
 		return

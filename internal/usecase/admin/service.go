@@ -93,6 +93,24 @@ type LoginLogListResult struct {
 	PageSize int
 }
 
+// SecurityEventListRequest is the input for listing sensitive-operation audit events.
+// SecurityEventListRequest 是查询敏感操作审计事件的用例输入。
+type SecurityEventListRequest struct {
+	UserID    string
+	EventType string
+	Page      int
+	PageSize  int
+}
+
+// SecurityEventListResult contains paginated sensitive-operation audit events.
+// SecurityEventListResult 返回分页后的敏感操作审计事件。
+type SecurityEventListResult struct {
+	Events   []audit.SecurityEvent
+	Total    int64
+	Page     int
+	PageSize int
+}
+
 // SessionListRequest is the input for listing refresh-token sessions.
 // SessionListRequest 是查询刷新令牌会话的用例输入。
 type SessionListRequest struct {
@@ -217,6 +235,22 @@ func (s *Service) ListLoginLogs(ctx context.Context, req LoginLogListRequest) (*
 		return nil, err
 	}
 	return &LoginLogListResult{Logs: logs, Total: total, Page: page, PageSize: pageSize}, nil
+}
+
+// ListSecurityEvents returns sensitive-operation audit events with pagination.
+// ListSecurityEvents 按分页查询敏感操作审计事件。
+func (s *Service) ListSecurityEvents(ctx context.Context, req SecurityEventListRequest) (*SecurityEventListResult, error) {
+	page, pageSize := normalizePage(req.Page, req.PageSize)
+	events, total, err := s.activity.ListSecurityEvents(ctx, repository.SecurityEventFilter{
+		UserID:    strings.TrimSpace(req.UserID),
+		EventType: strings.TrimSpace(req.EventType),
+		Page:      page,
+		PageSize:  pageSize,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &SecurityEventListResult{Events: events, Total: total, Page: page, PageSize: pageSize}, nil
 }
 
 // ListSessions returns refresh-token sessions for management.

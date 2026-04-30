@@ -2,7 +2,7 @@
 
 This is a browser-only developer demo for Open Wallet Auth.
 
-It is designed to show how a product frontend can wire multiple login methods into one page.
+It is designed to show how a product frontend can wire multiple login methods, profile APIs, binding flows, token operations, and security-audit queries into one page.
 
 ## Supported Now
 
@@ -14,6 +14,10 @@ It is designed to show how a product frontend can wire multiple login methods in
 - Wallet provider selection through EIP-6963 when the browser exposes multiple wallets
 - Google OAuth start/callback when provider credentials are configured
 - GitHub OAuth start/callback when provider credentials are configured
+- Current-user profile loading and update
+- Email, phone, wallet, and OAuth binding/unbinding
+- Refresh/logout token operations
+- Security event list through the management API
 
 ## Run
 

@@ -121,3 +121,27 @@ type AdminLoginLogListResponse struct {
 	Page     int                     `json:"page"`
 	PageSize int                     `json:"page_size"`
 }
+
+// AdminSecurityEventResponse is the management view of one sensitive-operation event.
+// AdminSecurityEventResponse 是单条敏感操作审计事件的管理视图。
+type AdminSecurityEventResponse struct {
+	ID          string `json:"id"`
+	UserID      string `json:"user_id"`
+	EventType   string `json:"event_type"`
+	TargetType  string `json:"target_type,omitempty"`
+	TargetID    string `json:"target_id,omitempty"`
+	IP          string `json:"ip,omitempty"`
+	UserAgent   string `json:"user_agent,omitempty"`
+	Success     bool   `json:"success"`
+	FailureCode string `json:"failure_code,omitempty"`
+	CreatedAt   string `json:"created_at"`
+}
+
+// AdminSecurityEventListResponse is the paginated security-event response.
+// AdminSecurityEventListResponse 是分页安全操作审计响应。
+type AdminSecurityEventListResponse struct {
+	Items    []AdminSecurityEventResponse `json:"items"`
+	Total    int64                        `json:"total"`
+	Page     int                          `json:"page"`
+	PageSize int                          `json:"page_size"`
+}

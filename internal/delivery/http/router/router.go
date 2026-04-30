@@ -132,6 +132,7 @@ func New(deps Dependencies) *gin.Engine {
 				admin.DELETE("/users/:user_id/wallets/:wallet_id", deps.Admin.UnbindWallet)
 				admin.DELETE("/users/:user_id/oauth-accounts/:account_id", deps.Admin.UnbindOAuthAccount)
 				admin.GET("/login-logs", deps.Admin.ListLoginLogs)
+				admin.GET("/security-events", deps.Admin.ListSecurityEvents)
 				admin.GET("/sessions", deps.Admin.ListSessions)
 				admin.DELETE("/sessions/:session_id", deps.Admin.RevokeSession)
 				if deps.Client != nil {

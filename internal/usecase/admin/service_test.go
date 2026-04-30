@@ -75,6 +75,18 @@ func TestServiceListLoginLogs(t *testing.T) {
 	}
 }
 
+func TestServiceListSecurityEvents(t *testing.T) {
+	service := newTestService()
+
+	result, err := service.ListSecurityEvents(context.Background(), SecurityEventListRequest{UserID: "usr_1", EventType: "bind_email"})
+	if err != nil {
+		t.Fatalf("ListSecurityEvents returned error: %v", err)
+	}
+	if result.Total != 1 || result.Events[0].EventType != audit.SecurityEventBindEmail {
+		t.Fatalf("unexpected security event result")
+	}
+}
+
 func TestServiceListSessions(t *testing.T) {
 	service := newTestService()
 
@@ -159,6 +171,10 @@ type memoryAdminActivity struct{}
 
 func (memoryAdminActivity) ListLoginLogs(ctx context.Context, filter repository.LoginLogFilter) ([]audit.LoginLog, int64, error) {
 	return []audit.LoginLog{{ID: "log_1", UserID: "usr_1", ClientID: "default", LoginMethod: audit.LoginMethodPassword, Success: true, CreatedAt: testTime}}, 1, nil
+}
+
+func (memoryAdminActivity) ListSecurityEvents(ctx context.Context, filter repository.SecurityEventFilter) ([]audit.SecurityEvent, int64, error) {
+	return []audit.SecurityEvent{{ID: "sec_1", UserID: "usr_1", EventType: audit.SecurityEventBindEmail, TargetType: "email", TargetID: "alice@example.com", Success: true, CreatedAt: testTime}}, 1, nil
 }
 
 func (memoryAdminActivity) ListUserClients(ctx context.Context, userID string) ([]audit.UserClient, error) {

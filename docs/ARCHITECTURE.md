@@ -61,6 +61,7 @@ examples
 - Refresh token persistence and session revocation are behind `repository.RefreshTokenRepository`.
 - Wallet bindings and one-time challenges are behind `repository.WalletRepository`.
 - Login activity and user-client tracking are behind `repository.ActivityRepository`.
+- Security operation audit is also behind `repository.ActivityRepository`; usecases record sensitive account changes without importing database adapters.
 - JWT signing, verification, and JWKS generation live in `internal/infrastructure/jwt`.
 - HTTP handlers do not access the database directly.
 - Browser CORS is handled as HTTP middleware from runtime config; business client ownership still belongs to the client usecase.
@@ -74,4 +75,6 @@ examples
 - User-side unbinding is protected by a last-login-method check so an account cannot remove every way to sign in.
 - Profile updates are limited to display fields (`username`, `avatar`); email and phone remain verification-code binding flows.
 - Login auditing records successful password, refresh, wallet, phone, and OAuth logins; password-login failures are recorded as best-effort audit events.
+- Security operation auditing records password changes, password resets, email/phone binding, and user-side unbinding of email, phone, wallet, and OAuth accounts.
+- Production startup validation rejects unsafe runtime settings before opening database connections.
 - Client and identity management are protected by `X-Admin-Token`; a first-class admin/RBAC model is still pending.

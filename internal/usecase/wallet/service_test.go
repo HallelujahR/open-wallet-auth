@@ -437,6 +437,10 @@ func (m *memoryActivity) RecordLogin(ctx context.Context, log *audit.LoginLog) e
 	return nil
 }
 
+func (m *memoryActivity) RecordSecurityEvent(ctx context.Context, event *audit.SecurityEvent) error {
+	return nil
+}
+
 func (m *memoryActivity) UpsertUserClientLogin(ctx context.Context, userID string, clientID string) error {
 	return nil
 }

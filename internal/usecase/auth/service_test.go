@@ -538,6 +538,7 @@ type memoryActivity struct {
 	userClientCount int
 	failedCount     int
 	failureCode     string
+	securityCount   int
 }
 
 type memoryEmailCodes struct {
@@ -700,6 +701,11 @@ func (m *memoryActivity) RecordLogin(ctx context.Context, log *audit.LoginLog) e
 	}
 	m.failedCount++
 	m.failureCode = log.FailureCode
+	return nil
+}
+
+func (m *memoryActivity) RecordSecurityEvent(ctx context.Context, event *audit.SecurityEvent) error {
+	m.securityCount++
 	return nil
 }
 

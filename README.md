@@ -30,15 +30,18 @@ The service owns authentication. Your business applications still own their own 
 - Multi-client login with `client_id` and JWT audience
 - Login activity and user-client tracking
 - Failed password-login audit records
+- Security operation audit records for password, binding, and unbinding changes
 - Internal identity management APIs for users, bindings, and login logs
+- Management API for security operation audit events
 - Admin unbinding APIs for wallet and OAuth account bindings
+- Production configuration safety checks
 - Browser CORS configuration
 - Browser wallet login example
 - Gin API JWT verification example
 
 ## Status
 
-This project is in early development. It is suitable for local integration testing and architecture validation. Production use still requires additional hardening such as operational migrations, broader abuse protection, and stronger management APIs.
+This project is moving beyond MVP for local integration and architecture validation. Production deployments must use explicit SQL migrations, strong management tokens, real SMS/email providers, strict CORS origins, and persisted JWT key files.
 
 ## Architecture
 
@@ -267,8 +270,10 @@ Important settings:
 - `redis.enabled`: enable Redis adapters for code storage and rate limiting
 - `oauth.google.*`: Google OAuth credentials and endpoints
 - `oauth.github.*`: GitHub OAuth credentials and endpoints
-- `management.admin_token`: token for management APIs in development
+- `management.admin_token`: token for management APIs; production requires a strong non-default value
 - `http.cors_allowed_origins`: browser origins allowed to call the auth service
+
+When `app.env=production`, startup rejects unsafe settings such as `database.auto_migrate=true`, exposed development verification codes, `noop` phone/email providers when enabled, wildcard/null CORS origins, weak management tokens, or missing JWT key files.
 
 ## Testing
 
@@ -281,8 +286,5 @@ CGO_ENABLED=0 go build ./cmd/migrate
 
 ## Roadmap
 
-- Wallet binding and unbinding APIs
-- More account-linking policies for existing wallet-only users
-- Password recovery audit events
 - Stronger admin/RBAC model for service management
 - More framework integration examples

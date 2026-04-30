@@ -28,6 +28,15 @@ type LoginLogFilter struct {
 	PageSize int
 }
 
+// SecurityEventFilter contains pagination and ownership filters for security events.
+// SecurityEventFilter 描述安全操作审计查询的分页和归属过滤条件。
+type SecurityEventFilter struct {
+	UserID    string
+	EventType string
+	Page      int
+	PageSize  int
+}
+
 // AdminUserRepository defines user operations required by identity management.
 // AdminUserRepository 定义身份管理接口需要的用户仓储能力。
 type AdminUserRepository interface {
@@ -40,6 +49,7 @@ type AdminUserRepository interface {
 // AdminActivityRepository 定义身份管理接口需要的登录审计查询能力。
 type AdminActivityRepository interface {
 	ListLoginLogs(ctx context.Context, filter LoginLogFilter) ([]audit.LoginLog, int64, error)
+	ListSecurityEvents(ctx context.Context, filter SecurityEventFilter) ([]audit.SecurityEvent, int64, error)
 	ListUserClients(ctx context.Context, userID string) ([]audit.UserClient, error)
 }
 

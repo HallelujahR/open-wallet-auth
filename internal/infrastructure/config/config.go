@@ -1,6 +1,9 @@
 package config
 
 import (
+	"errors"
+	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -207,6 +210,50 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+// ValidateProduction rejects unsafe runtime settings before the HTTP server starts.
+// ValidateProduction 在 HTTP 服务启动前拒绝生产环境中的危险配置。
+func (c Config) ValidateProduction() error {
+	if !strings.EqualFold(c.App.Env, "production") {
+		return nil
+	}
+	var problems []string
+	if c.Database.AutoMigrate {
+		problems = append(problems, "database.auto_migrate must be false in production; use cmd/migrate")
+	}
+	if c.Management.AdminToken == "" || c.Management.AdminToken == "dev-admin-token" || len(c.Management.AdminToken) < 32 {
+		problems = append(problems, "management.admin_token must be at least 32 characters and non-default")
+	}
+	if c.Phone.ExposeDevCode || c.Email.ExposeDevCode {
+		problems = append(problems, "phone.expose_dev_code and email.expose_dev_code must be false")
+	}
+	if c.Phone.Provider.Type == "noop" && c.Phone.Enabled {
+		problems = append(problems, "phone.provider.type must not be noop when phone login is enabled")
+	}
+	if c.Email.Provider.Type == "noop" && c.Email.VerificationEnabled {
+		problems = append(problems, "email.provider.type must not be noop when email verification is enabled")
+	}
+	for _, origin := range c.HTTP.CORSAllowedOrigins {
+		if origin == "*" || origin == "null" || strings.TrimSpace(origin) == "" {
+			problems = append(problems, "http.cors_allowed_origins must not contain *, null, or empty origins")
+			break
+		}
+	}
+	if c.JWT.PrivateKeyPath == "" {
+		problems = append(problems, "jwt.private_key_path is required")
+	} else if _, err := os.Stat(c.JWT.PrivateKeyPath); err != nil {
+		problems = append(problems, fmt.Sprintf("jwt.private_key_path must exist: %v", err))
+	}
+	if c.JWT.PublicKeyPath == "" {
+		problems = append(problems, "jwt.public_key_path is required")
+	} else if _, err := os.Stat(c.JWT.PublicKeyPath); err != nil {
+		problems = append(problems, fmt.Sprintf("jwt.public_key_path must exist: %v", err))
+	}
+	if len(problems) > 0 {
+		return errors.New("unsafe production configuration: " + strings.Join(problems, "; "))
+	}
+	return nil
 }
 
 // setDefaults defines safe local-development defaults for every config section.

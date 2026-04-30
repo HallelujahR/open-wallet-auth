@@ -137,6 +137,8 @@ type ChangePasswordRequest struct {
 	UserID          string
 	CurrentPassword string
 	NewPassword     string
+	IP              string
+	UserAgent       string
 }
 
 // ResetPasswordRequest is the input for resetting a password with an email code.
@@ -145,22 +147,28 @@ type ResetPasswordRequest struct {
 	Email       string
 	Code        string
 	NewPassword string
+	IP          string
+	UserAgent   string
 }
 
 // BindEmailRequest is the input for binding an email to the current user.
 // BindEmailRequest 是当前用户绑定邮箱的用例输入。
 type BindEmailRequest struct {
-	UserID string
-	Email  string
-	Code   string
+	UserID    string
+	Email     string
+	Code      string
+	IP        string
+	UserAgent string
 }
 
 // BindPhoneRequest is the input for binding a phone number to the current user.
 // BindPhoneRequest 是当前用户绑定手机号的用例输入。
 type BindPhoneRequest struct {
-	UserID string
-	Phone  string
-	Code   string
+	UserID    string
+	Phone     string
+	Code      string
+	IP        string
+	UserAgent string
 }
 
 // BindContactResult describes the bound contact value.
@@ -175,6 +183,8 @@ type BindContactResult struct {
 type UnbindRequest struct {
 	UserID    string
 	BindingID string
+	IP        string
+	UserAgent string
 }
 
 // ProfileResult aggregates current identity profile and login-method bindings.
@@ -490,6 +500,15 @@ func (s *Service) ChangePassword(ctx context.Context, req ChangePasswordRequest)
 	if err := s.users.UpdatePassword(ctx, userID, hash); err != nil {
 		return err
 	}
+	s.recordSecurityEvent(ctx, audit.SecurityEvent{
+		UserID:     userID,
+		EventType:  audit.SecurityEventChangePassword,
+		TargetType: "user",
+		TargetID:   userID,
+		IP:         req.IP,
+		UserAgent:  req.UserAgent,
+		Success:    true,
+	})
 	return nil
 }
 
@@ -531,6 +550,15 @@ func (s *Service) ResetPassword(ctx context.Context, req ResetPasswordRequest) e
 	if _, err := s.refreshTokens.RevokeByUserID(ctx, u.ID); err != nil {
 		return err
 	}
+	s.recordSecurityEvent(ctx, audit.SecurityEvent{
+		UserID:     u.ID,
+		EventType:  audit.SecurityEventResetPassword,
+		TargetType: "email",
+		TargetID:   email,
+		IP:         req.IP,
+		UserAgent:  req.UserAgent,
+		Success:    true,
+	})
 	return nil
 }
 
@@ -556,6 +584,15 @@ func (s *Service) BindEmail(ctx context.Context, req BindEmailRequest) (*BindCon
 	}
 	if existing != nil {
 		if existing.ID == userID {
+			s.recordSecurityEvent(ctx, audit.SecurityEvent{
+				UserID:     userID,
+				EventType:  audit.SecurityEventBindEmail,
+				TargetType: "email",
+				TargetID:   email,
+				IP:         req.IP,
+				UserAgent:  req.UserAgent,
+				Success:    true,
+			})
 			return &BindContactResult{UserID: userID, Value: email}, nil
 		}
 		return nil, domain.NewError(ErrEmailAlreadyBound, "email is already bound to another account")
@@ -573,6 +610,15 @@ func (s *Service) BindEmail(ctx context.Context, req BindEmailRequest) (*BindCon
 	if err := s.users.UpdateEmail(ctx, userID, email); err != nil {
 		return nil, err
 	}
+	s.recordSecurityEvent(ctx, audit.SecurityEvent{
+		UserID:     userID,
+		EventType:  audit.SecurityEventBindEmail,
+		TargetType: "email",
+		TargetID:   email,
+		IP:         req.IP,
+		UserAgent:  req.UserAgent,
+		Success:    true,
+	})
 	return &BindContactResult{UserID: userID, Value: email}, nil
 }
 
@@ -598,6 +644,15 @@ func (s *Service) BindPhone(ctx context.Context, req BindPhoneRequest) (*BindCon
 	}
 	if existing != nil {
 		if existing.ID == userID {
+			s.recordSecurityEvent(ctx, audit.SecurityEvent{
+				UserID:     userID,
+				EventType:  audit.SecurityEventBindPhone,
+				TargetType: "phone",
+				TargetID:   phone,
+				IP:         req.IP,
+				UserAgent:  req.UserAgent,
+				Success:    true,
+			})
 			return &BindContactResult{UserID: userID, Value: phone}, nil
 		}
 		return nil, domain.NewError(ErrPhoneAlreadyBound, "phone is already bound to another account")
@@ -615,6 +670,15 @@ func (s *Service) BindPhone(ctx context.Context, req BindPhoneRequest) (*BindCon
 	if err := s.users.UpdatePhone(ctx, userID, phone); err != nil {
 		return nil, err
 	}
+	s.recordSecurityEvent(ctx, audit.SecurityEvent{
+		UserID:     userID,
+		EventType:  audit.SecurityEventBindPhone,
+		TargetType: "phone",
+		TargetID:   phone,
+		IP:         req.IP,
+		UserAgent:  req.UserAgent,
+		Success:    true,
+	})
 	return &BindContactResult{UserID: userID, Value: phone}, nil
 }
 
@@ -635,7 +699,17 @@ func (s *Service) UnbindEmail(ctx context.Context, userID string) error {
 	if methods.total() <= 1 {
 		return domain.NewError(ErrLastLoginMethod, "at least one login method must remain")
 	}
-	return s.users.UpdateEmail(ctx, userID, "")
+	if err := s.users.UpdateEmail(ctx, userID, ""); err != nil {
+		return err
+	}
+	s.recordSecurityEvent(ctx, audit.SecurityEvent{
+		UserID:     userID,
+		EventType:  audit.SecurityEventUnbindEmail,
+		TargetType: "email",
+		TargetID:   methods.user.Email,
+		Success:    true,
+	})
+	return nil
 }
 
 // UnbindPhone removes the current user's phone when another login method remains.
@@ -655,7 +729,17 @@ func (s *Service) UnbindPhone(ctx context.Context, userID string) error {
 	if methods.total() <= 1 {
 		return domain.NewError(ErrLastLoginMethod, "at least one login method must remain")
 	}
-	return s.users.UpdatePhone(ctx, userID, "")
+	if err := s.users.UpdatePhone(ctx, userID, ""); err != nil {
+		return err
+	}
+	s.recordSecurityEvent(ctx, audit.SecurityEvent{
+		UserID:     userID,
+		EventType:  audit.SecurityEventUnbindPhone,
+		TargetType: "phone",
+		TargetID:   methods.user.Phone,
+		Success:    true,
+	})
+	return nil
 }
 
 // UnbindWallet removes one wallet binding owned by the current user.
@@ -684,6 +768,15 @@ func (s *Service) UnbindWallet(ctx context.Context, req UnbindRequest) error {
 		}
 		return err
 	}
+	s.recordSecurityEvent(ctx, audit.SecurityEvent{
+		UserID:     userID,
+		EventType:  audit.SecurityEventUnbindWallet,
+		TargetType: "wallet",
+		TargetID:   bindingID,
+		IP:         req.IP,
+		UserAgent:  req.UserAgent,
+		Success:    true,
+	})
 	return nil
 }
 
@@ -713,6 +806,15 @@ func (s *Service) UnbindOAuthAccount(ctx context.Context, req UnbindRequest) err
 		}
 		return err
 	}
+	s.recordSecurityEvent(ctx, audit.SecurityEvent{
+		UserID:     userID,
+		EventType:  audit.SecurityEventUnbindOAuth,
+		TargetType: "oauth_account",
+		TargetID:   bindingID,
+		IP:         req.IP,
+		UserAgent:  req.UserAgent,
+		Success:    true,
+	})
 	return nil
 }
 
@@ -889,6 +991,15 @@ func (s *Service) recordFailedLogin(ctx context.Context, userID string, clientID
 		Success:     false,
 		FailureCode: failureCode,
 	})
+}
+
+// recordSecurityEvent writes sensitive-operation audit data without interrupting business flow.
+// recordSecurityEvent 以尽力而为方式记录敏感操作审计，不影响主业务流程。
+func (s *Service) recordSecurityEvent(ctx context.Context, event audit.SecurityEvent) {
+	if s.activity == nil {
+		return
+	}
+	_ = s.activity.RecordSecurityEvent(ctx, &event)
 }
 
 // defaultClientID normalizes an empty client id to the built-in default client.

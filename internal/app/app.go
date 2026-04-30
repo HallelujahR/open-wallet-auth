@@ -57,6 +57,9 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	if logger == nil {
 		return nil, errors.New("logger is required")
 	}
+	if err := cfg.ValidateProduction(); err != nil {
+		return nil, err
+	}
 
 	db, sqlDB, err := postgres.Open(cfg.Database)
 	if err != nil {
@@ -64,7 +67,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	}
 
 	if cfg.Database.AutoMigrate {
-		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.UserWallet{}, &model.OAuthAccount{}, &model.WalletNonce{}, &model.RefreshToken{}, &model.LoginLog{}, &model.UserClient{}); err != nil {
+		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.UserWallet{}, &model.OAuthAccount{}, &model.WalletNonce{}, &model.RefreshToken{}, &model.LoginLog{}, &model.SecurityEvent{}, &model.UserClient{}); err != nil {
 			return nil, fmt.Errorf("auto migrate database: %w", err)
 		}
 	}

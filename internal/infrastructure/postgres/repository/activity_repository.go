@@ -50,6 +50,32 @@ func (r *ActivityRepository) RecordLogin(ctx context.Context, log *audit.LoginLo
 	return r.db.WithContext(ctx).Create(&row).Error
 }
 
+// RecordSecurityEvent stores one security-sensitive account event.
+// RecordSecurityEvent 记录一次账号安全敏感操作事件。
+func (r *ActivityRepository) RecordSecurityEvent(ctx context.Context, event *audit.SecurityEvent) error {
+	now := time.Now().UTC()
+	if event.ID == "" {
+		event.ID = "sec_" + uuid.NewString()
+	}
+	if event.CreatedAt.IsZero() {
+		event.CreatedAt = now
+	}
+
+	row := model.SecurityEvent{
+		ID:          event.ID,
+		UserID:      event.UserID,
+		EventType:   string(event.EventType),
+		TargetType:  event.TargetType,
+		TargetID:    event.TargetID,
+		IP:          event.IP,
+		UserAgent:   event.UserAgent,
+		Success:     event.Success,
+		FailureCode: event.FailureCode,
+		CreatedAt:   event.CreatedAt,
+	}
+	return r.db.WithContext(ctx).Create(&row).Error
+}
+
 // UpsertUserClientLogin maintains the user-client relationship and counters.
 // UpsertUserClientLogin 维护用户与业务系统的登录关系和次数统计。
 func (r *ActivityRepository) UpsertUserClientLogin(ctx context.Context, userID string, clientID string) error {
@@ -106,6 +132,34 @@ func (r *ActivityRepository) ListLoginLogs(ctx context.Context, filter domainrep
 	return logs, total, nil
 }
 
+// ListSecurityEvents returns paginated sensitive-operation audit events.
+// ListSecurityEvents 返回分页后的敏感操作审计事件。
+func (r *ActivityRepository) ListSecurityEvents(ctx context.Context, filter domainrepo.SecurityEventFilter) ([]audit.SecurityEvent, int64, error) {
+	query := r.db.WithContext(ctx).Model(&model.SecurityEvent{})
+	if filter.UserID != "" {
+		query = query.Where("user_id = ?", filter.UserID)
+	}
+	if filter.EventType != "" {
+		query = query.Where("event_type = ?", filter.EventType)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	page, pageSize := normalizePage(filter.Page, filter.PageSize)
+	var rows []model.SecurityEvent
+	if err := query.Order("created_at DESC").Limit(pageSize).Offset((page - 1) * pageSize).Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	events := make([]audit.SecurityEvent, 0, len(rows))
+	for _, row := range rows {
+		events = append(events, toDomainSecurityEvent(row))
+	}
+	return events, total, nil
+}
+
 // ListUserClients returns systems that a user has authenticated into.
 // ListUserClients 返回该用户登录过的业务系统关系。
 func (r *ActivityRepository) ListUserClients(ctx context.Context, userID string) ([]audit.UserClient, error) {
@@ -128,6 +182,23 @@ func toDomainLoginLog(row model.LoginLog) audit.LoginLog {
 		UserID:      row.UserID,
 		ClientID:    row.ClientID,
 		LoginMethod: audit.LoginMethod(row.LoginMethod),
+		IP:          row.IP,
+		UserAgent:   row.UserAgent,
+		Success:     row.Success,
+		FailureCode: row.FailureCode,
+		CreatedAt:   row.CreatedAt,
+	}
+}
+
+// toDomainSecurityEvent converts a security event row into the domain audit entity.
+// toDomainSecurityEvent 将安全事件数据库行转换为领域审计实体。
+func toDomainSecurityEvent(row model.SecurityEvent) audit.SecurityEvent {
+	return audit.SecurityEvent{
+		ID:          row.ID,
+		UserID:      row.UserID,
+		EventType:   audit.SecurityEventType(row.EventType),
+		TargetType:  row.TargetType,
+		TargetID:    row.TargetID,
 		IP:          row.IP,
 		UserAgent:   row.UserAgent,
 		Success:     row.Success,

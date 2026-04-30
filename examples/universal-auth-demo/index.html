@@ -93,7 +93,7 @@
 
       .tabs {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(6, 1fr);
         border: 1px solid #c8d1df;
         border-radius: 8px;
         overflow: hidden;
@@ -218,7 +218,8 @@
         <h1>Open Wallet Auth Universal Demo</h1>
         <p class="muted">
           Configure the auth service once, then test email login, wallet login,
-          and planned social/phone entry points from the same page.
+          phone login, OAuth entry points, profile APIs, and audit queries from
+          the same page.
         </p>
 
         <div class="settings">
@@ -238,6 +239,7 @@
           <button class="tab" data-tab="google" type="button">Google</button>
           <button class="tab" data-tab="github" type="button">GitHub</button>
           <button class="tab" data-tab="wallet" type="button">Wallet</button>
+          <button class="tab" data-tab="account" type="button">Account</button>
         </div>
 
         <div class="panel active" id="panel-email">
@@ -360,6 +362,49 @@
             </button>
           </div>
         </div>
+
+        <div class="panel" id="panel-account">
+          <h2>Profile, Binding, and Audit</h2>
+          <div class="settings">
+            <label>
+              Profile Username
+              <input id="profileUsername" value="alice" />
+            </label>
+            <label>
+              Avatar URL
+              <input id="profileAvatar" placeholder="https://example.com/avatar.png" />
+            </label>
+            <label>
+              Wallet Binding ID
+              <input id="walletBindingID" placeholder="wal_xxx" />
+            </label>
+            <label>
+              OAuth Account ID
+              <input id="oauthAccountID" placeholder="oac_xxx" />
+            </label>
+            <label>
+              Admin Token
+              <input id="adminToken" type="password" placeholder="management.admin_token" />
+            </label>
+            <label>
+              Security Event Type
+              <input id="securityEventType" value="bind_email" />
+            </label>
+          </div>
+          <div class="actions">
+            <button class="action" id="loadProfile" type="button">Load Profile</button>
+            <button class="action secondary" id="updateProfile" type="button">Update Profile</button>
+            <button class="action secondary" id="bindEmail" type="button">Bind Email</button>
+            <button class="action secondary" id="bindPhone" type="button">Bind Phone</button>
+            <button class="action secondary" id="bindWallet" type="button">Bind Wallet</button>
+            <button class="action secondary" id="bindGitHub" type="button">Bind GitHub</button>
+            <button class="action secondary" id="unbindEmail" type="button">Unbind Email</button>
+            <button class="action secondary" id="unbindPhone" type="button">Unbind Phone</button>
+            <button class="action secondary" id="unbindWallet" type="button">Unbind Wallet</button>
+            <button class="action secondary" id="unbindOAuth" type="button">Unbind OAuth</button>
+            <button class="action secondary" id="listSecurityEvents" type="button">Security Events</button>
+          </div>
+        </div>
       </section>
 
       <aside>
@@ -376,6 +421,8 @@
         </div>
         <div class="actions">
           <button class="action" id="loadMe" type="button">Load /me</button>
+          <button class="action secondary" id="refreshSession" type="button">Refresh</button>
+          <button class="action secondary" id="logoutSession" type="button">Logout</button>
           <button class="action secondary" id="clearSession" type="button">
             Clear
           </button>
@@ -434,6 +481,19 @@
         $("refreshWallets").addEventListener("click", discoverWallets);
         $("loginWallet").addEventListener("click", () => run(walletLogin));
         $("loadMe").addEventListener("click", () => run(loadMe));
+        $("refreshSession").addEventListener("click", () => run(refreshSession));
+        $("logoutSession").addEventListener("click", () => run(logoutSession));
+        $("loadProfile").addEventListener("click", () => run(loadProfile));
+        $("updateProfile").addEventListener("click", () => run(updateProfile));
+        $("bindEmail").addEventListener("click", () => run(bindEmail));
+        $("bindPhone").addEventListener("click", () => run(bindPhone));
+        $("bindWallet").addEventListener("click", () => run(bindWallet));
+        $("bindGitHub").addEventListener("click", () => run(() => oauthBindStart("github")));
+        $("unbindEmail").addEventListener("click", () => run(() => deleteAuth("/api/v1/auth/bind/email")));
+        $("unbindPhone").addEventListener("click", () => run(() => deleteAuth("/api/v1/auth/bind/phone")));
+        $("unbindWallet").addEventListener("click", () => run(unbindWallet));
+        $("unbindOAuth").addEventListener("click", () => run(unbindOAuth));
+        $("listSecurityEvents").addEventListener("click", () => run(listSecurityEvents));
         $("clearSession").addEventListener("click", clearSession);
       }
 
@@ -517,16 +577,145 @@
         writeResult(data);
       }
 
-      async function loadMe() {
-        const token = $("accessToken").value.trim();
-        if (!token) {
-          throw new Error("No access token. Login first.");
+      async function bindWallet() {
+        const token = requiredAccessToken();
+        const provider = selectedWalletProvider();
+        if (!provider) {
+          throw new Error("No EIP-1193 wallet found. Open this page in Chrome with a wallet extension.");
         }
+
+        const [address] = await provider.request({ method: "eth_requestAccounts" });
+        const nonceData = await postJSON("/api/v1/wallet/nonce", {
+          address,
+          domain: window.location.host || "localhost",
+          chain_id: Number($("chainID").value || 1),
+        });
+        $("signedMessage").value = nonceData.message;
+        const signature = await provider.request({
+          method: "personal_sign",
+          params: [nonceData.message, address],
+        });
+        const data = await postAuth("/api/v1/wallet/bind", token, {
+          address,
+          nonce: nonceData.nonce,
+          signature,
+        });
+        $("walletBindingID").value = data.wallet_id || "";
+        writeResult(data);
+      }
+
+      async function loadMe() {
+        const token = requiredAccessToken();
         const data = await getJSON(
           `/api/v1/auth/me?client_id=${encodeURIComponent(clientID())}`,
           token,
         );
         writeResult(data);
+      }
+
+      async function loadProfile() {
+        const data = await getJSON(
+          `/api/v1/auth/profile?client_id=${encodeURIComponent(clientID())}`,
+          requiredAccessToken(),
+        );
+        $("profileUsername").value = data.username || $("profileUsername").value;
+        $("profileAvatar").value = data.avatar || "";
+        if (data.wallets && data.wallets[0]) {
+          $("walletBindingID").value = data.wallets[0].id;
+        }
+        if (data.oauth_accounts && data.oauth_accounts[0]) {
+          $("oauthAccountID").value = data.oauth_accounts[0].id;
+        }
+        writeResult(data);
+      }
+
+      async function updateProfile() {
+        const data = await patchAuth("/api/v1/auth/profile", requiredAccessToken(), {
+          username: $("profileUsername").value.trim(),
+          avatar: $("profileAvatar").value.trim(),
+        });
+        writeResult(data);
+      }
+
+      async function bindEmail() {
+        const data = await postAuth("/api/v1/auth/bind/email", requiredAccessToken(), {
+          email: $("email").value.trim(),
+          code: $("emailCode").value.trim(),
+        });
+        writeResult(data);
+      }
+
+      async function bindPhone() {
+        const data = await postAuth("/api/v1/auth/bind/phone", requiredAccessToken(), {
+          phone: $("phone").value.trim(),
+          code: $("phoneCode").value.trim(),
+        });
+        writeResult(data);
+      }
+
+      async function refreshSession() {
+        const refreshToken = $("refreshToken").value.trim();
+        if (!refreshToken) {
+          throw new Error("No refresh token. Login first.");
+        }
+        const data = await postJSON("/api/v1/auth/refresh", { refresh_token: refreshToken });
+        saveSession(data);
+        writeResult(data);
+      }
+
+      async function logoutSession() {
+        const refreshToken = $("refreshToken").value.trim();
+        if (!refreshToken) {
+          throw new Error("No refresh token. Login first.");
+        }
+        const data = await postJSON("/api/v1/auth/logout", { refresh_token: refreshToken });
+        clearSession();
+        writeResult(data);
+      }
+
+      async function oauthBindStart(provider) {
+        const redirect = window.location.href;
+        const url = `/api/v1/oauth/${provider}/bind/start?client_id=${encodeURIComponent(
+          clientID(),
+        )}&redirect_uri=${encodeURIComponent(redirect)}`;
+        const data = await getJSON(url, requiredAccessToken());
+        if (data.auth_url) {
+          window.open(data.auth_url, "_blank", "noopener");
+        }
+        writeResult(data);
+      }
+
+      async function unbindWallet() {
+        const id = $("walletBindingID").value.trim();
+        if (!id) {
+          throw new Error("Wallet Binding ID is required.");
+        }
+        await deleteAuth(`/api/v1/auth/wallets/${encodeURIComponent(id)}`);
+      }
+
+      async function unbindOAuth() {
+        const id = $("oauthAccountID").value.trim();
+        if (!id) {
+          throw new Error("OAuth Account ID is required.");
+        }
+        await deleteAuth(`/api/v1/auth/oauth-accounts/${encodeURIComponent(id)}`);
+      }
+
+      async function listSecurityEvents() {
+        const adminToken = $("adminToken").value.trim();
+        if (!adminToken) {
+          throw new Error("Admin Token is required for management APIs.");
+        }
+        const eventType = $("securityEventType").value.trim();
+        const query = eventType ? `?event_type=${encodeURIComponent(eventType)}` : "";
+        const response = await fetch(`${authBaseURL()}/api/v1/admin/security-events${query}`, {
+          headers: { "X-Admin-Token": adminToken },
+        });
+        const payload = await response.json();
+        if (!response.ok || payload.code !== "OK") {
+          throw new Error(payload.message || `Request failed: ${response.status}`);
+        }
+        writeResult(payload.data);
       }
 
       function plannedPhoneCode() {
@@ -568,6 +757,9 @@
           if (!response.ok || payload.code !== "OK") {
             throw new Error(payload.message || `Request failed: ${response.status}`);
           }
+          if (payload.data && payload.data.auth_url) {
+            window.open(payload.data.auth_url, "_blank", "noopener");
+          }
           writeResult(payload.data);
         });
       }
@@ -588,6 +780,43 @@
       async function getJSON(path, token) {
         const response = await fetch(`${authBaseURL()}${path}`, {
           headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = await response.json();
+        if (!response.ok || payload.code !== "OK") {
+          throw new Error(payload.message || `Request failed: ${response.status}`);
+        }
+        return payload.data;
+      }
+
+      async function postAuth(path, token, body) {
+        return jsonWithToken("POST", path, token, body);
+      }
+
+      async function patchAuth(path, token, body) {
+        return jsonWithToken("PATCH", path, token, body);
+      }
+
+      async function deleteAuth(path) {
+        const response = await fetch(`${authBaseURL()}${path}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${requiredAccessToken()}` },
+        });
+        const payload = await response.json();
+        if (!response.ok || payload.code !== "OK") {
+          throw new Error(payload.message || `Request failed: ${response.status}`);
+        }
+        writeResult(payload.data);
+        return payload.data;
+      }
+
+      async function jsonWithToken(method, path, token, body) {
+        const response = await fetch(`${authBaseURL()}${path}`, {
+          method,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
         });
         const payload = await response.json();
         if (!response.ok || payload.code !== "OK") {
@@ -632,6 +861,14 @@
           return selected.provider;
         }
         return window.ethereum || null;
+      }
+
+      function requiredAccessToken() {
+        const token = $("accessToken").value.trim();
+        if (!token) {
+          throw new Error("No access token. Login first.");
+        }
+        return token;
       }
 
       function walletName(provider) {
