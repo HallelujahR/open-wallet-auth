@@ -1,11 +1,11 @@
-## Purpose
+## Purpose / 目的
 
-## Changes
+## Changes / 主要改动
 
-## Tests
+## Tests / 测试结果
 
-## Database Impact
+## Database Impact / 数据库影响
 
-## API Impact
+## API Impact / API 影响
 
-## Security Notes
+## Security Notes / 安全说明

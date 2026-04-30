@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Open Wallet Auth Admin</title>
+    <title>Open Wallet Auth 身份管理 Demo</title>
     <style>
       :root {
         color-scheme: light;
@@ -300,7 +300,7 @@
     <header>
       <div class="topbar">
         <div class="brand">
-          <strong>Open Wallet Auth Admin</strong>
+          <strong>Open Wallet Auth 身份管理 Demo</strong>
           <span>身份管理与接入管理</span>
         </div>
         <div class="config">
@@ -319,9 +319,9 @@
             <input id="keyword" placeholder="搜索 ID、邮箱、手机号" />
             <select id="status">
               <option value="">全部状态</option>
-              <option value="active">active</option>
-              <option value="suspended">suspended</option>
-              <option value="deleted">deleted</option>
+              <option value="active">启用 active</option>
+              <option value="suspended">禁用 suspended</option>
+              <option value="deleted">删除 deleted</option>
             </select>
             <button id="loadUsers" type="button">查询</button>
           </div>
@@ -384,7 +384,7 @@
         });
         const body = await response.json().catch(() => ({}));
         if (!response.ok || body.code !== "OK") {
-          throw new Error(body.message || `Request failed: ${response.status}`);
+          throw new Error(body.message || `请求失败：${response.status}`);
         }
         return body.data;
       }
@@ -488,7 +488,7 @@
                   <tr>
                     <td>${escapeHtml(item.client_id)}</td>
                     <td>${escapeHtml(item.ip || "-")}</td>
-                    <td>${escapeHtml(item.active ? "active" : "inactive")}</td>
+                    <td>${escapeHtml(item.active ? "有效" : "失效")}</td>
                     <td>${escapeHtml(item.created_at)}</td>
                     <td><button class="secondary" type="button" data-revoke-session="${escapeHtml(item.id)}">下线</button></td>
                   </tr>

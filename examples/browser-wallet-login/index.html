@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Open Wallet Auth Example</title>
+    <title>Open Wallet Auth 钱包登录示例</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -111,33 +111,33 @@
   </head>
   <body>
     <main>
-      <h1>Open Wallet Auth Example</h1>
+      <h1>Open Wallet Auth 钱包登录示例</h1>
 
       <label>
-        Auth Base URL
+        认证服务地址
         <input id="authBaseURL" value="http://localhost:8080" />
       </label>
 
       <label>
-        Client ID
+        业务系统 Client ID
         <input id="clientID" value="default" />
       </label>
 
       <label>
-        Chain ID
+        链 ID
         <input id="chainID" value="1" inputmode="numeric" />
       </label>
 
-      <button id="loginButton">Connect Wallet</button>
+      <button id="loginButton">连接钱包</button>
 
       <label>
-        Signed Message
+        待签名消息
         <textarea id="message" readonly></textarea>
       </label>
 
       <label>
-        Result
-        <pre id="result">Waiting for wallet login.</pre>
+        结果
+        <pre id="result">等待钱包登录。</pre>
       </label>
     </main>
 
@@ -157,14 +157,14 @@
         });
         const payload = await response.json();
         if (!response.ok || payload.code !== "OK") {
-          throw new Error(payload.message || `Request failed: ${response.status}`);
+          throw new Error(payload.message || `请求失败：${response.status}`);
         }
         return payload.data;
       }
 
       async function walletLogin() {
         if (!window.ethereum) {
-          throw new Error("No EIP-1193 wallet found. Please install MetaMask.");
+          throw new Error("未检测到 EIP-1193 钱包，请安装 MetaMask 或其他浏览器钱包。");
         }
 
         const authBaseURL = $("authBaseURL").value.replace(/\/$/, "");
@@ -200,7 +200,7 @@
 
       $("loginButton").addEventListener("click", async () => {
         $("loginButton").disabled = true;
-        writeResult("Connecting wallet...");
+        writeResult("正在连接钱包...");
         try {
           await walletLogin();
         } catch (error) {

@@ -1,5 +1,7 @@
 # Architecture
 
+[简体中文](ARCHITECTURE.zh-CN.md)
+
 Open Wallet Auth follows Clean Architecture with a small, explicit set of layers.
 
 ## Dependency Direction

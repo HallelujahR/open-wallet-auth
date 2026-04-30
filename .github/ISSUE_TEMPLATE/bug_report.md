@@ -1,16 +1,16 @@
 ---
-name: Bug report
-about: Report a reproducible bug
+name: Bug report / 缺陷报告
+about: Report a reproducible bug / 报告可复现的问题
 title: "bug: "
 labels: bug
 ---
 
-## Description
+## Description / 问题描述
 
-## Steps to Reproduce
+## Steps to Reproduce / 复现步骤
 
-## Expected Behavior
+## Expected Behavior / 预期表现
 
-## Actual Behavior
+## Actual Behavior / 实际表现
 
-## Environment
+## Environment / 环境信息

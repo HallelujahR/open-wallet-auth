@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Open Wallet Auth Universal Demo</title>
+    <title>Open Wallet Auth 通用认证 Demo</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -215,221 +215,214 @@
   <body>
     <main>
       <section>
-        <h1>Open Wallet Auth Universal Demo</h1>
+        <h1>Open Wallet Auth 通用认证 Demo</h1>
         <p class="muted">
-          Configure the auth service once, then test email login, wallet login,
-          phone login, OAuth entry points, profile APIs, and audit queries from
-          the same page.
+          在一个页面中完成认证服务配置，并测试邮箱登录、手机号登录、OAuth、钱包登录、资料接口、绑定解绑和安全审计查询。
         </p>
 
         <div class="settings">
           <label>
-            Auth Base URL
+            认证服务地址
             <input id="authBaseURL" value="http://localhost:8081" />
           </label>
           <label>
-            Client ID
+            业务系统 Client ID
             <input id="clientID" value="default" />
           </label>
         </div>
 
-        <div class="tabs" role="tablist" aria-label="Login methods">
-          <button class="tab active" data-tab="email" type="button">Email</button>
-          <button class="tab" data-tab="phone" type="button">Phone</button>
+        <div class="tabs" role="tablist" aria-label="登录方式">
+          <button class="tab active" data-tab="email" type="button">邮箱</button>
+          <button class="tab" data-tab="phone" type="button">手机</button>
           <button class="tab" data-tab="google" type="button">Google</button>
           <button class="tab" data-tab="github" type="button">GitHub</button>
-          <button class="tab" data-tab="wallet" type="button">Wallet</button>
-          <button class="tab" data-tab="account" type="button">Account</button>
+          <button class="tab" data-tab="wallet" type="button">钱包</button>
+          <button class="tab" data-tab="account" type="button">账号</button>
         </div>
 
         <div class="panel active" id="panel-email">
-          <h2>Email Login</h2>
+          <h2>邮箱登录</h2>
           <label>
-            Username
+            用户名
             <input id="emailUsername" value="alice" />
           </label>
           <label>
-            Email
+            邮箱
             <input id="email" type="email" value="alice@example.com" />
           </label>
           <label>
-            Password
+            密码
             <input id="password" type="password" value="password123" />
           </label>
           <label>
-            Email Verification Code
+            邮箱验证码
             <input id="emailCode" inputmode="numeric" value="123456" />
           </label>
           <div class="actions">
             <button class="action secondary" id="sendEmailCode" type="button">
-              Send Email Code
+              发送邮箱验证码
             </button>
             <button class="action secondary" id="verifyEmail" type="button">
-              Verify Email
+              校验邮箱
             </button>
             <button class="action" id="registerEmail" type="button">
-              Register
+              注册
             </button>
             <button class="action secondary" id="loginEmail" type="button">
-              Login
+              登录
             </button>
           </div>
         </div>
 
         <div class="panel" id="panel-phone">
-          <h2>Phone Login</h2>
+          <h2>手机号登录</h2>
           <p class="muted">
-            Local development returns the configured dev code in the response.
-            Production deployments should replace this with an SMS provider.
+            本地开发环境会在响应中返回开发验证码；生产环境应接入真实短信服务商。
           </p>
           <label>
-            Phone
+            手机号
             <input id="phone" inputmode="tel" value="+8613800000000" />
           </label>
           <label>
-            Code
+            验证码
             <input id="phoneCode" inputmode="numeric" value="123456" />
           </label>
           <div class="actions">
             <button class="action" id="sendPhoneCode" type="button">
-              Send Code
+              发送验证码
             </button>
             <button class="action secondary" id="loginPhone" type="button">
-              Login
+              登录
             </button>
           </div>
         </div>
 
         <div class="panel" id="panel-google">
-          <h2>Google Login</h2>
+          <h2>Google 登录</h2>
           <p class="muted">
-            OAuth redirect endpoints are planned. The button below builds the
-            conventional start URL for frontend integration review.
+            需要先在配置中填写 Google OAuth 凭据；按钮会请求后端生成授权地址。
           </p>
           <label>
-            Redirect URI
+            回调地址 Redirect URI
             <input id="googleRedirectURI" />
           </label>
           <div class="actions">
             <button class="action" id="startGoogle" type="button">
-              Start Google OAuth
+              发起 Google OAuth
             </button>
           </div>
         </div>
 
         <div class="panel" id="panel-github">
-          <h2>GitHub Login</h2>
+          <h2>GitHub 登录</h2>
           <p class="muted">
-            OAuth redirect endpoints are planned. The button below builds the
-            conventional start URL for frontend integration review.
+            需要先在配置中填写 GitHub OAuth 凭据；按钮会请求后端生成授权地址。
           </p>
           <label>
-            Redirect URI
+            回调地址 Redirect URI
             <input id="githubRedirectURI" />
           </label>
           <div class="actions">
             <button class="action" id="startGitHub" type="button">
-              Start GitHub OAuth
+              发起 GitHub OAuth
             </button>
           </div>
         </div>
 
         <div class="panel" id="panel-wallet">
-          <h2>Wallet Login</h2>
+          <h2>钱包登录</h2>
           <p class="muted">
-            If multiple wallets expose EIP-6963 providers, choose one from the
-            selector. Otherwise the demo uses the browser's default injected
-            wallet.
+            如果浏览器暴露多个 EIP-6963 钱包，可在下拉框中选择；否则使用默认注入的钱包。
           </p>
           <label>
-            Wallet Provider
+            钱包服务商
             <select id="walletProvider"></select>
           </label>
           <label>
-            Chain ID
+            链 ID
             <input id="chainID" value="1" inputmode="numeric" />
           </label>
           <label>
-            Signed Message
+            待签名消息
             <textarea id="signedMessage" readonly></textarea>
           </label>
           <div class="actions">
             <button class="action" id="refreshWallets" type="button">
-              Refresh Wallets
+              刷新钱包
             </button>
             <button class="action secondary" id="loginWallet" type="button">
-              Connect Wallet
+              连接钱包
             </button>
           </div>
         </div>
 
         <div class="panel" id="panel-account">
-          <h2>Profile, Binding, and Audit</h2>
+          <h2>资料、绑定与审计</h2>
           <div class="settings">
             <label>
-              Profile Username
+              资料用户名
               <input id="profileUsername" value="alice" />
             </label>
             <label>
-              Avatar URL
+              头像 URL
               <input id="profileAvatar" placeholder="https://example.com/avatar.png" />
             </label>
             <label>
-              Wallet Binding ID
+              钱包绑定 ID
               <input id="walletBindingID" placeholder="wal_xxx" />
             </label>
             <label>
-              OAuth Account ID
+              OAuth 账号 ID
               <input id="oauthAccountID" placeholder="oac_xxx" />
             </label>
             <label>
-              Admin Token
+              管理 Token
               <input id="adminToken" type="password" placeholder="management.admin_token" />
             </label>
             <label>
-              Security Event Type
+              安全事件类型
               <input id="securityEventType" value="bind_email" />
             </label>
           </div>
           <div class="actions">
-            <button class="action" id="loadProfile" type="button">Load Profile</button>
-            <button class="action secondary" id="updateProfile" type="button">Update Profile</button>
-            <button class="action secondary" id="bindEmail" type="button">Bind Email</button>
-            <button class="action secondary" id="bindPhone" type="button">Bind Phone</button>
-            <button class="action secondary" id="bindWallet" type="button">Bind Wallet</button>
-            <button class="action secondary" id="bindGitHub" type="button">Bind GitHub</button>
-            <button class="action secondary" id="unbindEmail" type="button">Unbind Email</button>
-            <button class="action secondary" id="unbindPhone" type="button">Unbind Phone</button>
-            <button class="action secondary" id="unbindWallet" type="button">Unbind Wallet</button>
-            <button class="action secondary" id="unbindOAuth" type="button">Unbind OAuth</button>
-            <button class="action secondary" id="listSecurityEvents" type="button">Security Events</button>
+            <button class="action" id="loadProfile" type="button">加载资料</button>
+            <button class="action secondary" id="updateProfile" type="button">更新资料</button>
+            <button class="action secondary" id="bindEmail" type="button">绑定邮箱</button>
+            <button class="action secondary" id="bindPhone" type="button">绑定手机</button>
+            <button class="action secondary" id="bindWallet" type="button">绑定钱包</button>
+            <button class="action secondary" id="bindGitHub" type="button">绑定 GitHub</button>
+            <button class="action secondary" id="unbindEmail" type="button">解绑邮箱</button>
+            <button class="action secondary" id="unbindPhone" type="button">解绑手机</button>
+            <button class="action secondary" id="unbindWallet" type="button">解绑钱包</button>
+            <button class="action secondary" id="unbindOAuth" type="button">解绑 OAuth</button>
+            <button class="action secondary" id="listSecurityEvents" type="button">安全审计</button>
           </div>
         </div>
       </section>
 
       <aside>
-        <h2>Session</h2>
+        <h2>会话</h2>
         <div class="token-grid">
           <label>
-            Access Token
+            Access Token 访问令牌
             <textarea id="accessToken" readonly></textarea>
           </label>
           <label>
-            Refresh Token
+            Refresh Token 刷新令牌
             <textarea id="refreshToken" readonly></textarea>
           </label>
         </div>
         <div class="actions">
-          <button class="action" id="loadMe" type="button">Load /me</button>
-          <button class="action secondary" id="refreshSession" type="button">Refresh</button>
-          <button class="action secondary" id="logoutSession" type="button">Logout</button>
+          <button class="action" id="loadMe" type="button">加载 /me</button>
+          <button class="action secondary" id="refreshSession" type="button">刷新 token</button>
+          <button class="action secondary" id="logoutSession" type="button">登出</button>
           <button class="action secondary" id="clearSession" type="button">
-            Clear
+            清空
           </button>
         </div>
         <label>
-          Result
-          <pre id="result">Ready.</pre>
+          结果
+          <pre id="result">准备就绪。</pre>
         </label>
       </aside>
     </main>
@@ -548,7 +541,7 @@
         const provider = selectedWalletProvider();
         if (!provider) {
           throw new Error(
-            "No EIP-1193 wallet found. Open this page in Chrome with MetaMask or another wallet extension.",
+            "未检测到 EIP-1193 钱包。请在安装 MetaMask 或其他钱包扩展的 Chrome 浏览器中打开本页面。",
           );
         }
 
@@ -581,7 +574,7 @@
         const token = requiredAccessToken();
         const provider = selectedWalletProvider();
         if (!provider) {
-          throw new Error("No EIP-1193 wallet found. Open this page in Chrome with a wallet extension.");
+          throw new Error("未检测到 EIP-1193 钱包。请在安装钱包扩展的 Chrome 浏览器中打开本页面。");
         }
 
         const [address] = await provider.request({ method: "eth_requestAccounts" });
@@ -656,7 +649,7 @@
       async function refreshSession() {
         const refreshToken = $("refreshToken").value.trim();
         if (!refreshToken) {
-          throw new Error("No refresh token. Login first.");
+          throw new Error("没有 refresh token，请先登录。");
         }
         const data = await postJSON("/api/v1/auth/refresh", { refresh_token: refreshToken });
         saveSession(data);
@@ -666,7 +659,7 @@
       async function logoutSession() {
         const refreshToken = $("refreshToken").value.trim();
         if (!refreshToken) {
-          throw new Error("No refresh token. Login first.");
+          throw new Error("没有 refresh token，请先登录。");
         }
         const data = await postJSON("/api/v1/auth/logout", { refresh_token: refreshToken });
         clearSession();
@@ -688,7 +681,7 @@
       async function unbindWallet() {
         const id = $("walletBindingID").value.trim();
         if (!id) {
-          throw new Error("Wallet Binding ID is required.");
+          throw new Error("请先填写钱包绑定 ID。");
         }
         await deleteAuth(`/api/v1/auth/wallets/${encodeURIComponent(id)}`);
       }
@@ -696,7 +689,7 @@
       async function unbindOAuth() {
         const id = $("oauthAccountID").value.trim();
         if (!id) {
-          throw new Error("OAuth Account ID is required.");
+          throw new Error("请先填写 OAuth 账号 ID。");
         }
         await deleteAuth(`/api/v1/auth/oauth-accounts/${encodeURIComponent(id)}`);
       }
@@ -704,7 +697,7 @@
       async function listSecurityEvents() {
         const adminToken = $("adminToken").value.trim();
         if (!adminToken) {
-          throw new Error("Admin Token is required for management APIs.");
+          throw new Error("查询管理接口需要填写管理 Token。");
         }
         const eventType = $("securityEventType").value.trim();
         const query = eventType ? `?event_type=${encodeURIComponent(eventType)}` : "";
@@ -713,7 +706,7 @@
         });
         const payload = await response.json();
         if (!response.ok || payload.code !== "OK") {
-          throw new Error(payload.message || `Request failed: ${response.status}`);
+          throw new Error(payload.message || `请求失败：${response.status}`);
         }
         writeResult(payload.data);
       }
@@ -755,7 +748,7 @@
           const response = await fetch(url);
           const payload = await response.json();
           if (!response.ok || payload.code !== "OK") {
-            throw new Error(payload.message || `Request failed: ${response.status}`);
+            throw new Error(payload.message || `请求失败：${response.status}`);
           }
           if (payload.data && payload.data.auth_url) {
             window.open(payload.data.auth_url, "_blank", "noopener");
@@ -772,7 +765,7 @@
         });
         const payload = await response.json();
         if (!response.ok || payload.code !== "OK") {
-          throw new Error(payload.message || `Request failed: ${response.status}`);
+          throw new Error(payload.message || `请求失败：${response.status}`);
         }
         return payload.data;
       }
@@ -783,7 +776,7 @@
         });
         const payload = await response.json();
         if (!response.ok || payload.code !== "OK") {
-          throw new Error(payload.message || `Request failed: ${response.status}`);
+          throw new Error(payload.message || `请求失败：${response.status}`);
         }
         return payload.data;
       }
@@ -803,7 +796,7 @@
         });
         const payload = await response.json();
         if (!response.ok || payload.code !== "OK") {
-          throw new Error(payload.message || `Request failed: ${response.status}`);
+          throw new Error(payload.message || `请求失败：${response.status}`);
         }
         writeResult(payload.data);
         return payload.data;
@@ -820,7 +813,7 @@
         });
         const payload = await response.json();
         if (!response.ok || payload.code !== "OK") {
-          throw new Error(payload.message || `Request failed: ${response.status}`);
+          throw new Error(payload.message || `请求失败：${response.status}`);
         }
         return payload.data;
       }
@@ -843,7 +836,7 @@
         if (walletProviders.size === 0) {
           const option = document.createElement("option");
           option.value = "";
-          option.textContent = "No wallet detected";
+          option.textContent = "未检测到钱包";
           select.appendChild(option);
           return;
         }
@@ -866,7 +859,7 @@
       function requiredAccessToken() {
         const token = $("accessToken").value.trim();
         if (!token) {
-          throw new Error("No access token. Login first.");
+          throw new Error("没有 access token，请先登录。");
         }
         return token;
       }
@@ -875,12 +868,12 @@
         if (provider && provider.isMetaMask) {
           return "MetaMask";
         }
-        return "Injected Wallet";
+        return "浏览器注入钱包";
       }
 
       async function run(task) {
         setBusy(true);
-        writeResult("Working...");
+        writeResult("处理中...");
         try {
           await task();
         } catch (error) {
@@ -912,7 +905,7 @@
         $("accessToken").value = "";
         $("refreshToken").value = "";
         $("signedMessage").value = "";
-        writeResult("Session cleared.");
+        writeResult("会话已清空。");
       }
 
       function setBusy(busy) {
