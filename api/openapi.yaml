@@ -45,6 +45,20 @@ paths:
       responses:
         "200":
           description: Current user
+  /api/v1/auth/password:
+    patch:
+      summary: Change the current authenticated user's password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Password changed
   /api/v1/wallet/nonce:
     post:
       summary: Create a SIWE-compatible wallet login challenge
@@ -338,7 +352,23 @@ paths:
         "200":
           description: Login audit log list
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
+    ChangePasswordRequest:
+      type: object
+      required:
+        - current_password
+        - new_password
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
     WalletNonceRequest:
       type: object
       required:

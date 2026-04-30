@@ -152,16 +152,37 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	response.OK(c, gin.H{"logged_out": true})
 }
 
-// Me returns the authenticated user claims injected by auth middleware.
-// Me 返回认证中间件注入的当前用户 claims。
-func (h *AuthHandler) Me(c *gin.Context) {
-	claims, ok := c.Get(contextkey.AuthClaims)
+// ChangePassword updates the authenticated user's password.
+// ChangePassword 修改当前登录用户的密码。
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	authClaims, ok := currentAuthClaims(c)
 	if !ok {
 		response.Error(c, http.StatusUnauthorized, "AUTH_INVALID_TOKEN", "invalid authorization token")
 		return
 	}
 
-	authClaims, ok := claims.(*token.Claims)
+	var req dto.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, authusecase.ErrInvalidInput, "invalid request")
+		return
+	}
+
+	if err := h.auth.ChangePassword(c.Request.Context(), authusecase.ChangePasswordRequest{
+		UserID:          authClaims.UserID,
+		CurrentPassword: req.CurrentPassword,
+		NewPassword:     req.NewPassword,
+	}); err != nil {
+		writeAuthError(c, err)
+		return
+	}
+
+	response.OK(c, gin.H{"password_changed": true})
+}
+
+// Me returns the authenticated user claims injected by auth middleware.
+// Me 返回认证中间件注入的当前用户 claims。
+func (h *AuthHandler) Me(c *gin.Context) {
+	authClaims, ok := currentAuthClaims(c)
 	if !ok {
 		response.Error(c, http.StatusUnauthorized, "AUTH_INVALID_TOKEN", "invalid authorization token")
 		return
@@ -172,6 +193,21 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		Username: authClaims.Username,
 		Email:    authClaims.Email,
 	})
+}
+
+// currentAuthClaims reads token claims from Gin context.
+// currentAuthClaims 从 Gin 上下文读取认证 claims。
+func currentAuthClaims(c *gin.Context) (*token.Claims, bool) {
+	claims, ok := c.Get(contextkey.AuthClaims)
+	if !ok {
+		return nil, false
+	}
+
+	authClaims, ok := claims.(*token.Claims)
+	if !ok {
+		return nil, false
+	}
+	return authClaims, true
 }
 
 // writeAuthError maps usecase/domain errors to stable HTTP responses.

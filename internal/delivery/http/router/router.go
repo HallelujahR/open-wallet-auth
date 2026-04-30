@@ -57,7 +57,11 @@ func New(deps Dependencies) *gin.Engine {
 				auth.POST("/refresh", deps.Auth.Refresh)
 				auth.POST("/logout", deps.Auth.Logout)
 				if deps.Token != nil && deps.AudienceResolver != nil {
-					auth.GET("/me", middleware.AuthenticateClient(deps.Token, deps.AudienceResolver), deps.Auth.Me)
+					authenticated := auth.Group("", middleware.AuthenticateClient(deps.Token, deps.AudienceResolver))
+					{
+						authenticated.GET("/me", deps.Auth.Me)
+						authenticated.PATCH("/password", deps.Auth.ChangePassword)
+					}
 				}
 			}
 		}

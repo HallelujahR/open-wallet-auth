@@ -92,6 +92,22 @@ func (r *UserRepository) UpdateLoginInfo(ctx context.Context, userID string) err
 		Updates(map[string]any{"last_login_at": now, "updated_at": now}).Error
 }
 
+// UpdatePassword stores a new password hash for an existing identity user.
+// UpdatePassword 为已存在的身份用户保存新的密码哈希。
+func (r *UserRepository) UpdatePassword(ctx context.Context, userID string, passwordHash string) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{"password_hash": passwordHash, "updated_at": time.Now().UTC()})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domainrepo.ErrNotFound
+	}
+	return nil
+}
+
 // List returns paginated identity users for management APIs.
 // List 为管理接口返回分页后的身份用户列表。
 func (r *UserRepository) List(ctx context.Context, filter domainrepo.UserListFilter) ([]domainuser.User, int64, error) {

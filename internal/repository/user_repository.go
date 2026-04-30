@@ -16,4 +16,5 @@ type UserRepository interface {
 	FindByPhone(ctx context.Context, phone string) (*user.User, error)
 	Create(ctx context.Context, u *user.User) error
 	UpdateLoginInfo(ctx context.Context, userID string) error
+	UpdatePassword(ctx context.Context, userID string, passwordHash string) error
 }

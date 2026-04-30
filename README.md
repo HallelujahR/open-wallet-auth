@@ -19,6 +19,7 @@ The service owns authentication. Your business applications still own their own 
 - JWKS endpoint for local token verification in business APIs
 - Refresh token persistence and rotation
 - Refresh token session management and revocation APIs
+- Authenticated password change endpoint
 - Multi-client login with `client_id` and JWT audience
 - Login activity and user-client tracking
 - Internal identity management APIs for users, bindings, and login logs
@@ -104,6 +105,15 @@ Current user:
 ```bash
 curl http://localhost:8080/api/v1/auth/me \
   -H "Authorization: Bearer <access_token>"
+```
+
+Change current password:
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/auth/password \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{"current_password":"password123","new_password":"new-password123"}'
 ```
 
 Refresh token:

@@ -146,6 +146,56 @@ func TestServiceRefreshRotatesRefreshToken(t *testing.T) {
 	}
 }
 
+func TestServiceChangePasswordUpdatesHash(t *testing.T) {
+	users := newMemoryUsers()
+	users.byID["usr_existing"] = &user.User{
+		ID:           "usr_existing",
+		Username:     "alice",
+		Email:        "alice@example.com",
+		PasswordHash: "hash:old-password",
+		Status:       user.StatusActive,
+	}
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+
+	err := service.ChangePassword(context.Background(), ChangePasswordRequest{
+		UserID:          "usr_existing",
+		CurrentPassword: "old-password",
+		NewPassword:     "new-password",
+	})
+	if err != nil {
+		t.Fatalf("change password returned error: %v", err)
+	}
+	if users.byID["usr_existing"].PasswordHash != "hash:new-password" {
+		t.Fatal("expected password hash to be updated")
+	}
+}
+
+func TestServiceChangePasswordRejectsInvalidCurrentPassword(t *testing.T) {
+	users := newMemoryUsers()
+	users.byID["usr_existing"] = &user.User{
+		ID:           "usr_existing",
+		Username:     "alice",
+		Email:        "alice@example.com",
+		PasswordHash: "hash:old-password",
+		Status:       user.StatusActive,
+	}
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+
+	err := service.ChangePassword(context.Background(), ChangePasswordRequest{
+		UserID:          "usr_existing",
+		CurrentPassword: "wrong-password",
+		NewPassword:     "new-password",
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	var appErr *domain.Error
+	if !errors.As(err, &appErr) || appErr.Code != ErrInvalidCredentials {
+		t.Fatalf("expected %s, got %v", ErrInvalidCredentials, err)
+	}
+}
+
 type memoryUsers struct {
 	byID    map[string]*user.User
 	byEmail map[string]*user.User
@@ -199,6 +249,15 @@ func (m *memoryUsers) Create(ctx context.Context, u *user.User) error {
 }
 
 func (m *memoryUsers) UpdateLoginInfo(ctx context.Context, userID string) error {
+	return nil
+}
+
+func (m *memoryUsers) UpdatePassword(ctx context.Context, userID string, passwordHash string) error {
+	u, ok := m.byID[userID]
+	if !ok {
+		return repository.ErrNotFound
+	}
+	u.PasswordHash = passwordHash
 	return nil
 }
 

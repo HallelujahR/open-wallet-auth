@@ -258,6 +258,15 @@ func (m *memoryUsers) UpdateLoginInfo(ctx context.Context, userID string) error 
 	return nil
 }
 
+func (m *memoryUsers) UpdatePassword(ctx context.Context, userID string, passwordHash string) error {
+	u, ok := m.byID[userID]
+	if !ok {
+		return repository.ErrNotFound
+	}
+	u.PasswordHash = passwordHash
+	return nil
+}
+
 type memoryClients struct {
 	byClientID map[string]*client.Client
 }

@@ -25,6 +25,13 @@ type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
+// ChangePasswordRequest is the HTTP body for changing the current password.
+// ChangePasswordRequest 是修改当前用户密码的 HTTP 请求体。
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=8"`
+}
+
 // AuthUser is the user payload returned by auth endpoints.
 type AuthUser struct {
 	ID       string `json:"id"`

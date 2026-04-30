@@ -120,6 +120,14 @@ type LogoutRequest struct {
 	RefreshToken string
 }
 
+// ChangePasswordRequest is the input for an authenticated password change.
+// ChangePasswordRequest 是已登录用户修改密码的用例输入。
+type ChangePasswordRequest struct {
+	UserID          string
+	CurrentPassword string
+	NewPassword     string
+}
+
 // NewService creates the auth usecase service with its required ports.
 // NewService 创建认证用例服务，并通过端口注入外部依赖。
 func NewService(
@@ -341,6 +349,35 @@ func (s *Service) Logout(ctx context.Context, req LogoutRequest) error {
 		return nil
 	}
 	return s.refreshTokens.Revoke(ctx, refreshToken.ID)
+}
+
+// ChangePassword verifies the current password and stores a new password hash.
+// ChangePassword 校验当前密码后保存新的密码哈希。
+func (s *Service) ChangePassword(ctx context.Context, req ChangePasswordRequest) error {
+	userID := strings.TrimSpace(req.UserID)
+	if userID == "" || strings.TrimSpace(req.CurrentPassword) == "" || len(req.NewPassword) < 8 {
+		return domain.NewError(ErrInvalidInput, "user id, current password, and a new password with at least 8 characters are required")
+	}
+
+	u, err := s.users.FindByID(ctx, userID)
+	if err != nil || u == nil || !u.IsActive() || u.PasswordHash == "" {
+		return domain.NewError(ErrInvalidCredentials, "invalid current password")
+	}
+	if !s.hasher.Compare(u.PasswordHash, req.CurrentPassword) {
+		return domain.NewError(ErrInvalidCredentials, "invalid current password")
+	}
+	if s.hasher.Compare(u.PasswordHash, req.NewPassword) {
+		return domain.NewError(ErrInvalidInput, "new password must be different")
+	}
+
+	hash, err := s.hasher.Hash(req.NewPassword)
+	if err != nil {
+		return err
+	}
+	if err := s.users.UpdatePassword(ctx, userID, hash); err != nil {
+		return err
+	}
+	return nil
 }
 
 // checkLoginLimit verifies password-login rate limits.
