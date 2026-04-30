@@ -55,7 +55,7 @@ examples
 - OAuth auth lives in `internal/usecase/oauth`; provider HTTP exchange and state storage are isolated in `internal/infrastructure/oauth`.
 - Client management and dynamic audience resolution live in `internal/usecase/client`.
 - Internal identity management lives in `internal/usecase/admin`; it can inspect identity users, login activity, wallet bindings, and OAuth bindings, but it does not own business-system profiles or permissions.
-- Refresh token persistence is behind `repository.RefreshTokenRepository`.
+- Refresh token persistence and session revocation are behind `repository.RefreshTokenRepository`.
 - Wallet bindings and one-time challenges are behind `repository.WalletRepository`.
 - Login activity and user-client tracking are behind `repository.ActivityRepository`.
 - JWT signing, verification, and JWKS generation live in `internal/infrastructure/jwt`.

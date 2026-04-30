@@ -454,9 +454,11 @@
             <div class="actions">
               <button type="button" data-status="active">启用</button>
               <button class="danger" type="button" data-status="suspended">禁用</button>
+              <button class="danger" type="button" data-revoke-user-sessions="${escapeHtml(user.id)}">全部下线</button>
             </div>
           </div>
           ${renderTable("登录系统", ["Client", "首次登录", "最近登录", "次数"], (detail.clients || []).map((item) => [item.client_id, item.first_login_at, item.last_login_at, item.login_count]))}
+          ${renderSessions(detail.sessions || [])}
           ${renderTable("钱包绑定", ["链", "地址", "主钱包", "验证时间"], (detail.wallets || []).map((item) => [item.chain_type, item.address, item.is_primary ? "是" : "否", item.verified_at]))}
           ${renderTable("第三方账号", ["服务商", "Subject", "邮箱", "用户名"], (detail.accounts || []).map((item) => [item.provider, item.provider_subject, item.provider_email || "-", item.provider_username || "-"]))}
           ${renderTable("最近登录日志", ["Client", "方式", "IP", "时间"], logs.map((item) => [item.client_id, item.login_method, item.ip || "-", item.created_at]))}
@@ -464,6 +466,39 @@
         nodes.detail.querySelectorAll("[data-status]").forEach((button) => {
           button.addEventListener("click", () => updateStatus(user.id, button.dataset.status));
         });
+        nodes.detail.querySelectorAll("[data-revoke-session]").forEach((button) => {
+          button.addEventListener("click", () => revokeSession(user.id, button.dataset.revokeSession));
+        });
+        nodes.detail.querySelectorAll("[data-revoke-user-sessions]").forEach((button) => {
+          button.addEventListener("click", () => revokeUserSessions(button.dataset.revokeUserSessions));
+        });
+      }
+
+      function renderSessions(sessions) {
+        const rows = sessions.length
+          ? sessions
+              .map(
+                (item) => `
+                  <tr>
+                    <td>${escapeHtml(item.client_id)}</td>
+                    <td>${escapeHtml(item.ip || "-")}</td>
+                    <td>${escapeHtml(item.active ? "active" : "inactive")}</td>
+                    <td>${escapeHtml(item.created_at)}</td>
+                    <td><button class="secondary" type="button" data-revoke-session="${escapeHtml(item.id)}">下线</button></td>
+                  </tr>
+                `,
+              )
+              .join("")
+          : `<tr><td colspan="5" class="subtle">暂无数据</td></tr>`;
+        return `
+          <section>
+            <h2>登录会话</h2>
+            <table>
+              <thead><tr><th>Client</th><th>IP</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </section>
+        `;
       }
 
       function renderTable(title, heads, rows) {
@@ -488,6 +523,16 @@
           method: "PATCH",
           body: JSON.stringify({ status }),
         });
+        await loadUserDetail(userID);
+      }
+
+      async function revokeSession(userID, sessionID) {
+        await api(`/api/v1/admin/sessions/${encodeURIComponent(sessionID)}`, { method: "DELETE" });
+        await loadUserDetail(userID);
+      }
+
+      async function revokeUserSessions(userID) {
+        await api(`/api/v1/admin/users/${encodeURIComponent(userID)}/sessions`, { method: "DELETE" });
         await loadUserDetail(userID);
       }
 

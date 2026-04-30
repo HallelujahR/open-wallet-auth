@@ -13,6 +13,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/oauth"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/wallet"
 	adminusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/admin"
@@ -85,6 +86,49 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 	response.OK(c, gin.H{"updated": true})
 }
 
+// ListSessions returns refresh-token sessions for management.
+// ListSessions 返回管理端可见的刷新令牌会话列表。
+func (h *AdminHandler) ListSessions(c *gin.Context) {
+	result, err := h.admin.ListSessions(c.Request.Context(), adminusecase.SessionListRequest{
+		UserID:     c.Query("user_id"),
+		ClientID:   c.Query("client_id"),
+		ActiveOnly: boolQuery(c, "active_only", true),
+	})
+	if err != nil {
+		writeAdminError(c, err)
+		return
+	}
+	items := make([]dto.AdminSessionResponse, 0, len(result.Sessions))
+	for _, session := range result.Sessions {
+		items = append(items, toAdminSessionResponse(session))
+	}
+	response.OK(c, dto.AdminSessionListResponse{Items: items})
+}
+
+// RevokeSession revokes one refresh-token session.
+// RevokeSession 吊销单个刷新令牌会话。
+func (h *AdminHandler) RevokeSession(c *gin.Context) {
+	if err := h.admin.RevokeSession(c.Request.Context(), c.Param("session_id")); err != nil {
+		writeAdminError(c, err)
+		return
+	}
+	response.OK(c, gin.H{"revoked": true})
+}
+
+// RevokeUserSessions revokes all or client-scoped sessions for one user.
+// RevokeUserSessions 吊销某个用户的全部或指定业务系统会话。
+func (h *AdminHandler) RevokeUserSessions(c *gin.Context) {
+	result, err := h.admin.RevokeUserSessions(c.Request.Context(), adminusecase.RevokeUserSessionsRequest{
+		UserID:   c.Param("user_id"),
+		ClientID: c.Query("client_id"),
+	})
+	if err != nil {
+		writeAdminError(c, err)
+		return
+	}
+	response.OK(c, dto.AdminRevokeSessionsResponse{Revoked: result.Revoked})
+}
+
 // ListLoginLogs returns paginated login audit events.
 // ListLoginLogs 返回分页登录审计事件。
 func (h *AdminHandler) ListLoginLogs(c *gin.Context) {
@@ -142,11 +186,16 @@ func toAdminUserDetailResponse(result *adminusecase.UserDetailResult) dto.AdminU
 	for _, account := range result.Accounts {
 		accounts = append(accounts, toAdminOAuthAccountResponse(account))
 	}
+	sessions := make([]dto.AdminSessionResponse, 0, len(result.Sessions))
+	for _, session := range result.Sessions {
+		sessions = append(sessions, toAdminSessionResponse(session))
+	}
 	return dto.AdminUserDetailResponse{
 		User:     toAdminUserResponse(result.User),
 		Clients:  clients,
 		Wallets:  wallets,
 		Accounts: accounts,
+		Sessions: sessions,
 	}
 }
 
@@ -221,11 +270,42 @@ func toAdminLoginLogResponse(log audit.LoginLog) dto.AdminLoginLogResponse {
 	}
 }
 
+// toAdminSessionResponse converts a refresh token to a management DTO.
+// toAdminSessionResponse 将刷新令牌会话转换为管理接口 DTO。
+func toAdminSessionResponse(session token.RefreshToken) dto.AdminSessionResponse {
+	return dto.AdminSessionResponse{
+		ID:         session.ID,
+		UserID:     session.UserID,
+		ClientID:   session.ClientID,
+		IP:         session.IP,
+		UserAgent:  session.UserAgent,
+		Active:     !session.IsRevoked() && !session.IsExpired(time.Now().UTC()),
+		ExpiresAt:  formatTime(session.ExpiresAt),
+		RevokedAt:  formatOptionalTime(session.RevokedAt),
+		LastUsedAt: formatOptionalTime(session.LastUsedAt),
+		CreatedAt:  formatTime(session.CreatedAt),
+	}
+}
+
 // intQuery reads a positive integer query parameter with a fallback.
 // intQuery 读取正整数查询参数，缺失或非法时使用默认值。
 func intQuery(c *gin.Context, key string, fallback int) int {
 	value, err := strconv.Atoi(c.Query(key))
 	if err != nil || value <= 0 {
+		return fallback
+	}
+	return value
+}
+
+// boolQuery reads a boolean query parameter with a fallback.
+// boolQuery 读取布尔查询参数，缺失或非法时使用默认值。
+func boolQuery(c *gin.Context, key string, fallback bool) bool {
+	raw := c.Query(key)
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
 		return fallback
 	}
 	return value

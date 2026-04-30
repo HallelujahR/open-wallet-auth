@@ -5,6 +5,7 @@ import (
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/oauth"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/wallet"
 )
@@ -52,4 +53,13 @@ type AdminWalletRepository interface {
 // AdminOAuthAccountRepository 定义身份管理接口需要的第三方账号查询能力。
 type AdminOAuthAccountRepository interface {
 	ListByUserID(ctx context.Context, userID string) ([]oauth.Account, error)
+}
+
+// AdminRefreshTokenRepository defines session management operations.
+// AdminRefreshTokenRepository 定义刷新令牌会话管理能力。
+type AdminRefreshTokenRepository interface {
+	List(ctx context.Context, filter RefreshTokenListFilter) ([]token.RefreshToken, error)
+	Revoke(ctx context.Context, id string) error
+	RevokeByUserID(ctx context.Context, userID string) (int64, error)
+	RevokeByUserAndClient(ctx context.Context, userID string, clientID string) (int64, error)
 }

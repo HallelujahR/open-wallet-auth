@@ -237,6 +237,8 @@ func (s *Service) Callback(ctx context.Context, req CallbackRequest) (*CallbackR
 		UserID:    u.ID,
 		ClientID:  client.ClientID,
 		TokenHash: s.tokenHasher.HashToken(pair.RefreshToken),
+		IP:        req.IP,
+		UserAgent: req.UserAgent,
 		ExpiresAt: s.clock.Now().UTC().Add(s.issuer.RefreshTokenTTL()),
 	}); err != nil {
 		return nil, err

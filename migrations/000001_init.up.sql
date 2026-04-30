@@ -76,8 +76,11 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   client_id VARCHAR(128) NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
   token_hash VARCHAR(255) NOT NULL UNIQUE,
+  ip VARCHAR(64),
+  user_agent TEXT,
   expires_at TIMESTAMPTZ NOT NULL,
   revoked_at TIMESTAMPTZ,
+  last_used_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

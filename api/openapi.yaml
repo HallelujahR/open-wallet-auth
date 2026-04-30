@@ -233,6 +233,53 @@ paths:
       responses:
         "200":
           description: Status updated
+  /api/v1/admin/users/{user_id}/sessions:
+    delete:
+      summary: Revoke all refresh-token sessions for one identity user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: client_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User sessions revoked
+  /api/v1/admin/sessions:
+    get:
+      summary: List refresh-token sessions for internal management
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: string
+        - name: client_id
+          in: query
+          schema:
+            type: string
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Token session list
+  /api/v1/admin/sessions/{session_id}:
+    delete:
+      summary: Revoke one refresh-token session
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session revoked
   /api/v1/admin/login-logs:
     get:
       summary: List login audit logs for internal management

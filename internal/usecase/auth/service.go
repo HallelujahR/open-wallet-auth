@@ -167,7 +167,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 	if err != nil {
 		return nil, err
 	}
-	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken); err != nil {
+	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken, req.IP, req.UserAgent); err != nil {
 		return nil, err
 	}
 
@@ -238,7 +238,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*RegisterR
 	if err != nil {
 		return nil, err
 	}
-	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken); err != nil {
+	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken, req.IP, req.UserAgent); err != nil {
 		return nil, err
 	}
 	if err := s.recordSuccessfulLogin(ctx, u.ID, client.ClientID, audit.LoginMethodPassword, req.IP, req.UserAgent); err != nil {
@@ -294,7 +294,7 @@ func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*RefreshResu
 	if err != nil {
 		return nil, err
 	}
-	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken); err != nil {
+	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken, req.IP, req.UserAgent); err != nil {
 		return nil, err
 	}
 	if err := s.recordSuccessfulLogin(ctx, u.ID, client.ClientID, audit.LoginMethodRefresh, req.IP, req.UserAgent); err != nil {
@@ -329,11 +329,13 @@ func (s *Service) Logout(ctx context.Context, req LogoutRequest) error {
 
 // storeRefreshToken hashes and persists the opaque refresh token.
 // storeRefreshToken 将刷新令牌哈希后落库，避免保存明文 token。
-func (s *Service) storeRefreshToken(ctx context.Context, userID string, clientID string, raw string) error {
+func (s *Service) storeRefreshToken(ctx context.Context, userID string, clientID string, raw string, ip string, userAgent string) error {
 	return s.refreshTokens.Create(ctx, &token.RefreshToken{
 		UserID:    userID,
 		ClientID:  clientID,
 		TokenHash: s.tokenHasher.HashToken(raw),
+		IP:        ip,
+		UserAgent: userAgent,
 		ExpiresAt: time.Now().UTC().Add(s.issuer.RefreshTokenTTL()),
 	})
 }

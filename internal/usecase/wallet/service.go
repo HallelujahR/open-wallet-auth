@@ -247,7 +247,7 @@ func (s *Service) VerifySignature(ctx context.Context, req VerifyRequest) (*Veri
 	if err != nil {
 		return nil, err
 	}
-	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken); err != nil {
+	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken, req.IP, req.UserAgent); err != nil {
 		return nil, err
 	}
 	if err := s.users.UpdateLoginInfo(ctx, u.ID); err != nil {
@@ -307,11 +307,13 @@ func (s *Service) createWalletUser(ctx context.Context, address string) (*user.U
 
 // storeRefreshToken hashes and persists a wallet-login refresh token.
 // storeRefreshToken 将钱包登录刷新令牌哈希后写入仓储。
-func (s *Service) storeRefreshToken(ctx context.Context, userID string, clientID string, raw string) error {
+func (s *Service) storeRefreshToken(ctx context.Context, userID string, clientID string, raw string, ip string, userAgent string) error {
 	return s.refreshTokens.Create(ctx, &token.RefreshToken{
 		UserID:    userID,
 		ClientID:  clientID,
 		TokenHash: s.tokenHasher.HashToken(raw),
+		IP:        ip,
+		UserAgent: userAgent,
 		ExpiresAt: s.clock.Now().UTC().Add(s.issuer.RefreshTokenTTL()),
 	})
 }

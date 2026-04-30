@@ -12,3 +12,19 @@ type RefreshTokenRepository interface {
 	FindByHash(ctx context.Context, tokenHash string) (*token.RefreshToken, error)
 	Revoke(ctx context.Context, id string) error
 }
+
+// RefreshTokenListFilter contains filters for refresh-token session queries.
+// RefreshTokenListFilter 描述刷新令牌会话查询条件。
+type RefreshTokenListFilter struct {
+	UserID     string
+	ClientID   string
+	ActiveOnly bool
+}
+
+// RefreshTokenAdminRepository defines management operations for token sessions.
+// RefreshTokenAdminRepository 定义 token 会话管理需要的仓储能力。
+type RefreshTokenAdminRepository interface {
+	List(ctx context.Context, filter RefreshTokenListFilter) ([]token.RefreshToken, error)
+	RevokeByUserID(ctx context.Context, userID string) (int64, error)
+	RevokeByUserAndClient(ctx context.Context, userID string, clientID string) (int64, error)
+}

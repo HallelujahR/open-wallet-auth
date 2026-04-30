@@ -29,13 +29,16 @@ type Pair struct {
 // RefreshToken represents a persisted refresh token record.
 // RefreshToken 表示已持久化的刷新令牌记录，数据库中只保存哈希值。
 type RefreshToken struct {
-	ID        string
-	UserID    string
-	ClientID  string
-	TokenHash string
-	ExpiresAt time.Time
-	RevokedAt *time.Time
-	CreatedAt time.Time
+	ID         string
+	UserID     string
+	ClientID   string
+	TokenHash  string
+	IP         string
+	UserAgent  string
+	ExpiresAt  time.Time
+	RevokedAt  *time.Time
+	LastUsedAt *time.Time
+	CreatedAt  time.Time
 }
 
 // IsExpired reports whether the refresh token is past its expiration time.

@@ -17,6 +17,7 @@ The service owns authentication. Your business applications still own their own 
 - JWT access tokens signed with RS256
 - JWKS endpoint for local token verification in business APIs
 - Refresh token persistence and rotation
+- Refresh token session management and revocation APIs
 - Multi-client login with `client_id` and JWT audience
 - Login activity and user-client tracking
 - Internal identity management APIs for users, bindings, and login logs
@@ -193,6 +194,6 @@ CGO_ENABLED=0 go build ./cmd/server
 - Production migration command
 - Wallet binding and unbinding APIs
 - Account linking between password users and wallet users
-- More identity-management actions such as token revocation and account unbinding
+- Account unbinding and safer password recovery flows
 - Stronger admin/RBAC model for service management
 - More framework integration examples

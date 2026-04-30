@@ -8,6 +8,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/oauth"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/wallet"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
@@ -25,6 +26,7 @@ type Service struct {
 	activity repository.AdminActivityRepository
 	wallets  repository.AdminWalletRepository
 	accounts repository.AdminOAuthAccountRepository
+	sessions repository.AdminRefreshTokenRepository
 }
 
 // Dependencies contains external ports required by identity management.
@@ -34,6 +36,7 @@ type Dependencies struct {
 	Activity repository.AdminActivityRepository
 	Wallets  repository.AdminWalletRepository
 	Accounts repository.AdminOAuthAccountRepository
+	Sessions repository.AdminRefreshTokenRepository
 }
 
 // UserListRequest is the input for listing identity users.
@@ -61,6 +64,7 @@ type UserDetailResult struct {
 	Clients  []audit.UserClient
 	Wallets  []wallet.UserWallet
 	Accounts []oauth.Account
+	Sessions []token.RefreshToken
 }
 
 // UpdateUserStatusRequest is the input for enabling or disabling an identity.
@@ -88,10 +92,37 @@ type LoginLogListResult struct {
 	PageSize int
 }
 
+// SessionListRequest is the input for listing refresh-token sessions.
+// SessionListRequest 是查询刷新令牌会话的用例输入。
+type SessionListRequest struct {
+	UserID     string
+	ClientID   string
+	ActiveOnly bool
+}
+
+// SessionListResult contains refresh-token sessions.
+// SessionListResult 返回刷新令牌会话列表。
+type SessionListResult struct {
+	Sessions []token.RefreshToken
+}
+
+// RevokeUserSessionsRequest is the input for revoking user sessions.
+// RevokeUserSessionsRequest 是吊销用户会话的用例输入。
+type RevokeUserSessionsRequest struct {
+	UserID   string
+	ClientID string
+}
+
+// RevokeSessionsResult describes how many sessions were revoked.
+// RevokeSessionsResult 描述本次吊销的会话数量。
+type RevokeSessionsResult struct {
+	Revoked int64
+}
+
 // NewService creates the identity-management usecase service.
 // NewService 创建身份管理用例服务，并注入外部端口。
 func NewService(deps Dependencies) *Service {
-	return &Service{users: deps.Users, activity: deps.Activity, wallets: deps.Wallets, accounts: deps.Accounts}
+	return &Service{users: deps.Users, activity: deps.Activity, wallets: deps.Wallets, accounts: deps.Accounts, sessions: deps.Sessions}
 }
 
 // ListUsers returns identity users with pagination and simple search.
@@ -140,7 +171,11 @@ func (s *Service) GetUserDetail(ctx context.Context, userID string) (*UserDetail
 	if err != nil {
 		return nil, err
 	}
-	return &UserDetailResult{User: *u, Clients: clients, Wallets: wallets, Accounts: accounts}, nil
+	sessions, err := s.sessions.List(ctx, repository.RefreshTokenListFilter{UserID: userID, ActiveOnly: false})
+	if err != nil {
+		return nil, err
+	}
+	return &UserDetailResult{User: *u, Clients: clients, Wallets: wallets, Accounts: accounts, Sessions: sessions}, nil
 }
 
 // UpdateUserStatus changes whether an identity can authenticate.
@@ -174,6 +209,51 @@ func (s *Service) ListLoginLogs(ctx context.Context, req LoginLogListRequest) (*
 		return nil, err
 	}
 	return &LoginLogListResult{Logs: logs, Total: total, Page: page, PageSize: pageSize}, nil
+}
+
+// ListSessions returns refresh-token sessions for management.
+// ListSessions 查询刷新令牌会话，用于管理端查看登录状态。
+func (s *Service) ListSessions(ctx context.Context, req SessionListRequest) (*SessionListResult, error) {
+	sessions, err := s.sessions.List(ctx, repository.RefreshTokenListFilter{
+		UserID:     strings.TrimSpace(req.UserID),
+		ClientID:   strings.TrimSpace(req.ClientID),
+		ActiveOnly: req.ActiveOnly,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &SessionListResult{Sessions: sessions}, nil
+}
+
+// RevokeSession revokes one refresh-token session.
+// RevokeSession 吊销单个刷新令牌会话。
+func (s *Service) RevokeSession(ctx context.Context, sessionID string) error {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return domain.NewError(ErrInvalidInput, "session_id is required")
+	}
+	return s.sessions.Revoke(ctx, sessionID)
+}
+
+// RevokeUserSessions revokes all or client-scoped refresh-token sessions for a user.
+// RevokeUserSessions 吊销某个用户的全部或指定业务系统会话。
+func (s *Service) RevokeUserSessions(ctx context.Context, req RevokeUserSessionsRequest) (*RevokeSessionsResult, error) {
+	userID := strings.TrimSpace(req.UserID)
+	clientID := strings.TrimSpace(req.ClientID)
+	if userID == "" {
+		return nil, domain.NewError(ErrInvalidInput, "user_id is required")
+	}
+	var count int64
+	var err error
+	if clientID == "" {
+		count, err = s.sessions.RevokeByUserID(ctx, userID)
+	} else {
+		count, err = s.sessions.RevokeByUserAndClient(ctx, userID, clientID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &RevokeSessionsResult{Revoked: count}, nil
 }
 
 // normalizePage returns bounded pagination values for management lists.

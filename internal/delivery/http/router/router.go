@@ -102,7 +102,10 @@ func New(deps Dependencies) *gin.Engine {
 				admin.GET("/users", deps.Admin.ListUsers)
 				admin.GET("/users/:user_id", deps.Admin.GetUser)
 				admin.PATCH("/users/:user_id/status", deps.Admin.UpdateUserStatus)
+				admin.DELETE("/users/:user_id/sessions", deps.Admin.RevokeUserSessions)
 				admin.GET("/login-logs", deps.Admin.ListLoginLogs)
+				admin.GET("/sessions", deps.Admin.ListSessions)
+				admin.DELETE("/sessions/:session_id", deps.Admin.RevokeSession)
 				if deps.Client != nil {
 					admin.POST("/clients", deps.Client.Create)
 					admin.GET("/clients", deps.Client.List)

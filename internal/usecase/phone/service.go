@@ -260,6 +260,8 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 		UserID:    u.ID,
 		ClientID:  client.ClientID,
 		TokenHash: s.tokenHasher.HashToken(pair.RefreshToken),
+		IP:        req.IP,
+		UserAgent: req.UserAgent,
 		ExpiresAt: s.clock.Now().UTC().Add(s.issuer.RefreshTokenTTL()),
 	}); err != nil {
 		return nil, err

@@ -69,6 +69,34 @@ type AdminUserDetailResponse struct {
 	Clients  []AdminUserClientResponse   `json:"clients"`
 	Wallets  []AdminWalletResponse       `json:"wallets"`
 	Accounts []AdminOAuthAccountResponse `json:"accounts"`
+	Sessions []AdminSessionResponse      `json:"sessions"`
+}
+
+// AdminSessionResponse is the management view of one refresh-token session.
+// AdminSessionResponse 是单个刷新令牌会话的管理视图。
+type AdminSessionResponse struct {
+	ID         string `json:"id"`
+	UserID     string `json:"user_id"`
+	ClientID   string `json:"client_id"`
+	IP         string `json:"ip,omitempty"`
+	UserAgent  string `json:"user_agent,omitempty"`
+	Active     bool   `json:"active"`
+	ExpiresAt  string `json:"expires_at"`
+	RevokedAt  string `json:"revoked_at,omitempty"`
+	LastUsedAt string `json:"last_used_at,omitempty"`
+	CreatedAt  string `json:"created_at"`
+}
+
+// AdminSessionListResponse is the token-session list response.
+// AdminSessionListResponse 是 token 会话列表响应。
+type AdminSessionListResponse struct {
+	Items []AdminSessionResponse `json:"items"`
+}
+
+// AdminRevokeSessionsResponse describes revoked session count.
+// AdminRevokeSessionsResponse 描述已吊销的会话数量。
+type AdminRevokeSessionsResponse struct {
+	Revoked int64 `json:"revoked"`
 }
 
 // AdminLoginLogResponse is the management view of one login audit event.

@@ -105,6 +105,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 		Activity: activityRepo,
 		Wallets:  walletRepo,
 		Accounts: oauthAccountRepo,
+		Sessions: refreshTokenRepo,
 	})
 	smsProvider, _ := inframessage.NewProvider(cfg.Phone.Provider)
 	_, emailProvider := inframessage.NewProvider(cfg.Email.Provider)

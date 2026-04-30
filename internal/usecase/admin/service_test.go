@@ -8,6 +8,7 @@ import (
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/oauth"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/wallet"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
@@ -38,8 +39,8 @@ func TestServiceGetUserDetail(t *testing.T) {
 	if result.User.ID != "usr_1" {
 		t.Fatalf("unexpected user id: %s", result.User.ID)
 	}
-	if len(result.Clients) != 1 || len(result.Wallets) != 1 || len(result.Accounts) != 1 {
-		t.Fatalf("expected one client, wallet, and oauth account")
+	if len(result.Clients) != 1 || len(result.Wallets) != 1 || len(result.Accounts) != 1 || len(result.Sessions) != 1 {
+		t.Fatalf("expected one client, wallet, oauth account, and session")
 	}
 }
 
@@ -74,6 +75,30 @@ func TestServiceListLoginLogs(t *testing.T) {
 	}
 }
 
+func TestServiceListSessions(t *testing.T) {
+	service := newTestService()
+
+	result, err := service.ListSessions(context.Background(), SessionListRequest{UserID: "usr_1", ActiveOnly: true})
+	if err != nil {
+		t.Fatalf("ListSessions returned error: %v", err)
+	}
+	if len(result.Sessions) != 1 || result.Sessions[0].ID != "rft_1" {
+		t.Fatalf("unexpected sessions result")
+	}
+}
+
+func TestServiceRevokeUserSessions(t *testing.T) {
+	service := newTestService()
+
+	result, err := service.RevokeUserSessions(context.Background(), RevokeUserSessionsRequest{UserID: "usr_1"})
+	if err != nil {
+		t.Fatalf("RevokeUserSessions returned error: %v", err)
+	}
+	if result.Revoked != 1 {
+		t.Fatalf("unexpected revoked count: %d", result.Revoked)
+	}
+}
+
 func newTestService() *Service {
 	users := &memoryAdminUsers{status: user.StatusActive}
 	return NewService(Dependencies{
@@ -81,6 +106,7 @@ func newTestService() *Service {
 		Activity: memoryAdminActivity{},
 		Wallets:  memoryAdminWallets{},
 		Accounts: memoryAdminAccounts{},
+		Sessions: memoryAdminSessions{},
 	})
 }
 
@@ -133,6 +159,24 @@ type memoryAdminAccounts struct{}
 
 func (memoryAdminAccounts) ListByUserID(ctx context.Context, userID string) ([]oauth.Account, error) {
 	return []oauth.Account{{ID: "oac_1", UserID: userID, Provider: "github", ProviderSubject: "10001", CreatedAt: testTime, UpdatedAt: testTime}}, nil
+}
+
+type memoryAdminSessions struct{}
+
+func (memoryAdminSessions) List(ctx context.Context, filter repository.RefreshTokenListFilter) ([]token.RefreshToken, error) {
+	return []token.RefreshToken{{ID: "rft_1", UserID: "usr_1", ClientID: "default", ExpiresAt: testTime.Add(time.Hour), CreatedAt: testTime}}, nil
+}
+
+func (memoryAdminSessions) Revoke(ctx context.Context, id string) error {
+	return nil
+}
+
+func (memoryAdminSessions) RevokeByUserID(ctx context.Context, userID string) (int64, error) {
+	return 1, nil
+}
+
+func (memoryAdminSessions) RevokeByUserAndClient(ctx context.Context, userID string, clientID string) (int64, error) {
+	return 1, nil
 }
 
 var testTime = time.Date(2026, 4, 30, 10, 0, 0, 0, time.UTC)
