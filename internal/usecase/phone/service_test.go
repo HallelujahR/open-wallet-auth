@@ -105,6 +105,20 @@ func (m *memoryUsers) UpdateLoginInfo(ctx context.Context, userID string) error 
 	return nil
 }
 
+func (m *memoryUsers) UpdateEmail(ctx context.Context, userID string, email string) error {
+	return nil
+}
+
+func (m *memoryUsers) UpdatePhone(ctx context.Context, userID string, phone string) error {
+	u, ok := m.byID[userID]
+	if !ok {
+		return repository.ErrNotFound
+	}
+	u.Phone = phone
+	m.byPhone[phone] = u
+	return nil
+}
+
 func (m *memoryUsers) UpdatePassword(ctx context.Context, userID string, passwordHash string) error {
 	u, ok := m.byID[userID]
 	if !ok {

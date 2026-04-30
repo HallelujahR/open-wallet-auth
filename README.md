@@ -16,6 +16,7 @@ The service owns authentication. Your business applications still own their own 
 - EVM wallet signature login with SIWE-compatible messages
 - Authenticated wallet binding endpoint
 - Google and GitHub OAuth start/callback flow
+- Authenticated OAuth binding start flow
 - JWT access tokens signed with RS256
 - JWKS endpoint for local token verification in business APIs
 - Refresh token persistence and rotation
@@ -23,6 +24,7 @@ The service owns authentication. Your business applications still own their own 
 - Authenticated password change endpoint
 - Email-code password reset endpoint
 - Password reset revokes existing refresh-token sessions
+- Authenticated email and phone binding endpoints
 - Multi-client login with `client_id` and JWT audience
 - Login activity and user-client tracking
 - Failed password-login audit records
@@ -127,6 +129,31 @@ Reset a password with an email code:
 curl -X POST http://localhost:8080/api/v1/auth/password/reset \
   -H 'Content-Type: application/json' \
   -d '{"email":"alice@example.com","code":"123456","new_password":"new-password123"}'
+```
+
+Bind an email to the current user:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/bind/email \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{"email":"alice@example.com","code":"123456"}'
+```
+
+Bind a phone number to the current user:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/bind/phone \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{"phone":"+8613800000000","code":"123456"}'
+```
+
+Bind a Google or GitHub account to the current user:
+
+```bash
+curl "http://localhost:8080/api/v1/oauth/github/bind/start?client_id=default&redirect_uri=http://localhost:8081/oauth/callback" \
+  -H "Authorization: Bearer <access_token>"
 ```
 
 Refresh token:

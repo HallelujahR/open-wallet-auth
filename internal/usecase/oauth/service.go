@@ -20,6 +20,7 @@ const (
 	ErrInvalidClient   = "CLIENT_INVALID"
 	ErrInvalidProvider = "OAUTH_INVALID_PROVIDER"
 	ErrInvalidState    = "OAUTH_INVALID_STATE"
+	ErrOAuthBound      = "OAUTH_ALREADY_BOUND"
 	ErrProviderFailed  = "OAUTH_PROVIDER_FAILED"
 )
 
@@ -72,6 +73,7 @@ type TokenHasher interface {
 type StateValue struct {
 	ClientID    string
 	RedirectURI string
+	BindUserID  string
 }
 
 // Service orchestrates OAuth start and callback login.
@@ -112,6 +114,7 @@ type StartRequest struct {
 	Provider    string
 	ClientID    string
 	RedirectURI string
+	BindUserID  string
 }
 
 // StartResult contains the provider redirect URL.
@@ -188,7 +191,7 @@ func (s *Service) Start(ctx context.Context, req StartRequest) (*StartResult, er
 	if err != nil {
 		return nil, err
 	}
-	if err := s.states.Save(ctx, state, StateValue{ClientID: client.ClientID, RedirectURI: redirectURI}, s.clock.Now().UTC().Add(s.stateTTL)); err != nil {
+	if err := s.states.Save(ctx, state, StateValue{ClientID: client.ClientID, RedirectURI: redirectURI, BindUserID: strings.TrimSpace(req.BindUserID)}, s.clock.Now().UTC().Add(s.stateTTL)); err != nil {
 		return nil, err
 	}
 	return &StartResult{Provider: provider.Name(), AuthURL: provider.AuthURL(state, redirectURI), State: state}, nil
@@ -218,7 +221,7 @@ func (s *Service) Callback(ctx context.Context, req CallbackRequest) (*CallbackR
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
 		return nil, err
 	}
-	u, err := s.resolveUser(ctx, provider.Name(), profile, account)
+	u, err := s.resolveUser(ctx, provider.Name(), profile, account, state.BindUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -264,29 +267,19 @@ func (s *Service) Callback(ctx context.Context, req CallbackRequest) (*CallbackR
 	return &CallbackResult{UserID: u.ID, Username: u.Username, Email: u.Email, Token: pair}, nil
 }
 
-// resolveUser links an OAuth profile to an existing or newly created local user.
-// resolveUser 将第三方账号资料归并到已有用户，或创建新的本地用户。
-func (s *Service) resolveUser(ctx context.Context, provider string, profile *ProviderUser, account *oauthdomain.Account) (*user.User, error) {
+// resolveUser links an OAuth profile according to explicit binding rules.
+// resolveUser 按显式绑定规则处理第三方账号和本地用户关系。
+func (s *Service) resolveUser(ctx context.Context, provider string, profile *ProviderUser, account *oauthdomain.Account, bindUserID string) (*user.User, error) {
 	if account != nil {
+		if bindUserID != "" && account.UserID != bindUserID {
+			return nil, domain.NewError(ErrOAuthBound, "oauth account is already bound to another account")
+		}
 		return s.users.FindByID(ctx, account.UserID)
 	}
-	var u *user.User
-	var err error
-	if profile.Email != "" {
-		u, err = s.users.FindByEmail(ctx, profile.Email)
-		if err != nil && !errors.Is(err, repository.ErrNotFound) {
-			return nil, err
-		}
-	}
-	if u == nil {
-		username := strings.TrimSpace(profile.Username)
-		if username == "" {
-			username = provider + "_" + profile.Subject
-		}
-		u = &user.User{Username: username, Email: profile.Email, Avatar: profile.AvatarURL, Status: user.StatusActive}
-		if err := s.users.Create(ctx, u); err != nil {
-			return nil, err
-		}
+
+	u, err := s.resolveOAuthTargetUser(ctx, provider, profile, bindUserID)
+	if err != nil {
+		return nil, err
 	}
 	if !u.IsActive() {
 		return nil, domain.NewError(ErrProviderFailed, "oauth user is unavailable")
@@ -299,6 +292,36 @@ func (s *Service) resolveUser(ctx context.Context, provider string, profile *Pro
 		ProviderUsername:  profile.Username,
 		ProviderAvatarURL: profile.AvatarURL,
 	}); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+// resolveOAuthTargetUser returns the user that should receive a new OAuth binding.
+// resolveOAuthTargetUser 返回新 OAuth 绑定应该归属的用户。
+func (s *Service) resolveOAuthTargetUser(ctx context.Context, provider string, profile *ProviderUser, bindUserID string) (*user.User, error) {
+	if bindUserID != "" {
+		u, err := s.users.FindByID(ctx, bindUserID)
+		if err != nil || u == nil || !u.IsActive() {
+			return nil, domain.NewError(ErrProviderFailed, "oauth binding user is unavailable")
+		}
+		return u, nil
+	}
+	if profile.Email != "" {
+		existing, err := s.users.FindByEmail(ctx, profile.Email)
+		if err != nil && !errors.Is(err, repository.ErrNotFound) {
+			return nil, err
+		}
+		if existing != nil {
+			return nil, domain.NewError(ErrOAuthBound, "oauth email is already used by another account; login first and bind explicitly")
+		}
+	}
+	username := strings.TrimSpace(profile.Username)
+	if username == "" {
+		username = provider + "_" + profile.Subject
+	}
+	u := &user.User{Username: username, Email: profile.Email, Avatar: profile.AvatarURL, Status: user.StatusActive}
+	if err := s.users.Create(ctx, u); err != nil {
 		return nil, err
 	}
 	return u, nil

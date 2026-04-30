@@ -200,6 +200,58 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	response.OK(c, gin.H{"password_reset": true})
 }
 
+// BindEmail verifies an email code and binds the email to the current user.
+// BindEmail 校验邮箱验证码，并把邮箱绑定到当前登录用户。
+func (h *AuthHandler) BindEmail(c *gin.Context) {
+	authClaims, ok := currentAuthClaims(c)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, "AUTH_INVALID_TOKEN", "invalid authorization token")
+		return
+	}
+
+	var req dto.BindEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, authusecase.ErrInvalidInput, "invalid request")
+		return
+	}
+	result, err := h.auth.BindEmail(c.Request.Context(), authusecase.BindEmailRequest{
+		UserID: authClaims.UserID,
+		Email:  req.Email,
+		Code:   req.Code,
+	})
+	if err != nil {
+		writeAuthError(c, err)
+		return
+	}
+	response.OK(c, dto.BindContactResponse{UserID: result.UserID, Value: result.Value})
+}
+
+// BindPhone verifies a phone code and binds the phone number to the current user.
+// BindPhone 校验手机号验证码，并把手机号绑定到当前登录用户。
+func (h *AuthHandler) BindPhone(c *gin.Context) {
+	authClaims, ok := currentAuthClaims(c)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, "AUTH_INVALID_TOKEN", "invalid authorization token")
+		return
+	}
+
+	var req dto.BindPhoneRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, authusecase.ErrInvalidInput, "invalid request")
+		return
+	}
+	result, err := h.auth.BindPhone(c.Request.Context(), authusecase.BindPhoneRequest{
+		UserID: authClaims.UserID,
+		Phone:  req.Phone,
+		Code:   req.Code,
+	})
+	if err != nil {
+		writeAuthError(c, err)
+		return
+	}
+	response.OK(c, dto.BindContactResponse{UserID: result.UserID, Value: result.Value})
+}
+
 // Me returns the authenticated user claims injected by auth middleware.
 // Me 返回认证中间件注入的当前用户 claims。
 func (h *AuthHandler) Me(c *gin.Context) {
@@ -238,6 +290,8 @@ func writeAuthError(c *gin.Context, err error) {
 	if errors.As(err, &appErr) {
 		switch appErr.Code {
 		case authusecase.ErrEmailAlreadyExists:
+			response.Error(c, http.StatusConflict, appErr.Code, appErr.Message)
+		case authusecase.ErrEmailAlreadyBound, authusecase.ErrPhoneAlreadyBound:
 			response.Error(c, http.StatusConflict, appErr.Code, appErr.Message)
 		case authusecase.ErrInvalidClient:
 			response.Error(c, http.StatusBadRequest, appErr.Code, appErr.Message)

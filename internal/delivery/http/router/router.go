@@ -62,6 +62,8 @@ func New(deps Dependencies) *gin.Engine {
 					{
 						authenticated.GET("/me", deps.Auth.Me)
 						authenticated.PATCH("/password", deps.Auth.ChangePassword)
+						authenticated.POST("/bind/email", deps.Auth.BindEmail)
+						authenticated.POST("/bind/phone", deps.Auth.BindPhone)
 					}
 				}
 			}
@@ -94,6 +96,9 @@ func New(deps Dependencies) *gin.Engine {
 			oauth := v1.Group("/oauth")
 			{
 				oauth.GET("/:provider/start", deps.OAuth.Start)
+				if deps.Token != nil && deps.AudienceResolver != nil {
+					oauth.GET("/:provider/bind/start", middleware.AuthenticateClient(deps.Token, deps.AudienceResolver), deps.OAuth.BindStart)
+				}
 				oauth.GET("/:provider/callback", deps.OAuth.Callback)
 			}
 		}

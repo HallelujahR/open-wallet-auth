@@ -15,10 +15,12 @@ import (
 
 const (
 	ErrEmailAlreadyExists  = "AUTH_EMAIL_ALREADY_EXISTS"
+	ErrEmailAlreadyBound   = "AUTH_EMAIL_ALREADY_BOUND"
+	ErrPhoneAlreadyBound   = "AUTH_PHONE_ALREADY_BOUND"
 	ErrInvalidClient       = "CLIENT_INVALID"
+	ErrInvalidCode         = "AUTH_INVALID_CODE"
 	ErrInvalidCredentials  = "AUTH_INVALID_CREDENTIALS"
 	ErrInvalidInput        = "AUTH_INVALID_INPUT"
-	ErrInvalidCode         = "AUTH_INVALID_CODE"
 	ErrInvalidRefreshToken = "AUTH_INVALID_REFRESH_TOKEN"
 	ErrRateLimited         = "AUTH_RATE_LIMITED"
 )
@@ -51,6 +53,7 @@ type Service struct {
 	refreshTokens repository.RefreshTokenRepository
 	activity      repository.ActivityRepository
 	emailCodes    repository.EmailCodeRepository
+	phoneCodes    repository.PhoneCodeRepository
 	limiter       repository.RateLimiter
 	hasher        PasswordHasher
 	tokenHasher   TokenHasher
@@ -138,6 +141,29 @@ type ResetPasswordRequest struct {
 	NewPassword string
 }
 
+// BindEmailRequest is the input for binding an email to the current user.
+// BindEmailRequest 是当前用户绑定邮箱的用例输入。
+type BindEmailRequest struct {
+	UserID string
+	Email  string
+	Code   string
+}
+
+// BindPhoneRequest is the input for binding a phone number to the current user.
+// BindPhoneRequest 是当前用户绑定手机号的用例输入。
+type BindPhoneRequest struct {
+	UserID string
+	Phone  string
+	Code   string
+}
+
+// BindContactResult describes the bound contact value.
+// BindContactResult 描述绑定后的联系方式。
+type BindContactResult struct {
+	UserID string
+	Value  string
+}
+
 // NewService creates the auth usecase service with its required ports.
 // NewService 创建认证用例服务，并通过端口注入外部依赖。
 func NewService(
@@ -146,6 +172,7 @@ func NewService(
 	refreshTokens repository.RefreshTokenRepository,
 	activity repository.ActivityRepository,
 	emailCodes repository.EmailCodeRepository,
+	phoneCodes repository.PhoneCodeRepository,
 	limiter repository.RateLimiter,
 	hasher PasswordHasher,
 	tokenHasher TokenHasher,
@@ -160,6 +187,7 @@ func NewService(
 		refreshTokens: refreshTokens,
 		activity:      activity,
 		emailCodes:    emailCodes,
+		phoneCodes:    phoneCodes,
 		limiter:       limiter,
 		hasher:        hasher,
 		tokenHasher:   tokenHasher,
@@ -434,6 +462,90 @@ func (s *Service) ResetPassword(ctx context.Context, req ResetPasswordRequest) e
 		return err
 	}
 	return nil
+}
+
+// BindEmail verifies an email code and binds the email to the current user.
+// BindEmail 校验邮箱验证码，并把邮箱绑定到当前用户。
+func (s *Service) BindEmail(ctx context.Context, req BindEmailRequest) (*BindContactResult, error) {
+	if s.emailCodes == nil {
+		return nil, domain.NewError(ErrInvalidInput, "email binding is not configured")
+	}
+	userID := strings.TrimSpace(req.UserID)
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	code := strings.TrimSpace(req.Code)
+	if userID == "" || email == "" || code == "" {
+		return nil, domain.NewError(ErrInvalidInput, "user id, email, and code are required")
+	}
+	u, err := s.users.FindByID(ctx, userID)
+	if err != nil || u == nil || !u.IsActive() {
+		return nil, domain.NewError(ErrInvalidCredentials, "authenticated user is unavailable")
+	}
+	existing, err := s.users.FindByEmail(ctx, email)
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return nil, err
+	}
+	if existing != nil {
+		if existing.ID == userID {
+			return &BindContactResult{UserID: userID, Value: email}, nil
+		}
+		return nil, domain.NewError(ErrEmailAlreadyBound, "email is already bound to another account")
+	}
+	if u.Email != "" && !strings.EqualFold(u.Email, email) {
+		return nil, domain.NewError(ErrEmailAlreadyBound, "current account already has an email")
+	}
+	ok, err := s.emailCodes.Verify(ctx, email, code, time.Now().UTC())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, domain.NewError(ErrInvalidCode, "invalid or expired email code")
+	}
+	if err := s.users.UpdateEmail(ctx, userID, email); err != nil {
+		return nil, err
+	}
+	return &BindContactResult{UserID: userID, Value: email}, nil
+}
+
+// BindPhone verifies a phone code and binds the phone number to the current user.
+// BindPhone 校验手机号验证码，并把手机号绑定到当前用户。
+func (s *Service) BindPhone(ctx context.Context, req BindPhoneRequest) (*BindContactResult, error) {
+	if s.phoneCodes == nil {
+		return nil, domain.NewError(ErrInvalidInput, "phone binding is not configured")
+	}
+	userID := strings.TrimSpace(req.UserID)
+	phone := strings.ReplaceAll(strings.TrimSpace(req.Phone), " ", "")
+	code := strings.TrimSpace(req.Code)
+	if userID == "" || phone == "" || code == "" {
+		return nil, domain.NewError(ErrInvalidInput, "user id, phone, and code are required")
+	}
+	u, err := s.users.FindByID(ctx, userID)
+	if err != nil || u == nil || !u.IsActive() {
+		return nil, domain.NewError(ErrInvalidCredentials, "authenticated user is unavailable")
+	}
+	existing, err := s.users.FindByPhone(ctx, phone)
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return nil, err
+	}
+	if existing != nil {
+		if existing.ID == userID {
+			return &BindContactResult{UserID: userID, Value: phone}, nil
+		}
+		return nil, domain.NewError(ErrPhoneAlreadyBound, "phone is already bound to another account")
+	}
+	if u.Phone != "" && u.Phone != phone {
+		return nil, domain.NewError(ErrPhoneAlreadyBound, "current account already has a phone")
+	}
+	ok, err := s.phoneCodes.Verify(ctx, phone, code, time.Now().UTC())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, domain.NewError(ErrInvalidCode, "invalid or expired phone code")
+	}
+	if err := s.users.UpdatePhone(ctx, userID, phone); err != nil {
+		return nil, err
+	}
+	return &BindContactResult{UserID: userID, Value: phone}, nil
 }
 
 // checkLoginLimit verifies password-login rate limits.

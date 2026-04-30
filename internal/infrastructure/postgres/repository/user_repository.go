@@ -92,6 +92,38 @@ func (r *UserRepository) UpdateLoginInfo(ctx context.Context, userID string) err
 		Updates(map[string]any{"last_login_at": now, "updated_at": now}).Error
 }
 
+// UpdateEmail binds or replaces the email for an existing identity user.
+// UpdateEmail 为已存在的身份用户绑定或替换邮箱。
+func (r *UserRepository) UpdateEmail(ctx context.Context, userID string, email string) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{"email": stringPtrOrNil(email), "updated_at": time.Now().UTC()})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domainrepo.ErrNotFound
+	}
+	return nil
+}
+
+// UpdatePhone binds or replaces the phone number for an existing identity user.
+// UpdatePhone 为已存在的身份用户绑定或替换手机号。
+func (r *UserRepository) UpdatePhone(ctx context.Context, userID string, phone string) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{"phone": stringPtrOrNil(phone), "updated_at": time.Now().UTC()})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domainrepo.ErrNotFound
+	}
+	return nil
+}
+
 // UpdatePassword stores a new password hash for an existing identity user.
 // UpdatePassword 为已存在的身份用户保存新的密码哈希。
 func (r *UserRepository) UpdatePassword(ctx context.Context, userID string, passwordHash string) error {

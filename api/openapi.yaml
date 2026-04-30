@@ -71,6 +71,38 @@ paths:
       responses:
         "200":
           description: Password reset
+  /api/v1/auth/bind/email:
+    post:
+      summary: Bind an email to the current authenticated user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BindEmailRequest"
+      responses:
+        "200":
+          description: Email bound
+        "409":
+          description: Email already bound to another user
+  /api/v1/auth/bind/phone:
+    post:
+      summary: Bind a phone number to the current authenticated user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BindPhoneRequest"
+      responses:
+        "200":
+          description: Phone bound
+        "409":
+          description: Phone already bound to another user
   /api/v1/wallet/nonce:
     post:
       summary: Create a SIWE-compatible wallet login challenge
@@ -181,6 +213,32 @@ paths:
       responses:
         "200":
           description: OAuth authorization URL
+  /api/v1/oauth/{provider}/bind/start:
+    get:
+      summary: Create a provider OAuth authorization URL for account binding
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+        - name: client_id
+          in: query
+          schema:
+            type: string
+        - name: redirect_uri
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OAuth authorization URL for binding
+        "409":
+          description: OAuth account already bound to another user
   /api/v1/oauth/{provider}/callback:
     get:
       summary: Complete provider OAuth login
@@ -412,6 +470,27 @@ components:
         new_password:
           type: string
           minLength: 8
+    BindEmailRequest:
+      type: object
+      required:
+        - email
+        - code
+      properties:
+        email:
+          type: string
+          format: email
+        code:
+          type: string
+    BindPhoneRequest:
+      type: object
+      required:
+        - phone
+        - code
+      properties:
+        phone:
+          type: string
+        code:
+          type: string
     WalletNonceRequest:
       type: object
       required:

@@ -69,5 +69,7 @@ examples
 
 - Refresh token rotation is exposed as a repository port so storage adapters can make revoke-and-create atomic.
 - Password reset revokes existing refresh-token sessions through the refresh-token repository port.
+- Email and phone binding follow explicit ownership rules: unbound values attach to the current user, current-user values are idempotent, and values owned by another user are rejected.
+- OAuth login no longer auto-merges by provider email; users must explicitly bind OAuth accounts while authenticated when an existing identity should own the provider account.
 - Login auditing records successful password, refresh, wallet, phone, and OAuth logins; password-login failures are recorded as best-effort audit events.
 - Client and identity management are protected by `X-Admin-Token`; a first-class admin/RBAC model is still pending.

@@ -40,6 +40,27 @@ type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password" binding:"required,min=8"`
 }
 
+// BindEmailRequest is the HTTP body for binding an email to current user.
+// BindEmailRequest 是当前用户绑定邮箱的 HTTP 请求体。
+type BindEmailRequest struct {
+	Email string `json:"email" binding:"required,email"`
+	Code  string `json:"code" binding:"required"`
+}
+
+// BindPhoneRequest is the HTTP body for binding a phone number to current user.
+// BindPhoneRequest 是当前用户绑定手机号的 HTTP 请求体。
+type BindPhoneRequest struct {
+	Phone string `json:"phone" binding:"required"`
+	Code  string `json:"code" binding:"required"`
+}
+
+// BindContactResponse is returned after binding an email or phone number.
+// BindContactResponse 是邮箱或手机号绑定成功后的响应体。
+type BindContactResponse struct {
+	UserID string `json:"user_id"`
+	Value  string `json:"value"`
+}
+
 // AuthUser is the user payload returned by auth endpoints.
 type AuthUser struct {
 	ID       string `json:"id"`
