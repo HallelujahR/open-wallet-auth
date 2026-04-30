@@ -430,6 +430,9 @@ func (s *Service) ResetPassword(ctx context.Context, req ResetPasswordRequest) e
 	if err := s.users.UpdatePassword(ctx, u.ID, hash); err != nil {
 		return err
 	}
+	if _, err := s.refreshTokens.RevokeByUserID(ctx, u.ID); err != nil {
+		return err
+	}
 	return nil
 }
 

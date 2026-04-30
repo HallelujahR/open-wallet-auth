@@ -384,6 +384,10 @@ func (m *memoryRefreshTokens) Rotate(ctx context.Context, oldTokenID string, new
 	return nil
 }
 
+func (m *memoryRefreshTokens) RevokeByUserID(ctx context.Context, userID string) (int64, error) {
+	return 0, nil
+}
+
 type memoryActivity struct {
 	loginCount int
 }

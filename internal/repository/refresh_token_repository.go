@@ -12,6 +12,7 @@ type RefreshTokenRepository interface {
 	FindByHash(ctx context.Context, tokenHash string) (*token.RefreshToken, error)
 	Revoke(ctx context.Context, id string) error
 	Rotate(ctx context.Context, oldTokenID string, newToken *token.RefreshToken) error
+	RevokeByUserID(ctx context.Context, userID string) (int64, error)
 }
 
 // RefreshTokenListFilter contains filters for refresh-token session queries.

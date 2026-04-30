@@ -68,5 +68,6 @@ examples
 ## Known Gaps
 
 - Refresh token rotation is exposed as a repository port so storage adapters can make revoke-and-create atomic.
+- Password reset revokes existing refresh-token sessions through the refresh-token repository port.
 - Login auditing records successful password, refresh, wallet, phone, and OAuth logins; password-login failures are recorded as best-effort audit events.
 - Client and identity management are protected by `X-Admin-Token`; a first-class admin/RBAC model is still pending.

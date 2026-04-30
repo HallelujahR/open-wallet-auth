@@ -22,6 +22,7 @@ The service owns authentication. Your business applications still own their own 
 - Refresh token session management and revocation APIs
 - Authenticated password change endpoint
 - Email-code password reset endpoint
+- Password reset revokes existing refresh-token sessions
 - Multi-client login with `client_id` and JWT audience
 - Login activity and user-client tracking
 - Failed password-login audit records
@@ -227,6 +228,6 @@ CGO_ENABLED=0 go build ./cmd/migrate
 
 - Wallet binding and unbinding APIs
 - More account-linking policies for existing wallet-only users
-- Password recovery hardening and audit events
+- Password recovery audit events
 - Stronger admin/RBAC model for service management
 - More framework integration examples

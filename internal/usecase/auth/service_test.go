@@ -218,7 +218,16 @@ func TestServiceResetPasswordUpdatesHashWithEmailCode(t *testing.T) {
 	if err := codes.Save(context.Background(), "alice@example.com", "123456", time.Now().Add(time.Minute)); err != nil {
 		t.Fatalf("save code returned error: %v", err)
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), codes, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	refreshTokens := newMemoryRefreshTokens()
+	refreshTokens.byHash["hash:active_refresh"] = &token.RefreshToken{
+		ID:        "rft_active",
+		UserID:    "usr_existing",
+		ClientID:  "default",
+		TokenHash: "hash:active_refresh",
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	refreshTokens.byID["rft_active"] = refreshTokens.byHash["hash:active_refresh"]
+	service := NewService(users, defaultClients(), refreshTokens, newMemoryActivity(), codes, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	err := service.ResetPassword(context.Background(), ResetPasswordRequest{
 		Email:       "alice@example.com",
@@ -230,6 +239,9 @@ func TestServiceResetPasswordUpdatesHashWithEmailCode(t *testing.T) {
 	}
 	if users.byEmail["alice@example.com"].PasswordHash != "hash:new-password" {
 		t.Fatal("expected password hash to be updated")
+	}
+	if refreshTokens.byID["rft_active"].RevokedAt == nil {
+		t.Fatal("expected existing refresh-token sessions to be revoked")
 	}
 }
 
@@ -419,6 +431,18 @@ func (m *memoryRefreshTokens) Rotate(ctx context.Context, oldTokenID string, new
 		return err
 	}
 	return m.Create(ctx, newToken)
+}
+
+func (m *memoryRefreshTokens) RevokeByUserID(ctx context.Context, userID string) (int64, error) {
+	now := time.Now()
+	var count int64
+	for _, refreshToken := range m.byID {
+		if refreshToken.UserID == userID && refreshToken.RevokedAt == nil {
+			refreshToken.RevokedAt = &now
+			count++
+		}
+	}
+	return count, nil
 }
 
 func defaultClients() *memoryClients {
