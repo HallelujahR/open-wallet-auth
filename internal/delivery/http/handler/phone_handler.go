@@ -89,6 +89,8 @@ func writePhoneError(c *gin.Context, err error) {
 		switch appErr.Code {
 		case phoneusecase.ErrInvalidCode:
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
+		case phoneusecase.ErrRateLimited:
+			response.Error(c, http.StatusTooManyRequests, appErr.Code, appErr.Message)
 		case phoneusecase.ErrSendFailed:
 			response.Error(c, http.StatusServiceUnavailable, appErr.Code, appErr.Message)
 		default:

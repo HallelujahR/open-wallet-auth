@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	goredis "github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/handler"
@@ -23,7 +25,10 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres/model"
 	pgrepo "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres/repository"
+	infraratelimit "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/ratelimit"
+	infraredis "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/redis"
 	infrawallet "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/wallet"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 	adminusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/admin"
 	authusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/auth"
 	clientusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/client"
@@ -40,6 +45,7 @@ type Application struct {
 	logger *zap.Logger
 	server *http.Server
 	sqlDB  *sql.DB
+	redis  *goredis.Client
 }
 
 // New wires infrastructure adapters, usecases, and HTTP delivery.
@@ -73,6 +79,17 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 		return nil, fmt.Errorf("ensure default client: %w", err)
 	}
 
+	var redisClient *goredis.Client
+	if requiresRedis(cfg) && !cfg.Redis.Enabled {
+		return nil, errors.New("redis is required by configured code storage or rate limiting")
+	}
+	if cfg.Redis.Enabled {
+		redisClient, err = infraredis.Open(context.Background(), cfg.Redis)
+		if err != nil {
+			return nil, fmt.Errorf("open redis: %w", err)
+		}
+	}
+
 	hasher := infrahash.NewBcryptHasher(0)
 	tokenHasher := infrahash.NewSHA256TokenHasher()
 	tokenIssuer, err := infrajwt.NewService(cfg.JWT)
@@ -91,26 +108,41 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	})
 	smsProvider, _ := inframessage.NewProvider(cfg.Phone.Provider)
 	_, emailProvider := inframessage.NewProvider(cfg.Email.Provider)
+	phoneCodeRepo := phoneCodeRepository(cfg, redisClient)
+	emailCodeRepo := emailCodeRepository(cfg, redisClient)
+	limiter := rateLimiter(cfg, redisClient)
 	phoneService := phoneusecase.NewService(phoneusecase.Dependencies{
 		Users:         userRepo,
 		Clients:       clientRepo,
 		RefreshTokens: refreshTokenRepo,
 		Activity:      activityRepo,
-		Codes:         infraphone.NewMemoryCodeRepository(),
+		Codes:         phoneCodeRepo,
+		Limiter:       limiter,
 		Sender:        smsProvider,
 		TokenHasher:   tokenHasher,
 		Issuer:        tokenIssuer,
 		Enabled:       cfg.Phone.Enabled,
 		CodeTTL:       cfg.Phone.CodeTTL,
+		RateLimit:     cfg.Phone.RateLimitEnabled,
+		SendLimit:     cfg.Phone.SendLimit,
+		SendWindow:    cfg.Phone.SendWindow,
+		VerifyLimit:   cfg.Phone.VerifyLimit,
+		VerifyWindow:  cfg.Phone.VerifyWindow,
 		DevCode:       cfg.Phone.DevCode,
 		ExposeDevCode: cfg.Phone.ExposeDevCode,
 		Clock:         clock.SystemClock{},
 	})
 	emailService := emailusecase.NewService(emailusecase.Dependencies{
-		Codes:         infraemail.NewMemoryCodeRepository(),
+		Codes:         emailCodeRepo,
+		Limiter:       limiter,
 		Sender:        emailProvider,
 		Enabled:       cfg.Email.VerificationEnabled,
 		CodeTTL:       cfg.Email.CodeTTL,
+		RateLimit:     cfg.Email.RateLimitEnabled,
+		SendLimit:     cfg.Email.SendLimit,
+		SendWindow:    cfg.Email.SendWindow,
+		VerifyLimit:   cfg.Email.VerifyLimit,
+		VerifyWindow:  cfg.Email.VerifyWindow,
 		DevCode:       cfg.Email.DevCode,
 		ExposeDevCode: cfg.Email.ExposeDevCode,
 		Clock:         clock.SystemClock{},
@@ -190,6 +222,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 		logger: logger,
 		server: server,
 		sqlDB:  sqlDB,
+		redis:  redisClient,
 	}, nil
 }
 
@@ -225,8 +258,51 @@ func (a *Application) Shutdown(ctx context.Context) error {
 	if err := a.server.Shutdown(ctx); err != nil {
 		return err
 	}
+	var closeErr error
 	if a.sqlDB != nil {
-		return a.sqlDB.Close()
+		closeErr = a.sqlDB.Close()
 	}
-	return nil
+	if a.redis != nil {
+		if err := a.redis.Close(); closeErr == nil {
+			closeErr = err
+		}
+	}
+	return closeErr
+}
+
+// phoneCodeRepository selects the configured phone-code storage adapter.
+// phoneCodeRepository 根据配置选择手机号验证码存储适配器。
+func phoneCodeRepository(cfg *config.Config, client *goredis.Client) repository.PhoneCodeRepository {
+	if strings.EqualFold(cfg.Phone.CodeStore, "redis") && client != nil {
+		return infraredis.NewCodeRepository(client, "owa:phone_code")
+	}
+	return infraphone.NewMemoryCodeRepository()
+}
+
+// emailCodeRepository selects the configured email-code storage adapter.
+// emailCodeRepository 根据配置选择邮箱验证码存储适配器。
+func emailCodeRepository(cfg *config.Config, client *goredis.Client) repository.EmailCodeRepository {
+	if strings.EqualFold(cfg.Email.CodeStore, "redis") && client != nil {
+		return infraredis.NewCodeRepository(client, "owa:email_code")
+	}
+	return infraemail.NewMemoryCodeRepository()
+}
+
+// rateLimiter selects Redis-backed or no-op rate limiting.
+// rateLimiter 根据配置选择 Redis 限流器或空限流器。
+func rateLimiter(cfg *config.Config, client *goredis.Client) repository.RateLimiter {
+	if client != nil && (cfg.Phone.RateLimitEnabled || cfg.Email.RateLimitEnabled) {
+		return infraredis.NewRateLimiter(client, "owa:rate")
+	}
+	if cfg.Phone.RateLimitEnabled || cfg.Email.RateLimitEnabled {
+		return infraratelimit.NewMemoryLimiter()
+	}
+	return infraratelimit.NoopLimiter{}
+}
+
+// requiresRedis reports whether runtime configuration needs a Redis connection.
+// requiresRedis 判断当前配置是否需要 Redis 连接。
+func requiresRedis(cfg *config.Config) bool {
+	return strings.EqualFold(cfg.Phone.CodeStore, "redis") ||
+		strings.EqualFold(cfg.Email.CodeStore, "redis")
 }

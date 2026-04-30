@@ -19,6 +19,7 @@ const (
 	ErrInvalidCode   = "PHONE_INVALID_CODE"
 	ErrDisabled      = "PHONE_LOGIN_DISABLED"
 	ErrSendFailed    = "PHONE_SEND_FAILED"
+	ErrRateLimited   = "PHONE_RATE_LIMITED"
 )
 
 // Clock supplies time to keep phone-code flows deterministic in tests.
@@ -61,11 +62,17 @@ type Service struct {
 	refreshTokens repository.RefreshTokenRepository
 	activity      repository.ActivityRepository
 	codes         repository.PhoneCodeRepository
+	limiter       repository.RateLimiter
 	sender        SMSProvider
 	tokenHasher   TokenHasher
 	issuer        TokenIssuer
 	enabled       bool
 	codeTTL       time.Duration
+	rateLimit     bool
+	sendLimit     int
+	sendWindow    time.Duration
+	verifyLimit   int
+	verifyWindow  time.Duration
 	devCode       string
 	exposeDevCode bool
 	clock         Clock
@@ -79,11 +86,17 @@ type Dependencies struct {
 	RefreshTokens repository.RefreshTokenRepository
 	Activity      repository.ActivityRepository
 	Codes         repository.PhoneCodeRepository
+	Limiter       repository.RateLimiter
 	Sender        SMSProvider
 	TokenHasher   TokenHasher
 	Issuer        TokenIssuer
 	Enabled       bool
 	CodeTTL       time.Duration
+	RateLimit     bool
+	SendLimit     int
+	SendWindow    time.Duration
+	VerifyLimit   int
+	VerifyWindow  time.Duration
 	DevCode       string
 	ExposeDevCode bool
 	Clock         Clock
@@ -132,11 +145,17 @@ func NewService(deps Dependencies) *Service {
 		refreshTokens: deps.RefreshTokens,
 		activity:      deps.Activity,
 		codes:         deps.Codes,
+		limiter:       deps.Limiter,
 		sender:        deps.Sender,
 		tokenHasher:   deps.TokenHasher,
 		issuer:        deps.Issuer,
 		enabled:       deps.Enabled,
 		codeTTL:       deps.CodeTTL,
+		rateLimit:     deps.RateLimit,
+		sendLimit:     deps.SendLimit,
+		sendWindow:    deps.SendWindow,
+		verifyLimit:   deps.VerifyLimit,
+		verifyWindow:  deps.VerifyWindow,
 		devCode:       deps.DevCode,
 		exposeDevCode: deps.ExposeDevCode,
 		clock:         deps.Clock,
@@ -153,6 +172,9 @@ func (s *Service) RequestCode(ctx context.Context, req CodeRequest) (*CodeResult
 	}
 	if phone == "" {
 		return nil, domain.NewError(ErrInvalidInput, "phone is required")
+	}
+	if err := s.checkLimit(ctx, "phone:send:"+phone, s.sendLimit, s.sendWindow); err != nil {
+		return nil, err
 	}
 	client, err := s.clients.FindByClientID(ctx, clientID)
 	if err != nil || client == nil || !client.IsActive() {
@@ -190,6 +212,9 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 	}
 	if phone == "" || code == "" {
 		return nil, domain.NewError(ErrInvalidInput, "phone and code are required")
+	}
+	if err := s.checkLimit(ctx, "phone:verify:"+phone, s.verifyLimit, s.verifyWindow); err != nil {
+		return nil, err
 	}
 	client, err := s.clients.FindByClientID(ctx, clientID)
 	if err != nil || client == nil || !client.IsActive() {
@@ -258,6 +283,22 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 		}
 	}
 	return &LoginResult{UserID: u.ID, Username: u.Username, Phone: u.Phone, Token: pair}, nil
+}
+
+// checkLimit verifies rate limits for phone-code operations.
+// checkLimit 校验手机号验证码相关操作是否超过频率限制。
+func (s *Service) checkLimit(ctx context.Context, key string, limit int, window time.Duration) error {
+	if !s.rateLimit || s.limiter == nil {
+		return nil
+	}
+	ok, err := s.limiter.Allow(ctx, key, limit, window)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.NewError(ErrRateLimited, "too many phone verification attempts")
+	}
+	return nil
 }
 
 // normalizePhone trims surrounding spaces before phone validation and storage.

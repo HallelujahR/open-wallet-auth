@@ -11,6 +11,7 @@ The service owns authentication. Your business applications still own their own 
 - Email/password registration and login
 - Email verification code sending and checking
 - Phone verification-code login
+- Redis-backed verification-code storage and rate limiting
 - EVM wallet signature login with SIWE-compatible messages
 - Google and GitHub OAuth start/callback flow
 - JWT access tokens signed with RS256
@@ -162,11 +163,16 @@ Important settings:
 - `jwt.public_key_path`: RSA public key path
 - `wallet.nonce_ttl`: wallet challenge lifetime
 - `phone.code_ttl`: phone verification-code lifetime
+- `phone.code_store`: verification-code storage, `memory` or `redis`
 - `phone.dev_code`: local development phone code
+- `phone.rate_limit_*`: phone code send and verify limits
 - `phone.enabled`: enable or disable phone-code login
 - `phone.provider.*`: custom SMS provider webhook settings
 - `email.verification_enabled`: enable or disable email verification endpoints
+- `email.code_store`: verification-code storage, `memory` or `redis`
+- `email.rate_limit_*`: email code send and verify limits
 - `email.provider.*`: custom email provider webhook settings
+- `redis.enabled`: enable Redis adapters for code storage and rate limiting
 - `oauth.google.*`: Google OAuth credentials and endpoints
 - `oauth.github.*`: GitHub OAuth credentials and endpoints
 - `management.admin_token`: token for management APIs in development
@@ -182,7 +188,7 @@ CGO_ENABLED=0 go build ./cmd/server
 
 ## Roadmap
 
-- Rate limiting for login and nonce endpoints
+- Rate limiting for password login and wallet nonce endpoints
 - Failed-login auditing
 - Production migration command
 - Wallet binding and unbinding APIs

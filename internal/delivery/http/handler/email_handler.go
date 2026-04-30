@@ -68,6 +68,8 @@ func writeEmailError(c *gin.Context, err error) {
 		switch appErr.Code {
 		case emailusecase.ErrInvalidCode:
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
+		case emailusecase.ErrRateLimited:
+			response.Error(c, http.StatusTooManyRequests, appErr.Code, appErr.Message)
 		case emailusecase.ErrSendFailed:
 			response.Error(c, http.StatusServiceUnavailable, appErr.Code, appErr.Message)
 		default:

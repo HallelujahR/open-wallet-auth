@@ -27,6 +27,7 @@ database:
   conn_max_lifetime: 30m
 
 redis:
+  enabled: false
   addr: localhost:6379
   password: ""
   db: 0
@@ -44,9 +45,16 @@ wallet:
 
 phone:
   enabled: true
+  # memory keeps local setup simple; set to redis for shared deployments.
+  code_store: memory
   code_ttl: 5m
   dev_code: "123456"
   expose_dev_code: true
+  rate_limit_enabled: true
+  send_limit: 3
+  send_window: 1m
+  verify_limit: 5
+  verify_window: 5m
   provider:
     type: noop
     webhook_url: ""
@@ -55,9 +63,16 @@ phone:
 
 email:
   verification_enabled: true
+  # memory keeps local setup simple; set to redis for shared deployments.
+  code_store: memory
   code_ttl: 15m
   dev_code: "123456"
   expose_dev_code: true
+  rate_limit_enabled: true
+  send_limit: 3
+  send_window: 1m
+  verify_limit: 5
+  verify_window: 5m
   provider:
     type: noop
     webhook_url: ""

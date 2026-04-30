@@ -14,6 +14,7 @@ const (
 	ErrInvalidInput = "EMAIL_INVALID_INPUT"
 	ErrInvalidCode  = "EMAIL_INVALID_CODE"
 	ErrSendFailed   = "EMAIL_SEND_FAILED"
+	ErrRateLimited  = "EMAIL_RATE_LIMITED"
 )
 
 // Clock supplies time to keep email verification flows deterministic in tests.
@@ -40,9 +41,15 @@ type EmailProvider interface {
 // Service 只负责邮箱验证码业务规则，邮件网关和服务商细节由 infrastructure 适配。
 type Service struct {
 	codes         repository.EmailCodeRepository
+	limiter       repository.RateLimiter
 	sender        EmailProvider
 	enabled       bool
 	codeTTL       time.Duration
+	rateLimit     bool
+	sendLimit     int
+	sendWindow    time.Duration
+	verifyLimit   int
+	verifyWindow  time.Duration
 	devCode       string
 	exposeDevCode bool
 	clock         Clock
@@ -52,9 +59,15 @@ type Service struct {
 // Dependencies 汇总邮箱验证用例需要的验证码仓储、邮件发送和时间端口。
 type Dependencies struct {
 	Codes         repository.EmailCodeRepository
+	Limiter       repository.RateLimiter
 	Sender        EmailProvider
 	Enabled       bool
 	CodeTTL       time.Duration
+	RateLimit     bool
+	SendLimit     int
+	SendWindow    time.Duration
+	VerifyLimit   int
+	VerifyWindow  time.Duration
 	DevCode       string
 	ExposeDevCode bool
 	Clock         Clock
@@ -93,9 +106,15 @@ type VerifyResult struct {
 func NewService(deps Dependencies) *Service {
 	return &Service{
 		codes:         deps.Codes,
+		limiter:       deps.Limiter,
 		sender:        deps.Sender,
 		enabled:       deps.Enabled,
 		codeTTL:       deps.CodeTTL,
+		rateLimit:     deps.RateLimit,
+		sendLimit:     deps.SendLimit,
+		sendWindow:    deps.SendWindow,
+		verifyLimit:   deps.VerifyLimit,
+		verifyWindow:  deps.VerifyWindow,
 		devCode:       deps.DevCode,
 		exposeDevCode: deps.ExposeDevCode,
 		clock:         deps.Clock,
@@ -111,6 +130,9 @@ func (s *Service) RequestCode(ctx context.Context, req CodeRequest) (*CodeResult
 	email := normalizeEmail(req.Email)
 	if email == "" {
 		return nil, domain.NewError(ErrInvalidInput, "email is required")
+	}
+	if err := s.checkLimit(ctx, "email:send:"+email, s.sendLimit, s.sendWindow); err != nil {
+		return nil, err
 	}
 	code := s.devCode
 	if code == "" {
@@ -143,6 +165,9 @@ func (s *Service) VerifyCode(ctx context.Context, req VerifyRequest) (*VerifyRes
 	if email == "" || code == "" {
 		return nil, domain.NewError(ErrInvalidInput, "email and code are required")
 	}
+	if err := s.checkLimit(ctx, "email:verify:"+email, s.verifyLimit, s.verifyWindow); err != nil {
+		return nil, err
+	}
 	ok, err := s.codes.Verify(ctx, email, code, s.clock.Now().UTC())
 	if err != nil {
 		return nil, err
@@ -151,6 +176,22 @@ func (s *Service) VerifyCode(ctx context.Context, req VerifyRequest) (*VerifyRes
 		return nil, domain.NewError(ErrInvalidCode, "invalid or expired email code")
 	}
 	return &VerifyResult{Email: email, Verified: true}, nil
+}
+
+// checkLimit verifies rate limits for email verification operations.
+// checkLimit 校验邮箱验证码相关操作是否超过频率限制。
+func (s *Service) checkLimit(ctx context.Context, key string, limit int, window time.Duration) error {
+	if !s.rateLimit || s.limiter == nil {
+		return nil
+	}
+	ok, err := s.limiter.Allow(ctx, key, limit, window)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.NewError(ErrRateLimited, "too many email verification attempts")
+	}
+	return nil
 }
 
 // normalizeEmail trims spaces and lowercases emails for consistent verification.

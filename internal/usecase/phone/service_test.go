@@ -26,6 +26,17 @@ func TestServiceLoginCreatesPhoneUser(t *testing.T) {
 	}
 }
 
+func TestServiceRequestCodeRejectsRateLimitedPhone(t *testing.T) {
+	service := newTestService()
+	service.rateLimit = true
+	service.limiter = denyLimiter{}
+
+	_, err := service.RequestCode(context.Background(), CodeRequest{ClientID: "default", Phone: "+8613800000000"})
+	if err == nil {
+		t.Fatal("expected rate limit error")
+	}
+}
+
 var testNow = time.Date(2026, 4, 29, 10, 0, 0, 0, time.UTC)
 
 func newTestService() *Service {
@@ -148,6 +159,12 @@ type memoryCodes struct {
 type noopSMS struct{}
 
 func (noopSMS) SendSMS(ctx context.Context, msg SMSMessage) error { return nil }
+
+type denyLimiter struct{}
+
+func (denyLimiter) Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error) {
+	return false, nil
+}
 
 func newMemoryCodes() *memoryCodes { return &memoryCodes{} }
 

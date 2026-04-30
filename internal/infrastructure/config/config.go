@@ -58,6 +58,7 @@ type DatabaseConfig struct {
 
 // RedisConfig contains Redis connection settings.
 type RedisConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
 	Addr     string `mapstructure:"addr"`
 	Password string `mapstructure:"password"`
 	DB       int    `mapstructure:"db"`
@@ -80,19 +81,31 @@ type WalletConfig struct {
 
 // PhoneConfig contains phone verification-code login settings.
 type PhoneConfig struct {
-	Enabled       bool                  `mapstructure:"enabled"`
-	CodeTTL       time.Duration         `mapstructure:"code_ttl"`
-	DevCode       string                `mapstructure:"dev_code"`
-	ExposeDevCode bool                  `mapstructure:"expose_dev_code"`
-	Provider      MessageProviderConfig `mapstructure:"provider"`
+	Enabled          bool                  `mapstructure:"enabled"`
+	CodeStore        string                `mapstructure:"code_store"`
+	CodeTTL          time.Duration         `mapstructure:"code_ttl"`
+	DevCode          string                `mapstructure:"dev_code"`
+	ExposeDevCode    bool                  `mapstructure:"expose_dev_code"`
+	RateLimitEnabled bool                  `mapstructure:"rate_limit_enabled"`
+	SendLimit        int                   `mapstructure:"send_limit"`
+	SendWindow       time.Duration         `mapstructure:"send_window"`
+	VerifyLimit      int                   `mapstructure:"verify_limit"`
+	VerifyWindow     time.Duration         `mapstructure:"verify_window"`
+	Provider         MessageProviderConfig `mapstructure:"provider"`
 }
 
 // EmailConfig contains email verification settings.
 type EmailConfig struct {
 	VerificationEnabled bool                  `mapstructure:"verification_enabled"`
+	CodeStore           string                `mapstructure:"code_store"`
 	CodeTTL             time.Duration         `mapstructure:"code_ttl"`
 	DevCode             string                `mapstructure:"dev_code"`
 	ExposeDevCode       bool                  `mapstructure:"expose_dev_code"`
+	RateLimitEnabled    bool                  `mapstructure:"rate_limit_enabled"`
+	SendLimit           int                   `mapstructure:"send_limit"`
+	SendWindow          time.Duration         `mapstructure:"send_window"`
+	VerifyLimit         int                   `mapstructure:"verify_limit"`
+	VerifyWindow        time.Duration         `mapstructure:"verify_window"`
 	Provider            MessageProviderConfig `mapstructure:"provider"`
 }
 
@@ -175,6 +188,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("database.max_idle_conns", 10)
 	v.SetDefault("database.conn_max_lifetime", "30m")
 	v.SetDefault("redis.addr", "localhost:6379")
+	v.SetDefault("redis.enabled", false)
 	v.SetDefault("redis.db", 0)
 	v.SetDefault("jwt.issuer", "open-wallet-auth")
 	v.SetDefault("jwt.access_token_ttl", "15m")
@@ -184,14 +198,26 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.active_key_id", "default")
 	v.SetDefault("wallet.nonce_ttl", "5m")
 	v.SetDefault("phone.enabled", true)
+	v.SetDefault("phone.code_store", "memory")
 	v.SetDefault("phone.code_ttl", "5m")
 	v.SetDefault("phone.dev_code", "123456")
 	v.SetDefault("phone.expose_dev_code", true)
+	v.SetDefault("phone.rate_limit_enabled", true)
+	v.SetDefault("phone.send_limit", 3)
+	v.SetDefault("phone.send_window", "1m")
+	v.SetDefault("phone.verify_limit", 5)
+	v.SetDefault("phone.verify_window", "5m")
 	v.SetDefault("phone.provider.type", "noop")
 	v.SetDefault("email.verification_enabled", true)
+	v.SetDefault("email.code_store", "memory")
 	v.SetDefault("email.code_ttl", "15m")
 	v.SetDefault("email.dev_code", "123456")
 	v.SetDefault("email.expose_dev_code", true)
+	v.SetDefault("email.rate_limit_enabled", true)
+	v.SetDefault("email.send_limit", 3)
+	v.SetDefault("email.send_window", "1m")
+	v.SetDefault("email.verify_limit", 5)
+	v.SetDefault("email.verify_window", "5m")
 	v.SetDefault("email.provider.type", "noop")
 	v.SetDefault("oauth.state_ttl", "10m")
 	v.SetDefault("oauth.google.auth_url", "https://accounts.google.com/o/oauth2/v2/auth")
