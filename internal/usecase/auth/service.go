@@ -323,10 +323,6 @@ func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*RefreshResu
 		return nil, domain.NewError(ErrInvalidRefreshToken, "invalid refresh token")
 	}
 
-	if err := s.refreshTokens.Revoke(ctx, refreshToken.ID); err != nil {
-		return nil, err
-	}
-
 	pair, err := s.issuer.IssuePair(ctx, token.Claims{
 		UserID:   u.ID,
 		ClientID: client.ClientID,
@@ -337,7 +333,7 @@ func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*RefreshResu
 	if err != nil {
 		return nil, err
 	}
-	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken, req.IP, req.UserAgent); err != nil {
+	if err := s.rotateRefreshToken(ctx, refreshToken.ID, u.ID, client.ClientID, pair.RefreshToken, req.IP, req.UserAgent); err != nil {
 		return nil, err
 	}
 	if err := s.recordSuccessfulLogin(ctx, u.ID, client.ClientID, audit.LoginMethodRefresh, req.IP, req.UserAgent); err != nil {
@@ -457,6 +453,19 @@ func (s *Service) checkLoginLimit(ctx context.Context, clientID string, email st
 // storeRefreshToken 将刷新令牌哈希后落库，避免保存明文 token。
 func (s *Service) storeRefreshToken(ctx context.Context, userID string, clientID string, raw string, ip string, userAgent string) error {
 	return s.refreshTokens.Create(ctx, &token.RefreshToken{
+		UserID:    userID,
+		ClientID:  clientID,
+		TokenHash: s.tokenHasher.HashToken(raw),
+		IP:        ip,
+		UserAgent: userAgent,
+		ExpiresAt: time.Now().UTC().Add(s.issuer.RefreshTokenTTL()),
+	})
+}
+
+// rotateRefreshToken revokes the old token and persists the replacement atomically.
+// rotateRefreshToken 原子化吊销旧刷新令牌并保存替换令牌。
+func (s *Service) rotateRefreshToken(ctx context.Context, oldTokenID string, userID string, clientID string, raw string, ip string, userAgent string) error {
+	return s.refreshTokens.Rotate(ctx, oldTokenID, &token.RefreshToken{
 		UserID:    userID,
 		ClientID:  clientID,
 		TokenHash: s.tokenHasher.HashToken(raw),

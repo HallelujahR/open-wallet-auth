@@ -148,6 +148,10 @@ func (m *memoryRefreshTokens) FindByHash(ctx context.Context, tokenHash string) 
 
 func (m *memoryRefreshTokens) Revoke(ctx context.Context, id string) error { return nil }
 
+func (m *memoryRefreshTokens) Rotate(ctx context.Context, oldTokenID string, newToken *token.RefreshToken) error {
+	return nil
+}
+
 type memoryActivity struct{}
 
 func newMemoryActivity() *memoryActivity { return &memoryActivity{} }

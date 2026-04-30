@@ -70,6 +70,43 @@ func (r *RefreshTokenRepository) Revoke(ctx context.Context, id string) error {
 		Update("revoked_at", now).Error
 }
 
+// Rotate revokes the old refresh token and creates the new one atomically.
+// Rotate 在同一事务中吊销旧刷新令牌并创建新刷新令牌。
+func (r *RefreshTokenRepository) Rotate(ctx context.Context, oldTokenID string, newToken *token.RefreshToken) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		now := time.Now().UTC()
+		result := tx.Model(&model.RefreshToken{}).
+			Where("id = ? AND revoked_at IS NULL", oldTokenID).
+			Update("revoked_at", now)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return domainrepo.ErrNotFound
+		}
+
+		if newToken.ID == "" {
+			newToken.ID = "rft_" + uuid.NewString()
+		}
+		if newToken.CreatedAt.IsZero() {
+			newToken.CreatedAt = now
+		}
+		row := model.RefreshToken{
+			ID:         newToken.ID,
+			UserID:     newToken.UserID,
+			ClientID:   newToken.ClientID,
+			TokenHash:  newToken.TokenHash,
+			IP:         newToken.IP,
+			UserAgent:  newToken.UserAgent,
+			ExpiresAt:  newToken.ExpiresAt,
+			RevokedAt:  newToken.RevokedAt,
+			LastUsedAt: newToken.LastUsedAt,
+			CreatedAt:  newToken.CreatedAt,
+		}
+		return tx.Create(&row).Error
+	})
+}
+
 // List returns refresh-token sessions for management APIs.
 // List 为管理接口返回刷新令牌会话列表。
 func (r *RefreshTokenRepository) List(ctx context.Context, filter domainrepo.RefreshTokenListFilter) ([]token.RefreshToken, error) {

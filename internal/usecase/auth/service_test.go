@@ -145,6 +145,9 @@ func TestServiceRefreshRotatesRefreshToken(t *testing.T) {
 	if refreshTokens.byID["rft_old"].RevokedAt == nil {
 		t.Fatal("expected old refresh token to be revoked")
 	}
+	if refreshTokens.byHash["hash:refresh"] == nil {
+		t.Fatal("expected new refresh token to be stored")
+	}
 	if activity.loginCount != 1 || activity.userClientCount != 1 {
 		t.Fatal("expected refresh activity to be recorded")
 	}
@@ -409,6 +412,13 @@ func (m *memoryRefreshTokens) Revoke(ctx context.Context, id string) error {
 	now := time.Now()
 	refreshToken.RevokedAt = &now
 	return nil
+}
+
+func (m *memoryRefreshTokens) Rotate(ctx context.Context, oldTokenID string, newToken *token.RefreshToken) error {
+	if err := m.Revoke(ctx, oldTokenID); err != nil {
+		return err
+	}
+	return m.Create(ctx, newToken)
 }
 
 func defaultClients() *memoryClients {
