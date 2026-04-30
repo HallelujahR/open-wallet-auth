@@ -22,6 +22,23 @@ type WalletVerifyRequest struct {
 	Signature string `json:"signature" binding:"required"`
 }
 
+// WalletBindRequest is the HTTP request body for binding a wallet to current user.
+// WalletBindRequest 是为当前用户绑定钱包的 HTTP 请求体。
+type WalletBindRequest struct {
+	Address   string `json:"address" binding:"required"`
+	Nonce     string `json:"nonce" binding:"required"`
+	Signature string `json:"signature" binding:"required"`
+}
+
+// WalletBindResponse is returned after binding a wallet to current user.
+// WalletBindResponse 是当前用户绑定钱包后的响应体。
+type WalletBindResponse struct {
+	WalletID   string `json:"wallet_id"`
+	Address    string `json:"address"`
+	ChainType  string `json:"chain_type"`
+	VerifiedAt string `json:"verified_at"`
+}
+
 // WalletAuthResponse is returned after a successful wallet signature login.
 type WalletAuthResponse struct {
 	User    AuthUser  `json:"user"`

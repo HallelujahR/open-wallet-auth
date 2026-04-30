@@ -14,6 +14,7 @@ The service owns authentication. Your business applications still own their own 
 - Redis-backed verification-code storage and rate limiting
 - Password-login and wallet-nonce rate limiting
 - EVM wallet signature login with SIWE-compatible messages
+- Authenticated wallet binding endpoint
 - Google and GitHub OAuth start/callback flow
 - JWT access tokens signed with RS256
 - JWKS endpoint for local token verification in business APIs
@@ -174,6 +175,15 @@ curl -X POST http://localhost:8080/api/v1/wallet/verify \
   -d '{"client_id":"default","address":"<wallet_address>","nonce":"<nonce>","signature":"<signature>"}'
 ```
 
+Bind a wallet to the current user:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/wallet/bind \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{"address":"<wallet_address>","nonce":"<nonce>","signature":"<signature>"}'
+```
+
 ## Configuration
 
 Example configuration lives in [configs/config.example.yaml](configs/config.example.yaml).
@@ -215,7 +225,7 @@ CGO_ENABLED=0 go build ./cmd/server
 
 - Production migration command
 - Wallet binding and unbinding APIs
-- Account linking between password users and wallet users
+- More account-linking policies for existing wallet-only users
 - Password recovery hardening and audit events
 - Stronger admin/RBAC model for service management
 - More framework integration examples

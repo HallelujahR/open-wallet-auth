@@ -22,6 +22,7 @@ const (
 	ErrInvalidClient        = "CLIENT_INVALID"
 	ErrInvalidNonce         = "WALLET_INVALID_NONCE"
 	ErrInvalidSignature     = "WALLET_INVALID_SIGNATURE"
+	ErrWalletAlreadyBound   = "WALLET_ALREADY_BOUND"
 	ErrRateLimited          = "WALLET_RATE_LIMITED"
 )
 
@@ -124,6 +125,24 @@ type VerifyResult struct {
 	Email    string
 	Wallets  []string
 	Token    *token.Pair
+}
+
+// BindRequest is the input for binding a wallet to an authenticated user.
+// BindRequest 是已登录用户绑定钱包的用例输入。
+type BindRequest struct {
+	UserID    string
+	Address   string
+	Nonce     string
+	Signature string
+}
+
+// BindResult describes a wallet binding owned by the authenticated user.
+// BindResult 描述当前用户拥有的钱包绑定结果。
+type BindResult struct {
+	WalletID   string
+	Address    string
+	ChainType  walletdomain.ChainType
+	VerifiedAt time.Time
 }
 
 // NewService creates the wallet usecase service.
@@ -280,6 +299,65 @@ func (s *Service) VerifySignature(ctx context.Context, req VerifyRequest) (*Veri
 		Wallets:  []string{address},
 		Token:    pair,
 	}, nil
+}
+
+// BindWallet verifies a wallet signature and binds the address to an existing user.
+// BindWallet 校验钱包签名，并把地址绑定到当前已登录用户。
+func (s *Service) BindWallet(ctx context.Context, req BindRequest) (*BindResult, error) {
+	userID := strings.TrimSpace(req.UserID)
+	if userID == "" {
+		return nil, domain.NewError(ErrInvalidSignature, "authenticated user is required")
+	}
+	u, err := s.users.FindByID(ctx, userID)
+	if err != nil || u == nil || !u.IsActive() {
+		return nil, domain.NewError(ErrInvalidSignature, "authenticated user is unavailable")
+	}
+
+	address, err := s.normalizeAddress(req.Address)
+	if err != nil {
+		return nil, domain.NewError(ErrInvalidWalletAddress, "invalid wallet address")
+	}
+	nonceValue := strings.TrimSpace(req.Nonce)
+	signature := strings.TrimSpace(req.Signature)
+	if nonceValue == "" || signature == "" {
+		return nil, domain.NewError(ErrInvalidSignature, "nonce and signature are required")
+	}
+
+	nonce, err := s.wallets.FindNonce(ctx, address, nonceValue)
+	if err != nil || nonce == nil || nonce.IsUsed() || nonce.IsExpired(s.clock.Now().UTC()) {
+		return nil, domain.NewError(ErrInvalidNonce, "invalid or expired nonce")
+	}
+	message := BuildSIWEMessage(nonce)
+	ok, err := s.verifier.VerifyMessage(address, message, signature)
+	if err != nil || !ok {
+		return nil, domain.NewError(ErrInvalidSignature, "invalid wallet signature")
+	}
+
+	existing, err := s.wallets.FindByAddress(ctx, walletdomain.ChainTypeEVM, address)
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return nil, err
+	}
+	if existing != nil && existing.UserID != userID {
+		return nil, domain.NewError(ErrWalletAlreadyBound, "wallet address is already bound")
+	}
+	if err := s.wallets.MarkNonceUsed(ctx, nonce.ID); err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return &BindResult{WalletID: existing.ID, Address: existing.Address, ChainType: existing.ChainType, VerifiedAt: existing.VerifiedAt}, nil
+	}
+
+	wallet := &walletdomain.UserWallet{
+		UserID:     userID,
+		ChainType:  walletdomain.ChainTypeEVM,
+		Address:    address,
+		IsPrimary:  false,
+		VerifiedAt: s.clock.Now().UTC(),
+	}
+	if err := s.wallets.CreateWallet(ctx, wallet); err != nil {
+		return nil, err
+	}
+	return &BindResult{WalletID: wallet.ID, Address: wallet.Address, ChainType: wallet.ChainType, VerifiedAt: wallet.VerifiedAt}, nil
 }
 
 // checkNonceLimit verifies wallet nonce creation limits.

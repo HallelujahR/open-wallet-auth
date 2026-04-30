@@ -6,9 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/contextkey"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/dto"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/response"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	walletusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/wallet"
 )
 
@@ -88,6 +90,54 @@ func (h *WalletHandler) Verify(c *gin.Context) {
 	})
 }
 
+// Bind verifies a wallet signature and binds the wallet to the current user.
+// Bind 校验钱包签名，并把钱包绑定到当前登录用户。
+func (h *WalletHandler) Bind(c *gin.Context) {
+	authClaims, ok := currentWalletAuthClaims(c)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, "AUTH_INVALID_TOKEN", "invalid authorization token")
+		return
+	}
+
+	var req dto.WalletBindRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, walletusecase.ErrInvalidSignature, "invalid request")
+		return
+	}
+
+	result, err := h.wallet.BindWallet(c.Request.Context(), walletusecase.BindRequest{
+		UserID:    authClaims.UserID,
+		Address:   req.Address,
+		Nonce:     req.Nonce,
+		Signature: req.Signature,
+	})
+	if err != nil {
+		writeWalletError(c, err)
+		return
+	}
+
+	response.OK(c, dto.WalletBindResponse{
+		WalletID:   result.WalletID,
+		Address:    result.Address,
+		ChainType:  string(result.ChainType),
+		VerifiedAt: result.VerifiedAt.Format(timeFormatRFC3339),
+	})
+}
+
+// currentWalletAuthClaims reads token claims from Gin context.
+// currentWalletAuthClaims 从 Gin 上下文读取认证 claims。
+func currentWalletAuthClaims(c *gin.Context) (*token.Claims, bool) {
+	claims, ok := c.Get(contextkey.AuthClaims)
+	if !ok {
+		return nil, false
+	}
+	authClaims, ok := claims.(*token.Claims)
+	if !ok {
+		return nil, false
+	}
+	return authClaims, true
+}
+
 // writeWalletError maps wallet usecase errors to HTTP responses.
 // writeWalletError 将钱包用例错误映射为 HTTP 响应。
 func writeWalletError(c *gin.Context, err error) {
@@ -98,6 +148,8 @@ func writeWalletError(c *gin.Context, err error) {
 			response.Error(c, http.StatusBadRequest, appErr.Code, appErr.Message)
 		case walletusecase.ErrInvalidSignature:
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
+		case walletusecase.ErrWalletAlreadyBound:
+			response.Error(c, http.StatusConflict, appErr.Code, appErr.Message)
 		case walletusecase.ErrRateLimited:
 			response.Error(c, http.StatusTooManyRequests, appErr.Code, appErr.Message)
 		default:

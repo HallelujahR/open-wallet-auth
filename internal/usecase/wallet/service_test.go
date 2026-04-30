@@ -116,6 +116,69 @@ func TestServiceVerifySignatureRejectsReusedNonce(t *testing.T) {
 	}
 }
 
+func TestServiceBindWalletCreatesBindingForExistingUser(t *testing.T) {
+	service := newTestService()
+	service.users.(*memoryUsers).byID["usr_existing"] = &user.User{ID: "usr_existing", Username: "alice", Status: user.StatusActive}
+	result, err := service.CreateNonce(context.Background(), NonceRequest{
+		Address: "0x0000000000000000000000000000000000000001",
+		Domain:  "example.com",
+		ChainID: 1,
+	})
+	if err != nil {
+		t.Fatalf("create nonce returned error: %v", err)
+	}
+
+	binding, err := service.BindWallet(context.Background(), BindRequest{
+		UserID:    "usr_existing",
+		Address:   "0x0000000000000000000000000000000000000001",
+		Nonce:     result.Nonce,
+		Signature: "valid",
+	})
+	if err != nil {
+		t.Fatalf("bind wallet returned error: %v", err)
+	}
+	if binding.WalletID == "" || binding.Address == "" {
+		t.Fatal("expected wallet binding")
+	}
+	wallet := service.wallets.(*memoryWallets).byAddress["evm:0x0000000000000000000000000000000000000001"]
+	if wallet == nil || wallet.UserID != "usr_existing" {
+		t.Fatal("expected wallet to be bound to existing user")
+	}
+}
+
+func TestServiceBindWalletRejectsAddressBoundToAnotherUser(t *testing.T) {
+	service := newTestService()
+	service.users.(*memoryUsers).byID["usr_existing"] = &user.User{ID: "usr_existing", Username: "alice", Status: user.StatusActive}
+	service.wallets.(*memoryWallets).byAddress["evm:0x0000000000000000000000000000000000000001"] = &walletdomain.UserWallet{
+		ID:        "wal_existing",
+		UserID:    "usr_other",
+		ChainType: walletdomain.ChainTypeEVM,
+		Address:   "0x0000000000000000000000000000000000000001",
+	}
+	result, err := service.CreateNonce(context.Background(), NonceRequest{
+		Address: "0x0000000000000000000000000000000000000001",
+		Domain:  "example.com",
+		ChainID: 1,
+	})
+	if err != nil {
+		t.Fatalf("create nonce returned error: %v", err)
+	}
+
+	_, err = service.BindWallet(context.Background(), BindRequest{
+		UserID:    "usr_existing",
+		Address:   "0x0000000000000000000000000000000000000001",
+		Nonce:     result.Nonce,
+		Signature: "valid",
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var appErr *domain.Error
+	if !errors.As(err, &appErr) || appErr.Code != ErrWalletAlreadyBound {
+		t.Fatalf("expected %s, got %v", ErrWalletAlreadyBound, err)
+	}
+}
+
 var testNow = time.Date(2026, 4, 29, 10, 0, 0, 0, time.UTC)
 
 func newTestService() *Service {

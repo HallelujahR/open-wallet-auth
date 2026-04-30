@@ -71,6 +71,9 @@ func New(deps Dependencies) *gin.Engine {
 			{
 				wallet.POST("/nonce", deps.Wallet.Nonce)
 				wallet.POST("/verify", deps.Wallet.Verify)
+				if deps.Token != nil && deps.AudienceResolver != nil {
+					wallet.POST("/bind", middleware.AuthenticateClient(deps.Token, deps.AudienceResolver), deps.Wallet.Bind)
+				}
 			}
 		}
 		if deps.Phone != nil {

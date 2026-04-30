@@ -95,6 +95,22 @@ paths:
       responses:
         "200":
           description: Logged in with wallet
+  /api/v1/wallet/bind:
+    post:
+      summary: Bind a verified wallet address to the current authenticated user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletBindRequest"
+      responses:
+        "200":
+          description: Wallet bound
+        "409":
+          description: Wallet already bound to another user
   /api/v1/phone/code:
     post:
       summary: Create a phone verification code
@@ -418,6 +434,19 @@ components:
       properties:
         client_id:
           type: string
+        address:
+          type: string
+        nonce:
+          type: string
+        signature:
+          type: string
+    WalletBindRequest:
+      type: object
+      required:
+        - address
+        - nonce
+        - signature
+      properties:
         address:
           type: string
         nonce:
