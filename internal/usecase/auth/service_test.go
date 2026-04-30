@@ -68,7 +68,8 @@ func TestServiceLoginRejectsInvalidPassword(t *testing.T) {
 		PasswordHash: "hash:correct",
 		Status:       user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	activity := newMemoryActivity()
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), activity, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	_, err := service.Login(context.Background(), LoginRequest{
 		ClientID: "default",
@@ -82,6 +83,9 @@ func TestServiceLoginRejectsInvalidPassword(t *testing.T) {
 	var appErr *domain.Error
 	if !errors.As(err, &appErr) || appErr.Code != ErrInvalidCredentials {
 		t.Fatalf("expected %s, got %v", ErrInvalidCredentials, err)
+	}
+	if activity.failedCount != 1 || activity.failureCode != ErrInvalidCredentials {
+		t.Fatal("expected failed login audit to be recorded")
 	}
 }
 
@@ -323,6 +327,8 @@ type memoryRefreshTokens struct {
 type memoryActivity struct {
 	loginCount      int
 	userClientCount int
+	failedCount     int
+	failureCode     string
 }
 
 type memoryEmailCodes struct {
@@ -357,7 +363,12 @@ func newMemoryActivity() *memoryActivity {
 }
 
 func (m *memoryActivity) RecordLogin(ctx context.Context, log *audit.LoginLog) error {
-	m.loginCount++
+	if log.Success {
+		m.loginCount++
+		return nil
+	}
+	m.failedCount++
+	m.failureCode = log.FailureCode
 	return nil
 }
 

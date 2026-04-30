@@ -65,5 +65,5 @@ examples
 ## Known Gaps
 
 - Refresh token rotation should be made transactional as the repository layer matures.
-- Failed login auditing is still pending; current activity recording covers successful registration, login, refresh, and wallet login flows.
+- Login auditing records successful password, refresh, wallet, phone, and OAuth logins; password-login failures are recorded as best-effort audit events.
 - Client and identity management are protected by `X-Admin-Token`; a first-class admin/RBAC model is still pending.

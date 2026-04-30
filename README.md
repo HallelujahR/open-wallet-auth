@@ -23,6 +23,7 @@ The service owns authentication. Your business applications still own their own 
 - Email-code password reset endpoint
 - Multi-client login with `client_id` and JWT audience
 - Login activity and user-client tracking
+- Failed password-login audit records
 - Internal identity management APIs for users, bindings, and login logs
 - Admin unbinding APIs for wallet and OAuth account bindings
 - Browser CORS configuration
@@ -31,7 +32,7 @@ The service owns authentication. Your business applications still own their own 
 
 ## Status
 
-This project is in early development. It is suitable for local integration testing and architecture validation. Production use still requires additional hardening such as failed-login auditing, operational migrations, and stronger management APIs.
+This project is in early development. It is suitable for local integration testing and architecture validation. Production use still requires additional hardening such as operational migrations, broader abuse protection, and stronger management APIs.
 
 ## Architecture
 
@@ -212,7 +213,6 @@ CGO_ENABLED=0 go build ./cmd/server
 
 ## Roadmap
 
-- Failed-login auditing
 - Production migration command
 - Wallet binding and unbinding APIs
 - Account linking between password users and wallet users

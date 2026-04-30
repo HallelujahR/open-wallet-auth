@@ -181,15 +181,22 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 
 	client, err := s.clients.FindByClientID(ctx, req.ClientID)
 	if err != nil || client == nil || !client.IsActive() {
+		s.recordFailedLogin(ctx, "", req.ClientID, audit.LoginMethodPassword, ErrInvalidClient, req.IP, req.UserAgent)
 		return nil, domain.NewError(ErrInvalidClient, "invalid client")
 	}
 
 	u, err := s.users.FindByEmail(ctx, req.Email)
 	if err != nil || u == nil || !u.IsActive() {
+		userID := ""
+		if u != nil {
+			userID = u.ID
+		}
+		s.recordFailedLogin(ctx, userID, client.ClientID, audit.LoginMethodPassword, ErrInvalidCredentials, req.IP, req.UserAgent)
 		return nil, domain.NewError(ErrInvalidCredentials, "invalid email or password")
 	}
 
 	if !s.hasher.Compare(u.PasswordHash, req.Password) {
+		s.recordFailedLogin(ctx, u.ID, client.ClientID, audit.LoginMethodPassword, ErrInvalidCredentials, req.IP, req.UserAgent)
 		return nil, domain.NewError(ErrInvalidCredentials, "invalid email or password")
 	}
 
@@ -476,6 +483,23 @@ func (s *Service) recordSuccessfulLogin(ctx context.Context, userID string, clie
 		return err
 	}
 	return s.activity.UpsertUserClientLogin(ctx, userID, clientID)
+}
+
+// recordFailedLogin writes a best-effort audit event without changing auth results.
+// recordFailedLogin 以尽力而为方式记录失败登录审计，不改变认证接口返回结果。
+func (s *Service) recordFailedLogin(ctx context.Context, userID string, clientID string, method audit.LoginMethod, failureCode string, ip string, userAgent string) {
+	if s.activity == nil {
+		return
+	}
+	_ = s.activity.RecordLogin(ctx, &audit.LoginLog{
+		UserID:      userID,
+		ClientID:    clientID,
+		LoginMethod: method,
+		IP:          ip,
+		UserAgent:   userAgent,
+		Success:     false,
+		FailureCode: failureCode,
+	})
 }
 
 // defaultClientID normalizes an empty client id to the built-in default client.
