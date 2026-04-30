@@ -364,6 +364,10 @@ func (m *memoryUsers) UpdatePassword(ctx context.Context, userID string, passwor
 	return nil
 }
 
+func (m *memoryUsers) UpdateProfile(ctx context.Context, userID string, username string, avatar string) error {
+	return nil
+}
+
 type memoryClients struct {
 	byClientID map[string]*client.Client
 }

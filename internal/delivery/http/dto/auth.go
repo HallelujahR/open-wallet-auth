@@ -61,6 +61,53 @@ type BindContactResponse struct {
 	Value  string `json:"value"`
 }
 
+// UpdateProfileRequest is the HTTP body for updating display-only profile fields.
+// UpdateProfileRequest 是更新展示型身份资料字段的 HTTP 请求体。
+type UpdateProfileRequest struct {
+	Username string `json:"username" binding:"required"`
+	Avatar   string `json:"avatar"`
+}
+
+// ProfileWalletResponse describes one wallet binding in the profile view.
+// ProfileWalletResponse 描述资料视图中的一个钱包绑定。
+type ProfileWalletResponse struct {
+	ID         string `json:"id"`
+	ChainType  string `json:"chain_type"`
+	Address    string `json:"address"`
+	IsPrimary  bool   `json:"is_primary"`
+	VerifiedAt string `json:"verified_at"`
+	CreatedAt  string `json:"created_at"`
+}
+
+// ProfileOAuthAccountResponse describes one OAuth binding in the profile view.
+// ProfileOAuthAccountResponse 描述资料视图中的一个 OAuth 绑定。
+type ProfileOAuthAccountResponse struct {
+	ID                string `json:"id"`
+	Provider          string `json:"provider"`
+	ProviderSubject   string `json:"provider_subject"`
+	ProviderEmail     string `json:"provider_email,omitempty"`
+	ProviderUsername  string `json:"provider_username,omitempty"`
+	ProviderAvatarURL string `json:"provider_avatar_url,omitempty"`
+	CreatedAt         string `json:"created_at"`
+}
+
+// ProfileResponse is the current user's persisted identity profile.
+// ProfileResponse 是当前用户的持久化身份资料。
+type ProfileResponse struct {
+	ID           string                        `json:"id"`
+	Username     string                        `json:"username"`
+	Email        string                        `json:"email,omitempty"`
+	Phone        string                        `json:"phone,omitempty"`
+	Avatar       string                        `json:"avatar,omitempty"`
+	Status       string                        `json:"status"`
+	LoginMethods []string                      `json:"login_methods"`
+	Wallets      []ProfileWalletResponse       `json:"wallets"`
+	Accounts     []ProfileOAuthAccountResponse `json:"oauth_accounts"`
+	LastLoginAt  string                        `json:"last_login_at,omitempty"`
+	CreatedAt    string                        `json:"created_at"`
+	UpdatedAt    string                        `json:"updated_at"`
+}
+
 // AuthUser is the user payload returned by auth endpoints.
 type AuthUser struct {
 	ID       string `json:"id"`

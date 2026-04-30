@@ -61,6 +61,8 @@ func New(deps Dependencies) *gin.Engine {
 					authenticated := auth.Group("", middleware.AuthenticateClient(deps.Token, deps.AudienceResolver))
 					{
 						authenticated.GET("/me", deps.Auth.Me)
+						authenticated.GET("/profile", deps.Auth.Profile)
+						authenticated.PATCH("/profile", deps.Auth.UpdateProfile)
 						authenticated.PATCH("/password", deps.Auth.ChangePassword)
 						authenticated.POST("/bind/email", deps.Auth.BindEmail)
 						authenticated.POST("/bind/phone", deps.Auth.BindPhone)
@@ -69,6 +71,13 @@ func New(deps Dependencies) *gin.Engine {
 						authenticated.DELETE("/wallets/:wallet_id", deps.Auth.UnbindWallet)
 						authenticated.DELETE("/oauth-accounts/:account_id", deps.Auth.UnbindOAuthAccount)
 					}
+				}
+			}
+			if deps.Token != nil && deps.AudienceResolver != nil {
+				profile := v1.Group("/profile", middleware.AuthenticateClient(deps.Token, deps.AudienceResolver))
+				{
+					profile.GET("", deps.Auth.Profile)
+					profile.PATCH("", deps.Auth.UpdateProfile)
 				}
 			}
 		}

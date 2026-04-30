@@ -45,6 +45,27 @@ paths:
       responses:
         "200":
           description: Current user
+  /api/v1/profile:
+    get:
+      summary: Get the current authenticated user's persisted profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user profile
+    patch:
+      summary: Update the current authenticated user's display profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated user profile
   /api/v1/auth/password:
     patch:
       summary: Change the current authenticated user's password
@@ -498,6 +519,15 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    UpdateProfileRequest:
+      type: object
+      required:
+        - username
+      properties:
+        username:
+          type: string
+        avatar:
+          type: string
     ChangePasswordRequest:
       type: object
       required:

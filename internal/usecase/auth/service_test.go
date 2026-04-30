@@ -381,6 +381,44 @@ func TestServiceUnbindEmailRejectsLastLoginMethod(t *testing.T) {
 	}
 }
 
+func TestServiceGetProfileReturnsBindingsAndMethods(t *testing.T) {
+	users := newMemoryUsers()
+	users.byID["usr_1"] = &user.User{ID: "usr_1", Username: "alice", Email: "alice@example.com", Status: user.StatusActive}
+	wallets := newMemoryWallets()
+	wallets.items["wal_1"] = walletdomain.UserWallet{ID: "wal_1", UserID: "usr_1", Address: "0x1", ChainType: walletdomain.ChainTypeEVM}
+	accounts := newMemoryOAuthAccounts()
+	accounts.items["oac_1"] = oauthdomain.Account{ID: "oac_1", UserID: "usr_1", Provider: "github", ProviderSubject: "10001"}
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, wallets, accounts, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+
+	result, err := service.GetProfile(context.Background(), "usr_1")
+	if err != nil {
+		t.Fatalf("get profile returned error: %v", err)
+	}
+	if result.User.Username != "alice" || len(result.Wallets) != 1 || len(result.Accounts) != 1 {
+		t.Fatal("expected profile user and bindings")
+	}
+	if len(result.LoginMethods) != 3 {
+		t.Fatalf("expected email, wallet, and oauth login methods, got %v", result.LoginMethods)
+	}
+}
+
+func TestServiceUpdateProfileUpdatesDisplayFields(t *testing.T) {
+	users := newMemoryUsers()
+	users.byID["usr_1"] = &user.User{ID: "usr_1", Username: "alice", Email: "alice@example.com", Status: user.StatusActive}
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+
+	result, err := service.UpdateProfile(context.Background(), UpdateProfileRequest{UserID: "usr_1", Username: "alice_new", Avatar: "https://example.com/a.png"})
+	if err != nil {
+		t.Fatalf("update profile returned error: %v", err)
+	}
+	if result.User.Username != "alice_new" || result.User.Avatar != "https://example.com/a.png" {
+		t.Fatal("expected profile fields to be updated")
+	}
+	if result.User.Email != "alice@example.com" {
+		t.Fatal("expected contact fields to remain unchanged")
+	}
+}
+
 type memoryUsers struct {
 	byID    map[string]*user.User
 	byEmail map[string]*user.User
@@ -473,6 +511,16 @@ func (m *memoryUsers) UpdatePassword(ctx context.Context, userID string, passwor
 		return repository.ErrNotFound
 	}
 	u.PasswordHash = passwordHash
+	return nil
+}
+
+func (m *memoryUsers) UpdateProfile(ctx context.Context, userID string, username string, avatar string) error {
+	u, ok := m.byID[userID]
+	if !ok {
+		return repository.ErrNotFound
+	}
+	u.Username = username
+	u.Avatar = avatar
 	return nil
 }
 

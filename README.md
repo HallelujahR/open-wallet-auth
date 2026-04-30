@@ -26,6 +26,7 @@ The service owns authentication. Your business applications still own their own 
 - Password reset revokes existing refresh-token sessions
 - Authenticated email and phone binding endpoints
 - User-side email, phone, wallet, and OAuth unbinding with last-method protection
+- Current-user profile read and display-profile update
 - Multi-client login with `client_id` and JWT audience
 - Login activity and user-client tracking
 - Failed password-login audit records
@@ -113,6 +114,22 @@ Current user:
 ```bash
 curl http://localhost:8080/api/v1/auth/me \
   -H "Authorization: Bearer <access_token>"
+```
+
+Current user profile:
+
+```bash
+curl http://localhost:8080/api/v1/profile \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Update display profile:
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/profile \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{"username":"alice_new","avatar":"https://example.com/avatar.png"}'
 ```
 
 Change current password:

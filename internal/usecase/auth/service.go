@@ -177,6 +177,23 @@ type UnbindRequest struct {
 	BindingID string
 }
 
+// ProfileResult aggregates current identity profile and login-method bindings.
+// ProfileResult 聚合当前身份资料和登录方式绑定。
+type ProfileResult struct {
+	User         user.User
+	Wallets      []walletdomain.UserWallet
+	Accounts     []oauthdomain.Account
+	LoginMethods []string
+}
+
+// UpdateProfileRequest is the input for updating display-only profile fields.
+// UpdateProfileRequest 是更新展示型身份资料字段的用例输入。
+type UpdateProfileRequest struct {
+	UserID   string
+	Username string
+	Avatar   string
+}
+
 // NewService creates the auth usecase service with its required ports.
 // NewService 创建认证用例服务，并通过端口注入外部依赖。
 func NewService(
@@ -409,6 +426,42 @@ func (s *Service) Logout(ctx context.Context, req LogoutRequest) error {
 		return nil
 	}
 	return s.refreshTokens.Revoke(ctx, refreshToken.ID)
+}
+
+// GetProfile returns the current user's persisted profile and bindings.
+// GetProfile 返回当前用户的持久化身份资料和绑定方式。
+func (s *Service) GetProfile(ctx context.Context, userID string) (*ProfileResult, error) {
+	methods, err := s.loginMethodSummary(ctx, strings.TrimSpace(userID))
+	if err != nil {
+		return nil, err
+	}
+	return &ProfileResult{
+		User:         *methods.user,
+		Wallets:      methods.wallets,
+		Accounts:     methods.accounts,
+		LoginMethods: methods.names(),
+	}, nil
+}
+
+// UpdateProfile updates display-only profile fields for the current user.
+// UpdateProfile 更新当前用户的展示型身份资料字段。
+func (s *Service) UpdateProfile(ctx context.Context, req UpdateProfileRequest) (*ProfileResult, error) {
+	userID := strings.TrimSpace(req.UserID)
+	username := strings.TrimSpace(req.Username)
+	avatar := strings.TrimSpace(req.Avatar)
+	if userID == "" || username == "" {
+		return nil, domain.NewError(ErrInvalidInput, "user id and username are required")
+	}
+	if _, err := s.users.FindByID(ctx, userID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, domain.NewError(ErrInvalidCredentials, "authenticated user is unavailable")
+		}
+		return nil, err
+	}
+	if err := s.users.UpdateProfile(ctx, userID, username, avatar); err != nil {
+		return nil, err
+	}
+	return s.GetProfile(ctx, userID)
 }
 
 // ChangePassword verifies the current password and stores a new password hash.
@@ -706,6 +759,25 @@ func (s loginMethodSummary) total() int {
 	total += len(s.wallets)
 	total += len(s.accounts)
 	return total
+}
+
+// names returns stable login-method names for profile responses.
+// names 返回稳定的登录方式名称，用于资料接口响应。
+func (s loginMethodSummary) names() []string {
+	names := []string{}
+	if s.user.Email != "" {
+		names = append(names, "email")
+	}
+	if s.user.Phone != "" {
+		names = append(names, "phone")
+	}
+	if len(s.wallets) > 0 {
+		names = append(names, "wallet")
+	}
+	if len(s.accounts) > 0 {
+		names = append(names, "oauth")
+	}
+	return names
 }
 
 // normalizeUnbindInput validates current-user unbinding input.

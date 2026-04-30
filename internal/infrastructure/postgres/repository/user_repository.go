@@ -140,6 +140,22 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, userID string, pass
 	return nil
 }
 
+// UpdateProfile stores display-only identity profile fields.
+// UpdateProfile 保存认证身份的展示资料字段。
+func (r *UserRepository) UpdateProfile(ctx context.Context, userID string, username string, avatar string) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{"username": username, "avatar": avatar, "updated_at": time.Now().UTC()})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domainrepo.ErrNotFound
+	}
+	return nil
+}
+
 // List returns paginated identity users for management APIs.
 // List 为管理接口返回分页后的身份用户列表。
 func (r *UserRepository) List(ctx context.Context, filter domainrepo.UserListFilter) ([]domainuser.User, int64, error) {
