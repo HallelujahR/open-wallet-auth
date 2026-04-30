@@ -58,6 +58,20 @@ func (r *OAuthAccountRepository) Create(ctx context.Context, account *oauth.Acco
 	return r.db.WithContext(ctx).Create(&row).Error
 }
 
+// ListByUserID returns OAuth accounts linked to one identity user.
+// ListByUserID 返回某个身份用户绑定的第三方账号。
+func (r *OAuthAccountRepository) ListByUserID(ctx context.Context, userID string) ([]oauth.Account, error) {
+	var rows []model.OAuthAccount
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	accounts := make([]oauth.Account, 0, len(rows))
+	for _, row := range rows {
+		accounts = append(accounts, *toDomainOAuthAccount(row))
+	}
+	return accounts, nil
+}
+
 // toDomainOAuthAccount converts a database row into a domain OAuth account.
 // toDomainOAuthAccount 将数据库行转换为领域 OAuth 账号实体。
 func toDomainOAuthAccount(row model.OAuthAccount) *oauth.Account {
@@ -75,3 +89,4 @@ func toDomainOAuthAccount(row model.OAuthAccount) *oauth.Account {
 }
 
 var _ domainrepo.OAuthAccountRepository = (*OAuthAccountRepository)(nil)
+var _ domainrepo.AdminOAuthAccountRepository = (*OAuthAccountRepository)(nil)

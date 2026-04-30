@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -91,6 +92,52 @@ func (r *UserRepository) UpdateLoginInfo(ctx context.Context, userID string) err
 		Updates(map[string]any{"last_login_at": now, "updated_at": now}).Error
 }
 
+// List returns paginated identity users for management APIs.
+// List 为管理接口返回分页后的身份用户列表。
+func (r *UserRepository) List(ctx context.Context, filter domainrepo.UserListFilter) ([]domainuser.User, int64, error) {
+	query := r.db.WithContext(ctx).Model(&model.User{})
+	keyword := strings.TrimSpace(filter.Keyword)
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		query = query.Where("id LIKE ? OR username LIKE ? OR email LIKE ? OR phone LIKE ?", like, like, like, like)
+	}
+	if filter.Status != "" {
+		query = query.Where("status = ?", string(filter.Status))
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	page, pageSize := normalizePage(filter.Page, filter.PageSize)
+	var rows []model.User
+	if err := query.Order("created_at DESC").Limit(pageSize).Offset((page - 1) * pageSize).Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	users := make([]domainuser.User, 0, len(rows))
+	for _, row := range rows {
+		users = append(users, *toDomainUser(row))
+	}
+	return users, total, nil
+}
+
+// UpdateStatus changes the identity user's lifecycle status.
+// UpdateStatus 修改身份用户的生命周期状态。
+func (r *UserRepository) UpdateStatus(ctx context.Context, userID string, status domainuser.Status) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{"status": string(status), "updated_at": time.Now().UTC()})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domainrepo.ErrNotFound
+	}
+	return nil
+}
+
 // toDomainUser converts a database row into the domain user entity.
 // toDomainUser 将数据库行转换为领域用户实体。
 func toDomainUser(row model.User) *domainuser.User {
@@ -126,4 +173,20 @@ func stringValue(value *string) string {
 	return *value
 }
 
+// normalizePage returns bounded pagination values for repository queries.
+// normalizePage 返回受限制的分页参数，避免数据库查询过大。
+func normalizePage(page int, pageSize int) (int, int) {
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	return page, pageSize
+}
+
 var _ domainrepo.UserRepository = (*UserRepository)(nil)
+var _ domainrepo.AdminUserRepository = (*UserRepository)(nil)

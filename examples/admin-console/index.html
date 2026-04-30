@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open Wallet Auth Admin</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7f9;
+        --panel: #ffffff;
+        --line: #d9dee7;
+        --text: #1d2430;
+        --muted: #667085;
+        --brand: #176b87;
+        --brand-dark: #0f4d63;
+        --danger: #b42318;
+        --ok: #027a48;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        font-size: 14px;
+      }
+
+      header {
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        max-width: 1280px;
+        min-height: 64px;
+        margin: 0 auto;
+        padding: 12px 24px;
+      }
+
+      .brand {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .brand strong {
+        font-size: 17px;
+      }
+
+      .brand span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .config {
+        display: grid;
+        grid-template-columns: minmax(180px, 260px) minmax(180px, 260px) auto;
+        gap: 8px;
+        align-items: center;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 360px minmax(0, 1fr);
+        gap: 16px;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 16px 24px 24px;
+      }
+
+      section {
+        min-width: 0;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 120px 76px;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .panel h2 {
+        margin: 0;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        font-size: 15px;
+      }
+
+      input,
+      select,
+      button {
+        height: 36px;
+        border-radius: 6px;
+        font: inherit;
+      }
+
+      input,
+      select {
+        width: 100%;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--text);
+        padding: 0 10px;
+      }
+
+      button {
+        border: 1px solid transparent;
+        background: var(--brand);
+        color: #fff;
+        padding: 0 12px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: var(--brand-dark);
+      }
+
+      button.secondary {
+        border-color: var(--line);
+        background: #fff;
+        color: var(--text);
+      }
+
+      button.secondary:hover {
+        background: #eef2f6;
+      }
+
+      button.danger {
+        background: var(--danger);
+      }
+
+      .list {
+        max-height: calc(100vh - 190px);
+        overflow: auto;
+      }
+
+      .user-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        width: 100%;
+        min-height: 62px;
+        padding: 10px 12px;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        border-radius: 0;
+        background: transparent;
+        color: var(--text);
+        text-align: left;
+      }
+
+      .user-row:hover,
+      .user-row.active {
+        background: #eef7f8;
+      }
+
+      .primary {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 650;
+      }
+
+      .subtle {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        height: 22px;
+        border-radius: 999px;
+        background: #eef2f6;
+        color: var(--muted);
+        padding: 0 8px;
+        font-size: 12px;
+      }
+
+      .badge.active {
+        background: #ecfdf3;
+        color: var(--ok);
+      }
+
+      .badge.suspended,
+      .badge.deleted {
+        background: #fef3f2;
+        color: var(--danger);
+      }
+
+      .detail-body {
+        display: grid;
+        gap: 16px;
+        padding: 16px;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: start;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .kv {
+        display: grid;
+        grid-template-columns: 130px minmax(0, 1fr);
+        gap: 8px 12px;
+      }
+
+      .kv dt {
+        color: var(--muted);
+      }
+
+      .kv dd {
+        min-width: 0;
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 10px 12px;
+        border-top: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .empty,
+      .status-line {
+        color: var(--muted);
+        padding: 16px;
+      }
+
+      .error {
+        color: var(--danger);
+      }
+
+      @media (max-width: 900px) {
+        .topbar,
+        main {
+          padding-left: 12px;
+          padding-right: 12px;
+        }
+
+        .config,
+        main,
+        .summary {
+          grid-template-columns: 1fr;
+        }
+
+        .toolbar {
+          grid-template-columns: 1fr;
+        }
+
+        .list {
+          max-height: 360px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="topbar">
+        <div class="brand">
+          <strong>Open Wallet Auth Admin</strong>
+          <span>身份管理与接入管理</span>
+        </div>
+        <div class="config">
+          <input id="baseUrl" value="http://localhost:8080" aria-label="API base URL" />
+          <input id="adminToken" type="password" placeholder="X-Admin-Token" aria-label="Admin token" />
+          <button id="saveConfig" type="button">保存</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>身份用户</h2>
+        <div class="detail-body">
+          <div class="toolbar">
+            <input id="keyword" placeholder="搜索 ID、邮箱、手机号" />
+            <select id="status">
+              <option value="">全部状态</option>
+              <option value="active">active</option>
+              <option value="suspended">suspended</option>
+              <option value="deleted">deleted</option>
+            </select>
+            <button id="loadUsers" type="button">查询</button>
+          </div>
+        </div>
+        <div id="userList" class="list">
+          <div class="empty">暂无数据</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>身份详情</h2>
+        <div id="detail" class="detail-body">
+          <div class="empty">请选择左侧身份用户</div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const state = {
+        baseUrl: localStorage.getItem("owa_admin_base_url") || "http://localhost:8080",
+        adminToken: localStorage.getItem("owa_admin_token") || "",
+        selectedUserID: "",
+      };
+
+      const nodes = {
+        baseUrl: document.querySelector("#baseUrl"),
+        adminToken: document.querySelector("#adminToken"),
+        saveConfig: document.querySelector("#saveConfig"),
+        keyword: document.querySelector("#keyword"),
+        status: document.querySelector("#status"),
+        loadUsers: document.querySelector("#loadUsers"),
+        userList: document.querySelector("#userList"),
+        detail: document.querySelector("#detail"),
+      };
+
+      nodes.baseUrl.value = state.baseUrl;
+      nodes.adminToken.value = state.adminToken;
+
+      nodes.saveConfig.addEventListener("click", () => {
+        state.baseUrl = nodes.baseUrl.value.replace(/\/+$/, "");
+        state.adminToken = nodes.adminToken.value;
+        localStorage.setItem("owa_admin_base_url", state.baseUrl);
+        localStorage.setItem("owa_admin_token", state.adminToken);
+        loadUsers();
+      });
+      nodes.loadUsers.addEventListener("click", loadUsers);
+      nodes.keyword.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") loadUsers();
+      });
+      nodes.status.addEventListener("change", loadUsers);
+
+      async function api(path, options = {}) {
+        const response = await fetch(`${state.baseUrl}${path}`, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Token": state.adminToken,
+            ...(options.headers || {}),
+          },
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || body.code !== "OK") {
+          throw new Error(body.message || `Request failed: ${response.status}`);
+        }
+        return body.data;
+      }
+
+      async function loadUsers() {
+        nodes.userList.innerHTML = `<div class="status-line">加载中...</div>`;
+        const params = new URLSearchParams();
+        if (nodes.keyword.value.trim()) params.set("keyword", nodes.keyword.value.trim());
+        if (nodes.status.value) params.set("status", nodes.status.value);
+        params.set("page_size", "50");
+        try {
+          const data = await api(`/api/v1/admin/users?${params.toString()}`);
+          renderUsers(data.items || []);
+        } catch (error) {
+          nodes.userList.innerHTML = `<div class="status-line error">${escapeHtml(error.message)}</div>`;
+        }
+      }
+
+      function renderUsers(users) {
+        if (!users.length) {
+          nodes.userList.innerHTML = `<div class="empty">暂无数据</div>`;
+          return;
+        }
+        nodes.userList.innerHTML = users
+          .map(
+            (user) => `
+              <button class="user-row ${user.id === state.selectedUserID ? "active" : ""}" type="button" data-user-id="${escapeHtml(user.id)}">
+                <span>
+                  <span class="primary">${escapeHtml(user.username || user.id)}</span>
+                  <span class="subtle">${escapeHtml(user.email || user.phone || user.id)}</span>
+                </span>
+                <span class="badge ${escapeHtml(user.status)}">${escapeHtml(user.status)}</span>
+              </button>
+            `,
+          )
+          .join("");
+        nodes.userList.querySelectorAll("[data-user-id]").forEach((button) => {
+          button.addEventListener("click", () => loadUserDetail(button.dataset.userId));
+        });
+      }
+
+      async function loadUserDetail(userID) {
+        state.selectedUserID = userID;
+        nodes.detail.innerHTML = `<div class="status-line">加载中...</div>`;
+        try {
+          const detail = await api(`/api/v1/admin/users/${encodeURIComponent(userID)}`);
+          const logs = await api(`/api/v1/admin/login-logs?user_id=${encodeURIComponent(userID)}&page_size=10`);
+          renderDetail(detail, logs.items || []);
+          loadUsers();
+        } catch (error) {
+          nodes.detail.innerHTML = `<div class="status-line error">${escapeHtml(error.message)}</div>`;
+        }
+      }
+
+      function renderDetail(detail, logs) {
+        const user = detail.user;
+        nodes.detail.innerHTML = `
+          <div class="summary">
+            <dl class="kv">
+              <dt>ID</dt><dd>${escapeHtml(user.id)}</dd>
+              <dt>用户名</dt><dd>${escapeHtml(user.username)}</dd>
+              <dt>邮箱</dt><dd>${escapeHtml(user.email || "-")}</dd>
+              <dt>手机号</dt><dd>${escapeHtml(user.phone || "-")}</dd>
+              <dt>状态</dt><dd><span class="badge ${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></dd>
+              <dt>最近登录</dt><dd>${escapeHtml(user.last_login_at || "-")}</dd>
+            </dl>
+            <div class="actions">
+              <button type="button" data-status="active">启用</button>
+              <button class="danger" type="button" data-status="suspended">禁用</button>
+            </div>
+          </div>
+          ${renderTable("登录系统", ["Client", "首次登录", "最近登录", "次数"], (detail.clients || []).map((item) => [item.client_id, item.first_login_at, item.last_login_at, item.login_count]))}
+          ${renderTable("钱包绑定", ["链", "地址", "主钱包", "验证时间"], (detail.wallets || []).map((item) => [item.chain_type, item.address, item.is_primary ? "是" : "否", item.verified_at]))}
+          ${renderTable("第三方账号", ["服务商", "Subject", "邮箱", "用户名"], (detail.accounts || []).map((item) => [item.provider, item.provider_subject, item.provider_email || "-", item.provider_username || "-"]))}
+          ${renderTable("最近登录日志", ["Client", "方式", "IP", "时间"], logs.map((item) => [item.client_id, item.login_method, item.ip || "-", item.created_at]))}
+        `;
+        nodes.detail.querySelectorAll("[data-status]").forEach((button) => {
+          button.addEventListener("click", () => updateStatus(user.id, button.dataset.status));
+        });
+      }
+
+      function renderTable(title, heads, rows) {
+        const body = rows.length
+          ? rows
+              .map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(String(value ?? ""))}</td>`).join("")}</tr>`)
+              .join("")
+          : `<tr><td colspan="${heads.length}" class="subtle">暂无数据</td></tr>`;
+        return `
+          <section>
+            <h2>${escapeHtml(title)}</h2>
+            <table>
+              <thead><tr>${heads.map((head) => `<th>${escapeHtml(head)}</th>`).join("")}</tr></thead>
+              <tbody>${body}</tbody>
+            </table>
+          </section>
+        `;
+      }
+
+      async function updateStatus(userID, status) {
+        await api(`/api/v1/admin/users/${encodeURIComponent(userID)}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status }),
+        });
+        await loadUserDetail(userID);
+      }
+
+      function escapeHtml(value) {
+        return value.replace(/[&<>"']/g, (char) => {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char];
+        });
+      }
+
+      loadUsers();
+    </script>
+  </body>
+</html>

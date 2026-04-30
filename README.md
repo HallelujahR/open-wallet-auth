@@ -18,6 +18,7 @@ The service owns authentication. Your business applications still own their own 
 - Refresh token persistence and rotation
 - Multi-client login with `client_id` and JWT audience
 - Login activity and user-client tracking
+- Internal identity management APIs for users, bindings, and login logs
 - Browser CORS configuration
 - Browser wallet login example
 - Gin API JWT verification example
@@ -42,6 +43,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for project layout and dependen
 
 - [Chinese integration guide](docs/INTEGRATION.zh-CN.md)
 - [Universal auth frontend demo](examples/universal-auth-demo)
+- [Admin console demo](examples/admin-console)
 - [SMS and email provider guide](docs/PROVIDERS.zh-CN.md)
 - [Browser wallet login example](examples/browser-wallet-login)
 - [Gin API JWT verification example](examples/gin-api)
@@ -125,6 +127,13 @@ curl -X POST http://localhost:8080/api/v1/clients \
   -d '{"client_id":"example-app","name":"Example App"}'
 ```
 
+List identity users for internal operations:
+
+```bash
+curl http://localhost:8080/api/v1/admin/users \
+  -H 'X-Admin-Token: dev-admin-token'
+```
+
 Create a wallet nonce:
 
 ```bash
@@ -178,6 +187,6 @@ CGO_ENABLED=0 go build ./cmd/server
 - Production migration command
 - Wallet binding and unbinding APIs
 - Account linking between password users and wallet users
-- User and wallet management APIs
+- More identity-management actions such as token revocation and account unbinding
 - Stronger admin/RBAC model for service management
 - More framework integration examples

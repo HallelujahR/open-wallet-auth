@@ -18,6 +18,7 @@ type Dependencies struct {
 	Email            *handler.EmailHandler
 	OAuth            *handler.OAuthHandler
 	Client           *handler.ClientHandler
+	Admin            *handler.AdminHandler
 	Token            middleware.TokenVerifier
 	AudienceResolver middleware.ClientAudienceResolver
 	JWKS             *handler.JWKSHandler
@@ -93,6 +94,19 @@ func New(deps Dependencies) *gin.Engine {
 			{
 				clients.POST("", deps.Client.Create)
 				clients.GET("", deps.Client.List)
+			}
+		}
+		if deps.Admin != nil {
+			admin := v1.Group("/admin", middleware.RequireAdminToken(deps.AdminToken))
+			{
+				admin.GET("/users", deps.Admin.ListUsers)
+				admin.GET("/users/:user_id", deps.Admin.GetUser)
+				admin.PATCH("/users/:user_id/status", deps.Admin.UpdateUserStatus)
+				admin.GET("/login-logs", deps.Admin.ListLoginLogs)
+				if deps.Client != nil {
+					admin.POST("/clients", deps.Client.Create)
+					admin.GET("/clients", deps.Client.List)
+				}
 			}
 		}
 	}

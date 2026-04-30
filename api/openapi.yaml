@@ -179,6 +179,83 @@ paths:
       responses:
         "200":
           description: Created client
+  /api/v1/admin/users:
+    get:
+      summary: List identity users for internal management
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, suspended, deleted]
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Identity user list
+  /api/v1/admin/users/{user_id}:
+    get:
+      summary: Get one identity user with login systems and bindings
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Identity user detail
+  /api/v1/admin/users/{user_id}/status:
+    patch:
+      summary: Update identity user status
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUpdateUserStatusRequest"
+      responses:
+        "200":
+          description: Status updated
+  /api/v1/admin/login-logs:
+    get:
+      summary: List login audit logs for internal management
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: string
+        - name: client_id
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Login audit log list
 components:
   schemas:
     WalletNonceRequest:
@@ -249,3 +326,11 @@ components:
           format: email
         code:
           type: string
+    AdminUpdateUserStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [active, suspended, deleted]

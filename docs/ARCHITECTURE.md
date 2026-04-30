@@ -53,6 +53,7 @@ examples
 - Email verification lives in `internal/usecase/email`; message delivery is behind usecase provider ports implemented by `internal/infrastructure/message`.
 - OAuth auth lives in `internal/usecase/oauth`; provider HTTP exchange and state storage are isolated in `internal/infrastructure/oauth`.
 - Client management and dynamic audience resolution live in `internal/usecase/client`.
+- Internal identity management lives in `internal/usecase/admin`; it can inspect identity users, login activity, wallet bindings, and OAuth bindings, but it does not own business-system profiles or permissions.
 - Refresh token persistence is behind `repository.RefreshTokenRepository`.
 - Wallet bindings and one-time challenges are behind `repository.WalletRepository`.
 - Login activity and user-client tracking are behind `repository.ActivityRepository`.
@@ -64,4 +65,4 @@ examples
 
 - Refresh token rotation should be made transactional as the repository layer matures.
 - Failed login auditing is still pending; current activity recording covers successful registration, login, refresh, and wallet login flows.
-- Client management is protected by `X-Admin-Token`; a first-class admin/RBAC model is still pending.
+- Client and identity management are protected by `X-Admin-Token`; a first-class admin/RBAC model is still pending.

@@ -78,4 +78,79 @@ func (r *ActivityRepository) UpsertUserClientLogin(ctx context.Context, userID s
 		Create(&row).Error
 }
 
+// ListLoginLogs returns paginated login audit events for management APIs.
+// ListLoginLogs 为管理接口返回分页后的登录审计事件。
+func (r *ActivityRepository) ListLoginLogs(ctx context.Context, filter domainrepo.LoginLogFilter) ([]audit.LoginLog, int64, error) {
+	query := r.db.WithContext(ctx).Model(&model.LoginLog{})
+	if filter.UserID != "" {
+		query = query.Where("user_id = ?", filter.UserID)
+	}
+	if filter.ClientID != "" {
+		query = query.Where("client_id = ?", filter.ClientID)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	page, pageSize := normalizePage(filter.Page, filter.PageSize)
+	var rows []model.LoginLog
+	if err := query.Order("created_at DESC").Limit(pageSize).Offset((page - 1) * pageSize).Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	logs := make([]audit.LoginLog, 0, len(rows))
+	for _, row := range rows {
+		logs = append(logs, toDomainLoginLog(row))
+	}
+	return logs, total, nil
+}
+
+// ListUserClients returns systems that a user has authenticated into.
+// ListUserClients 返回该用户登录过的业务系统关系。
+func (r *ActivityRepository) ListUserClients(ctx context.Context, userID string) ([]audit.UserClient, error) {
+	var rows []model.UserClient
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("last_login_at DESC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	clients := make([]audit.UserClient, 0, len(rows))
+	for _, row := range rows {
+		clients = append(clients, toDomainUserClient(row))
+	}
+	return clients, nil
+}
+
+// toDomainLoginLog converts a login log row into the domain audit entity.
+// toDomainLoginLog 将登录日志数据库行转换为领域审计实体。
+func toDomainLoginLog(row model.LoginLog) audit.LoginLog {
+	return audit.LoginLog{
+		ID:          row.ID,
+		UserID:      row.UserID,
+		ClientID:    row.ClientID,
+		LoginMethod: audit.LoginMethod(row.LoginMethod),
+		IP:          row.IP,
+		UserAgent:   row.UserAgent,
+		Success:     row.Success,
+		FailureCode: row.FailureCode,
+		CreatedAt:   row.CreatedAt,
+	}
+}
+
+// toDomainUserClient converts a user-client row into the domain audit entity.
+// toDomainUserClient 将用户-client 数据库行转换为领域审计实体。
+func toDomainUserClient(row model.UserClient) audit.UserClient {
+	return audit.UserClient{
+		ID:           row.ID,
+		UserID:       row.UserID,
+		ClientID:     row.ClientID,
+		FirstLoginAt: row.FirstLoginAt,
+		LastLoginAt:  row.LastLoginAt,
+		LoginCount:   row.LoginCount,
+		Status:       row.Status,
+		CreatedAt:    row.CreatedAt,
+		UpdatedAt:    row.UpdatedAt,
+	}
+}
+
 var _ domainrepo.ActivityRepository = (*ActivityRepository)(nil)
+var _ domainrepo.AdminActivityRepository = (*ActivityRepository)(nil)

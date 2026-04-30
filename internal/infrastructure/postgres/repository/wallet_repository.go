@@ -104,6 +104,20 @@ func (r *WalletRepository) MarkNonceUsed(ctx context.Context, nonceID string) er
 	return nil
 }
 
+// ListByUserID returns all wallet bindings for one identity user.
+// ListByUserID 返回某个身份用户的全部钱包绑定。
+func (r *WalletRepository) ListByUserID(ctx context.Context, userID string) ([]walletdomain.UserWallet, error) {
+	var rows []model.UserWallet
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	wallets := make([]walletdomain.UserWallet, 0, len(rows))
+	for _, row := range rows {
+		wallets = append(wallets, *toDomainWallet(row))
+	}
+	return wallets, nil
+}
+
 // toDomainWallet converts a wallet row into the domain wallet entity.
 // toDomainWallet 将钱包数据库行转换为领域钱包实体。
 func toDomainWallet(row model.UserWallet) *walletdomain.UserWallet {
@@ -134,3 +148,4 @@ func toDomainNonce(row model.WalletNonce) *walletdomain.Nonce {
 }
 
 var _ domainrepo.WalletRepository = (*WalletRepository)(nil)
+var _ domainrepo.AdminWalletRepository = (*WalletRepository)(nil)

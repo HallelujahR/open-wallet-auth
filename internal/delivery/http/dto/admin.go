@@ -1,0 +1,95 @@
+package dto
+
+// AdminUserResponse is the management view of an identity user.
+// AdminUserResponse 是身份用户的管理视图。
+type AdminUserResponse struct {
+	ID          string `json:"id"`
+	Username    string `json:"username"`
+	Email       string `json:"email,omitempty"`
+	Phone       string `json:"phone,omitempty"`
+	Avatar      string `json:"avatar,omitempty"`
+	Status      string `json:"status"`
+	LastLoginAt string `json:"last_login_at,omitempty"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+// AdminUserListResponse is the paginated identity-user list response.
+// AdminUserListResponse 是分页身份用户列表响应。
+type AdminUserListResponse struct {
+	Items    []AdminUserResponse `json:"items"`
+	Total    int64               `json:"total"`
+	Page     int                 `json:"page"`
+	PageSize int                 `json:"page_size"`
+}
+
+// AdminUpdateUserStatusRequest is the request body for changing identity status.
+// AdminUpdateUserStatusRequest 是修改身份用户状态的请求体。
+type AdminUpdateUserStatusRequest struct {
+	Status string `json:"status" binding:"required"`
+}
+
+// AdminUserClientResponse describes one business system a user has logged into.
+// AdminUserClientResponse 描述用户登录过的一个业务系统。
+type AdminUserClientResponse struct {
+	ClientID     string `json:"client_id"`
+	FirstLoginAt string `json:"first_login_at"`
+	LastLoginAt  string `json:"last_login_at"`
+	LoginCount   int64  `json:"login_count"`
+	Status       string `json:"status"`
+}
+
+// AdminWalletResponse describes one wallet binding.
+// AdminWalletResponse 描述一个钱包绑定关系。
+type AdminWalletResponse struct {
+	ID         string `json:"id"`
+	ChainType  string `json:"chain_type"`
+	Address    string `json:"address"`
+	IsPrimary  bool   `json:"is_primary"`
+	VerifiedAt string `json:"verified_at"`
+	CreatedAt  string `json:"created_at"`
+}
+
+// AdminOAuthAccountResponse describes one third-party account binding.
+// AdminOAuthAccountResponse 描述一个第三方账号绑定关系。
+type AdminOAuthAccountResponse struct {
+	ID                string `json:"id"`
+	Provider          string `json:"provider"`
+	ProviderSubject   string `json:"provider_subject"`
+	ProviderEmail     string `json:"provider_email,omitempty"`
+	ProviderUsername  string `json:"provider_username,omitempty"`
+	ProviderAvatarURL string `json:"provider_avatar_url,omitempty"`
+	CreatedAt         string `json:"created_at"`
+}
+
+// AdminUserDetailResponse aggregates identity, client, wallet, and OAuth data.
+// AdminUserDetailResponse 聚合身份、业务系统、钱包和第三方账号数据。
+type AdminUserDetailResponse struct {
+	User     AdminUserResponse           `json:"user"`
+	Clients  []AdminUserClientResponse   `json:"clients"`
+	Wallets  []AdminWalletResponse       `json:"wallets"`
+	Accounts []AdminOAuthAccountResponse `json:"accounts"`
+}
+
+// AdminLoginLogResponse is the management view of one login audit event.
+// AdminLoginLogResponse 是单条登录审计事件的管理视图。
+type AdminLoginLogResponse struct {
+	ID          string `json:"id"`
+	UserID      string `json:"user_id"`
+	ClientID    string `json:"client_id"`
+	LoginMethod string `json:"login_method"`
+	IP          string `json:"ip,omitempty"`
+	UserAgent   string `json:"user_agent,omitempty"`
+	Success     bool   `json:"success"`
+	FailureCode string `json:"failure_code,omitempty"`
+	CreatedAt   string `json:"created_at"`
+}
+
+// AdminLoginLogListResponse is the paginated login-log response.
+// AdminLoginLogListResponse 是分页登录日志响应。
+type AdminLoginLogListResponse struct {
+	Items    []AdminLoginLogResponse `json:"items"`
+	Total    int64                   `json:"total"`
+	Page     int                     `json:"page"`
+	PageSize int                     `json:"page_size"`
+}
