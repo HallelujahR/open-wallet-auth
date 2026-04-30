@@ -25,6 +25,7 @@ The service owns authentication. Your business applications still own their own 
 - Email-code password reset endpoint
 - Password reset revokes existing refresh-token sessions
 - Authenticated email and phone binding endpoints
+- User-side email, phone, wallet, and OAuth unbinding with last-method protection
 - Multi-client login with `client_id` and JWT audience
 - Login activity and user-client tracking
 - Failed password-login audit records
@@ -153,6 +154,16 @@ Bind a Google or GitHub account to the current user:
 
 ```bash
 curl "http://localhost:8080/api/v1/oauth/github/bind/start?client_id=default&redirect_uri=http://localhost:8081/oauth/callback" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Unbind a login method from the current user:
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/auth/bind/email \
+  -H "Authorization: Bearer <access_token>"
+
+curl -X DELETE http://localhost:8080/api/v1/auth/wallets/<wallet_id> \
   -H "Authorization: Bearer <access_token>"
 ```
 

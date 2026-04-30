@@ -87,6 +87,15 @@ paths:
           description: Email bound
         "409":
           description: Email already bound to another user
+    delete:
+      summary: Unbind the current authenticated user's email
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Email unbound
+        "409":
+          description: At least one login method must remain
   /api/v1/auth/bind/phone:
     post:
       summary: Bind a phone number to the current authenticated user
@@ -103,6 +112,51 @@ paths:
           description: Phone bound
         "409":
           description: Phone already bound to another user
+    delete:
+      summary: Unbind the current authenticated user's phone number
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Phone unbound
+        "409":
+          description: At least one login method must remain
+  /api/v1/auth/wallets/{wallet_id}:
+    delete:
+      summary: Unbind one wallet from the current authenticated user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: wallet_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Wallet unbound
+        "404":
+          description: Wallet binding not found
+        "409":
+          description: At least one login method must remain
+  /api/v1/auth/oauth-accounts/{account_id}:
+    delete:
+      summary: Unbind one OAuth account from the current authenticated user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: account_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OAuth account unbound
+        "404":
+          description: OAuth account binding not found
+        "409":
+          description: At least one login method must remain
   /api/v1/wallet/nonce:
     post:
       summary: Create a SIWE-compatible wallet login challenge

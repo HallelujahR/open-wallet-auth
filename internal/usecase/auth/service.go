@@ -8,8 +8,10 @@ import (
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
+	oauthdomain "github.com/open-wallet-auth/open-wallet-auth/internal/domain/oauth"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
+	walletdomain "github.com/open-wallet-auth/open-wallet-auth/internal/domain/wallet"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 )
 
@@ -22,6 +24,8 @@ const (
 	ErrInvalidCredentials  = "AUTH_INVALID_CREDENTIALS"
 	ErrInvalidInput        = "AUTH_INVALID_INPUT"
 	ErrInvalidRefreshToken = "AUTH_INVALID_REFRESH_TOKEN"
+	ErrBindingNotFound     = "AUTH_BINDING_NOT_FOUND"
+	ErrLastLoginMethod     = "AUTH_LAST_LOGIN_METHOD"
 	ErrRateLimited         = "AUTH_RATE_LIMITED"
 )
 
@@ -54,6 +58,8 @@ type Service struct {
 	activity      repository.ActivityRepository
 	emailCodes    repository.EmailCodeRepository
 	phoneCodes    repository.PhoneCodeRepository
+	wallets       repository.WalletRepository
+	accounts      repository.OAuthAccountRepository
 	limiter       repository.RateLimiter
 	hasher        PasswordHasher
 	tokenHasher   TokenHasher
@@ -164,6 +170,13 @@ type BindContactResult struct {
 	Value  string
 }
 
+// UnbindRequest is the input for removing a login-method binding from current user.
+// UnbindRequest 是当前用户移除某个登录方式绑定的用例输入。
+type UnbindRequest struct {
+	UserID    string
+	BindingID string
+}
+
 // NewService creates the auth usecase service with its required ports.
 // NewService 创建认证用例服务，并通过端口注入外部依赖。
 func NewService(
@@ -173,6 +186,8 @@ func NewService(
 	activity repository.ActivityRepository,
 	emailCodes repository.EmailCodeRepository,
 	phoneCodes repository.PhoneCodeRepository,
+	wallets repository.WalletRepository,
+	accounts repository.OAuthAccountRepository,
 	limiter repository.RateLimiter,
 	hasher PasswordHasher,
 	tokenHasher TokenHasher,
@@ -188,6 +203,8 @@ func NewService(
 		activity:      activity,
 		emailCodes:    emailCodes,
 		phoneCodes:    phoneCodes,
+		wallets:       wallets,
+		accounts:      accounts,
 		limiter:       limiter,
 		hasher:        hasher,
 		tokenHasher:   tokenHasher,
@@ -546,6 +563,182 @@ func (s *Service) BindPhone(ctx context.Context, req BindPhoneRequest) (*BindCon
 		return nil, err
 	}
 	return &BindContactResult{UserID: userID, Value: phone}, nil
+}
+
+// UnbindEmail removes the current user's email when another login method remains.
+// UnbindEmail 在仍保留其他登录方式时解绑当前用户邮箱。
+func (s *Service) UnbindEmail(ctx context.Context, userID string) error {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return domain.NewError(ErrInvalidInput, "user id is required")
+	}
+	methods, err := s.loginMethodSummary(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if methods.user.Email == "" {
+		return nil
+	}
+	if methods.total() <= 1 {
+		return domain.NewError(ErrLastLoginMethod, "at least one login method must remain")
+	}
+	return s.users.UpdateEmail(ctx, userID, "")
+}
+
+// UnbindPhone removes the current user's phone when another login method remains.
+// UnbindPhone 在仍保留其他登录方式时解绑当前用户手机号。
+func (s *Service) UnbindPhone(ctx context.Context, userID string) error {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return domain.NewError(ErrInvalidInput, "user id is required")
+	}
+	methods, err := s.loginMethodSummary(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if methods.user.Phone == "" {
+		return nil
+	}
+	if methods.total() <= 1 {
+		return domain.NewError(ErrLastLoginMethod, "at least one login method must remain")
+	}
+	return s.users.UpdatePhone(ctx, userID, "")
+}
+
+// UnbindWallet removes one wallet binding owned by the current user.
+// UnbindWallet 解绑当前用户拥有的一个钱包。
+func (s *Service) UnbindWallet(ctx context.Context, req UnbindRequest) error {
+	if s.wallets == nil {
+		return domain.NewError(ErrInvalidInput, "wallet unbinding is not configured")
+	}
+	userID, bindingID, err := normalizeUnbindInput(req)
+	if err != nil {
+		return err
+	}
+	methods, err := s.loginMethodSummary(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !walletBindingExists(methods.wallets, bindingID) {
+		return domain.NewError(ErrBindingNotFound, "wallet binding not found")
+	}
+	if methods.total() <= 1 && len(methods.wallets) > 0 {
+		return domain.NewError(ErrLastLoginMethod, "at least one login method must remain")
+	}
+	if err := s.wallets.DeleteByID(ctx, userID, bindingID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return domain.NewError(ErrBindingNotFound, "wallet binding not found")
+		}
+		return err
+	}
+	return nil
+}
+
+// UnbindOAuthAccount removes one OAuth binding owned by the current user.
+// UnbindOAuthAccount 解绑当前用户拥有的一个 OAuth 账号。
+func (s *Service) UnbindOAuthAccount(ctx context.Context, req UnbindRequest) error {
+	if s.accounts == nil {
+		return domain.NewError(ErrInvalidInput, "oauth unbinding is not configured")
+	}
+	userID, bindingID, err := normalizeUnbindInput(req)
+	if err != nil {
+		return err
+	}
+	methods, err := s.loginMethodSummary(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !oauthBindingExists(methods.accounts, bindingID) {
+		return domain.NewError(ErrBindingNotFound, "oauth account binding not found")
+	}
+	if methods.total() <= 1 && len(methods.accounts) > 0 {
+		return domain.NewError(ErrLastLoginMethod, "at least one login method must remain")
+	}
+	if err := s.accounts.DeleteByID(ctx, userID, bindingID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return domain.NewError(ErrBindingNotFound, "oauth account binding not found")
+		}
+		return err
+	}
+	return nil
+}
+
+// loginMethodSummary loads current login bindings for safety checks.
+// loginMethodSummary 加载当前登录方式绑定，用于解绑前的安全校验。
+func (s *Service) loginMethodSummary(ctx context.Context, userID string) (*loginMethodSummary, error) {
+	u, err := s.users.FindByID(ctx, userID)
+	if err != nil || u == nil || !u.IsActive() {
+		return nil, domain.NewError(ErrInvalidCredentials, "authenticated user is unavailable")
+	}
+	var wallets []walletdomain.UserWallet
+	if s.wallets != nil {
+		wallets, err = s.wallets.ListByUserID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var accounts []oauthdomain.Account
+	if s.accounts != nil {
+		accounts, err = s.accounts.ListByUserID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &loginMethodSummary{user: u, wallets: wallets, accounts: accounts}, nil
+}
+
+type loginMethodSummary struct {
+	user     *user.User
+	wallets  []walletdomain.UserWallet
+	accounts []oauthdomain.Account
+}
+
+// total counts independent ways the user can still authenticate.
+// total 统计用户仍可用于登录的独立方式数量。
+func (s loginMethodSummary) total() int {
+	total := 0
+	if s.user.Email != "" {
+		total++
+	}
+	if s.user.Phone != "" {
+		total++
+	}
+	total += len(s.wallets)
+	total += len(s.accounts)
+	return total
+}
+
+// normalizeUnbindInput validates current-user unbinding input.
+// normalizeUnbindInput 校验当前用户解绑请求输入。
+func normalizeUnbindInput(req UnbindRequest) (string, string, error) {
+	userID := strings.TrimSpace(req.UserID)
+	bindingID := strings.TrimSpace(req.BindingID)
+	if userID == "" || bindingID == "" {
+		return "", "", domain.NewError(ErrInvalidInput, "user id and binding id are required")
+	}
+	return userID, bindingID, nil
+}
+
+// walletBindingExists reports whether a wallet binding belongs to the user.
+// walletBindingExists 判断钱包绑定是否属于当前用户。
+func walletBindingExists(wallets []walletdomain.UserWallet, walletID string) bool {
+	for _, wallet := range wallets {
+		if wallet.ID == walletID {
+			return true
+		}
+	}
+	return false
+}
+
+// oauthBindingExists reports whether an OAuth binding belongs to the user.
+// oauthBindingExists 判断 OAuth 绑定是否属于当前用户。
+func oauthBindingExists(accounts []oauthdomain.Account, accountID string) bool {
+	for _, account := range accounts {
+		if account.ID == accountID {
+			return true
+		}
+	}
+	return false
 }
 
 // checkLoginLimit verifies password-login rate limits.

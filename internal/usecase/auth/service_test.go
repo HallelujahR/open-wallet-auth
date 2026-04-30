@@ -9,14 +9,16 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
+	oauthdomain "github.com/open-wallet-auth/open-wallet-auth/internal/domain/oauth"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
+	walletdomain "github.com/open-wallet-auth/open-wallet-auth/internal/domain/wallet"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 )
 
 func TestServiceRegisterSuccess(t *testing.T) {
 	users := newMemoryUsers()
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	result, err := service.Register(context.Background(), RegisterRequest{
 		ClientID: "default",
@@ -42,7 +44,7 @@ func TestServiceRegisterRejectsExistingEmail(t *testing.T) {
 		Email:  "alice@example.com",
 		Status: user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	_, err := service.Register(context.Background(), RegisterRequest{
 		ClientID: "default",
@@ -69,7 +71,7 @@ func TestServiceLoginRejectsInvalidPassword(t *testing.T) {
 		Status:       user.StatusActive,
 	}
 	activity := newMemoryActivity()
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), activity, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), activity, nil, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	_, err := service.Login(context.Background(), LoginRequest{
 		ClientID: "default",
@@ -98,7 +100,7 @@ func TestServiceLoginRejectsRateLimitedEmail(t *testing.T) {
 		PasswordHash: "hash:correct",
 		Status:       user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, denyLimiter{}, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, true, 1, time.Minute)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, nil, denyLimiter{}, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, true, 1, time.Minute)
 
 	_, err := service.Login(context.Background(), LoginRequest{
 		ClientID: "default",
@@ -133,7 +135,7 @@ func TestServiceRefreshRotatesRefreshToken(t *testing.T) {
 	}
 	refreshTokens.byID["rft_old"] = refreshTokens.byHash["hash:old_refresh"]
 	activity := newMemoryActivity()
-	service := NewService(users, defaultClients(), refreshTokens, activity, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), refreshTokens, activity, nil, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	result, err := service.Refresh(context.Background(), RefreshRequest{RefreshToken: "old_refresh"})
 	if err != nil {
@@ -162,7 +164,7 @@ func TestServiceChangePasswordUpdatesHash(t *testing.T) {
 		PasswordHash: "hash:old-password",
 		Status:       user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	err := service.ChangePassword(context.Background(), ChangePasswordRequest{
 		UserID:          "usr_existing",
@@ -186,7 +188,7 @@ func TestServiceChangePasswordRejectsInvalidCurrentPassword(t *testing.T) {
 		PasswordHash: "hash:old-password",
 		Status:       user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	err := service.ChangePassword(context.Background(), ChangePasswordRequest{
 		UserID:          "usr_existing",
@@ -227,7 +229,7 @@ func TestServiceResetPasswordUpdatesHashWithEmailCode(t *testing.T) {
 		ExpiresAt: time.Now().Add(time.Hour),
 	}
 	refreshTokens.byID["rft_active"] = refreshTokens.byHash["hash:active_refresh"]
-	service := NewService(users, defaultClients(), refreshTokens, newMemoryActivity(), codes, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), refreshTokens, newMemoryActivity(), codes, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	err := service.ResetPassword(context.Background(), ResetPasswordRequest{
 		Email:       "alice@example.com",
@@ -248,7 +250,7 @@ func TestServiceResetPasswordUpdatesHashWithEmailCode(t *testing.T) {
 func TestServiceResetPasswordRejectsInvalidCode(t *testing.T) {
 	users := newMemoryUsers()
 	codes := newMemoryEmailCodes()
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), codes, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), codes, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	err := service.ResetPassword(context.Background(), ResetPasswordRequest{
 		Email:       "alice@example.com",
@@ -272,7 +274,7 @@ func TestServiceBindEmailAttachesUnusedEmail(t *testing.T) {
 	if err := codes.Save(context.Background(), "alice@example.com", "123456", time.Now().Add(time.Minute)); err != nil {
 		t.Fatalf("save code returned error: %v", err)
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), codes, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), codes, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	result, err := service.BindEmail(context.Background(), BindEmailRequest{UserID: "usr_wallet", Email: "Alice@Example.com", Code: "123456"})
 	if err != nil {
@@ -287,7 +289,7 @@ func TestServiceBindEmailRejectsEmailOwnedByAnotherUser(t *testing.T) {
 	users := newMemoryUsers()
 	users.byID["usr_wallet"] = &user.User{ID: "usr_wallet", Username: "wallet_user", Status: user.StatusActive}
 	users.byEmail["alice@example.com"] = &user.User{ID: "usr_email", Email: "alice@example.com", Status: user.StatusActive}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), newMemoryEmailCodes(), nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), newMemoryEmailCodes(), nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	_, err := service.BindEmail(context.Background(), BindEmailRequest{UserID: "usr_wallet", Email: "alice@example.com", Code: "123456"})
 	if err == nil {
@@ -306,7 +308,7 @@ func TestServiceBindPhoneAttachesUnusedPhone(t *testing.T) {
 	if err := codes.Save(context.Background(), "+8613800000000", "123456", time.Now().Add(time.Minute)); err != nil {
 		t.Fatalf("save code returned error: %v", err)
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, codes, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, codes, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	result, err := service.BindPhone(context.Background(), BindPhoneRequest{UserID: "usr_wallet", Phone: "+8613800000000", Code: "123456"})
 	if err != nil {
@@ -314,6 +316,68 @@ func TestServiceBindPhoneAttachesUnusedPhone(t *testing.T) {
 	}
 	if result.Value != "+8613800000000" || users.byID["usr_wallet"].Phone != "+8613800000000" {
 		t.Fatal("expected phone to be bound")
+	}
+}
+
+func TestServiceUnbindWalletKeepsAnotherLoginMethod(t *testing.T) {
+	users := newMemoryUsers()
+	users.byID["usr_1"] = &user.User{ID: "usr_1", Email: "alice@example.com", Status: user.StatusActive}
+	wallets := newMemoryWallets()
+	wallets.items["wal_1"] = walletdomain.UserWallet{ID: "wal_1", UserID: "usr_1", Address: "0x1", ChainType: walletdomain.ChainTypeEVM}
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, wallets, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+
+	if err := service.UnbindWallet(context.Background(), UnbindRequest{UserID: "usr_1", BindingID: "wal_1"}); err != nil {
+		t.Fatalf("unbind wallet returned error: %v", err)
+	}
+	if _, ok := wallets.items["wal_1"]; ok {
+		t.Fatal("expected wallet to be deleted")
+	}
+}
+
+func TestServiceUnbindWalletRejectsLastLoginMethod(t *testing.T) {
+	users := newMemoryUsers()
+	users.byID["usr_1"] = &user.User{ID: "usr_1", Status: user.StatusActive}
+	wallets := newMemoryWallets()
+	wallets.items["wal_1"] = walletdomain.UserWallet{ID: "wal_1", UserID: "usr_1", Address: "0x1", ChainType: walletdomain.ChainTypeEVM}
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, wallets, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+
+	err := service.UnbindWallet(context.Background(), UnbindRequest{UserID: "usr_1", BindingID: "wal_1"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var appErr *domain.Error
+	if !errors.As(err, &appErr) || appErr.Code != ErrLastLoginMethod {
+		t.Fatalf("expected %s, got %v", ErrLastLoginMethod, err)
+	}
+}
+
+func TestServiceUnbindOAuthKeepsAnotherLoginMethod(t *testing.T) {
+	users := newMemoryUsers()
+	users.byID["usr_1"] = &user.User{ID: "usr_1", Phone: "+8613800000000", Status: user.StatusActive}
+	accounts := newMemoryOAuthAccounts()
+	accounts.items["oac_1"] = oauthdomain.Account{ID: "oac_1", UserID: "usr_1", Provider: "github", ProviderSubject: "10001"}
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, accounts, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+
+	if err := service.UnbindOAuthAccount(context.Background(), UnbindRequest{UserID: "usr_1", BindingID: "oac_1"}); err != nil {
+		t.Fatalf("unbind oauth returned error: %v", err)
+	}
+	if _, ok := accounts.items["oac_1"]; ok {
+		t.Fatal("expected oauth account to be deleted")
+	}
+}
+
+func TestServiceUnbindEmailRejectsLastLoginMethod(t *testing.T) {
+	users := newMemoryUsers()
+	users.byID["usr_1"] = &user.User{ID: "usr_1", Email: "alice@example.com", Status: user.StatusActive}
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+
+	err := service.UnbindEmail(context.Background(), "usr_1")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var appErr *domain.Error
+	if !errors.As(err, &appErr) || appErr.Code != ErrLastLoginMethod {
+		t.Fatalf("expected %s, got %v", ErrLastLoginMethod, err)
 	}
 }
 
@@ -435,6 +499,106 @@ type memoryEmailCodes struct {
 type memoryEmailCode struct {
 	code      string
 	expiresAt time.Time
+}
+
+type memoryWallets struct {
+	items map[string]walletdomain.UserWallet
+}
+
+func newMemoryWallets() *memoryWallets {
+	return &memoryWallets{items: map[string]walletdomain.UserWallet{}}
+}
+
+func (m *memoryWallets) FindByAddress(ctx context.Context, chainType walletdomain.ChainType, address string) (*walletdomain.UserWallet, error) {
+	for _, item := range m.items {
+		if item.ChainType == chainType && item.Address == address {
+			return &item, nil
+		}
+	}
+	return nil, repository.ErrNotFound
+}
+
+func (m *memoryWallets) ListByUserID(ctx context.Context, userID string) ([]walletdomain.UserWallet, error) {
+	items := []walletdomain.UserWallet{}
+	for _, item := range m.items {
+		if item.UserID == userID {
+			items = append(items, item)
+		}
+	}
+	return items, nil
+}
+
+func (m *memoryWallets) CreateWallet(ctx context.Context, w *walletdomain.UserWallet) error {
+	if w.ID == "" {
+		w.ID = "wal_test"
+	}
+	m.items[w.ID] = *w
+	return nil
+}
+
+func (m *memoryWallets) DeleteByID(ctx context.Context, userID string, walletID string) error {
+	item, ok := m.items[walletID]
+	if !ok || item.UserID != userID {
+		return repository.ErrNotFound
+	}
+	delete(m.items, walletID)
+	return nil
+}
+
+func (m *memoryWallets) CreateNonce(ctx context.Context, nonce *walletdomain.Nonce) error {
+	return nil
+}
+
+func (m *memoryWallets) FindNonce(ctx context.Context, address string, nonce string) (*walletdomain.Nonce, error) {
+	return nil, repository.ErrNotFound
+}
+
+func (m *memoryWallets) MarkNonceUsed(ctx context.Context, nonceID string) error {
+	return nil
+}
+
+type memoryOAuthAccounts struct {
+	items map[string]oauthdomain.Account
+}
+
+func newMemoryOAuthAccounts() *memoryOAuthAccounts {
+	return &memoryOAuthAccounts{items: map[string]oauthdomain.Account{}}
+}
+
+func (m *memoryOAuthAccounts) FindByProviderSubject(ctx context.Context, provider string, subject string) (*oauthdomain.Account, error) {
+	for _, item := range m.items {
+		if item.Provider == provider && item.ProviderSubject == subject {
+			return &item, nil
+		}
+	}
+	return nil, repository.ErrNotFound
+}
+
+func (m *memoryOAuthAccounts) ListByUserID(ctx context.Context, userID string) ([]oauthdomain.Account, error) {
+	items := []oauthdomain.Account{}
+	for _, item := range m.items {
+		if item.UserID == userID {
+			items = append(items, item)
+		}
+	}
+	return items, nil
+}
+
+func (m *memoryOAuthAccounts) Create(ctx context.Context, account *oauthdomain.Account) error {
+	if account.ID == "" {
+		account.ID = "oac_test"
+	}
+	m.items[account.ID] = *account
+	return nil
+}
+
+func (m *memoryOAuthAccounts) DeleteByID(ctx context.Context, userID string, accountID string) error {
+	item, ok := m.items[accountID]
+	if !ok || item.UserID != userID {
+		return repository.ErrNotFound
+	}
+	delete(m.items, accountID)
+	return nil
 }
 
 type memoryPhoneCodes struct {

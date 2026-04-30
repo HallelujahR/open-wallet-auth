@@ -108,6 +108,8 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 		activityRepo,
 		emailCodeRepo,
 		phoneCodeRepo,
+		walletRepo,
+		oauthAccountRepo,
 		limiter,
 		hasher,
 		tokenHasher,

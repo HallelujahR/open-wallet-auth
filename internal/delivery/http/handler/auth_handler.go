@@ -252,6 +252,72 @@ func (h *AuthHandler) BindPhone(c *gin.Context) {
 	response.OK(c, dto.BindContactResponse{UserID: result.UserID, Value: result.Value})
 }
 
+// UnbindEmail removes the current user's email binding when another method remains.
+// UnbindEmail 在仍保留其他登录方式时解绑当前用户邮箱。
+func (h *AuthHandler) UnbindEmail(c *gin.Context) {
+	authClaims, ok := currentAuthClaims(c)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, "AUTH_INVALID_TOKEN", "invalid authorization token")
+		return
+	}
+	if err := h.auth.UnbindEmail(c.Request.Context(), authClaims.UserID); err != nil {
+		writeAuthError(c, err)
+		return
+	}
+	response.OK(c, gin.H{"email_unbound": true})
+}
+
+// UnbindPhone removes the current user's phone binding when another method remains.
+// UnbindPhone 在仍保留其他登录方式时解绑当前用户手机号。
+func (h *AuthHandler) UnbindPhone(c *gin.Context) {
+	authClaims, ok := currentAuthClaims(c)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, "AUTH_INVALID_TOKEN", "invalid authorization token")
+		return
+	}
+	if err := h.auth.UnbindPhone(c.Request.Context(), authClaims.UserID); err != nil {
+		writeAuthError(c, err)
+		return
+	}
+	response.OK(c, gin.H{"phone_unbound": true})
+}
+
+// UnbindWallet removes one wallet binding owned by the current user.
+// UnbindWallet 解绑当前用户拥有的一个钱包。
+func (h *AuthHandler) UnbindWallet(c *gin.Context) {
+	authClaims, ok := currentAuthClaims(c)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, "AUTH_INVALID_TOKEN", "invalid authorization token")
+		return
+	}
+	if err := h.auth.UnbindWallet(c.Request.Context(), authusecase.UnbindRequest{
+		UserID:    authClaims.UserID,
+		BindingID: c.Param("wallet_id"),
+	}); err != nil {
+		writeAuthError(c, err)
+		return
+	}
+	response.OK(c, gin.H{"wallet_unbound": true})
+}
+
+// UnbindOAuthAccount removes one OAuth binding owned by the current user.
+// UnbindOAuthAccount 解绑当前用户拥有的一个 OAuth 账号。
+func (h *AuthHandler) UnbindOAuthAccount(c *gin.Context) {
+	authClaims, ok := currentAuthClaims(c)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, "AUTH_INVALID_TOKEN", "invalid authorization token")
+		return
+	}
+	if err := h.auth.UnbindOAuthAccount(c.Request.Context(), authusecase.UnbindRequest{
+		UserID:    authClaims.UserID,
+		BindingID: c.Param("account_id"),
+	}); err != nil {
+		writeAuthError(c, err)
+		return
+	}
+	response.OK(c, gin.H{"oauth_account_unbound": true})
+}
+
 // Me returns the authenticated user claims injected by auth middleware.
 // Me 返回认证中间件注入的当前用户 claims。
 func (h *AuthHandler) Me(c *gin.Context) {
@@ -301,6 +367,10 @@ func writeAuthError(c *gin.Context, err error) {
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
 		case authusecase.ErrInvalidRefreshToken:
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
+		case authusecase.ErrBindingNotFound:
+			response.Error(c, http.StatusNotFound, appErr.Code, appErr.Message)
+		case authusecase.ErrLastLoginMethod:
+			response.Error(c, http.StatusConflict, appErr.Code, appErr.Message)
 		case authusecase.ErrRateLimited:
 			response.Error(c, http.StatusTooManyRequests, appErr.Code, appErr.Message)
 		default:

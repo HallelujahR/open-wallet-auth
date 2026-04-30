@@ -239,12 +239,32 @@ func (m *memoryWallets) FindByAddress(ctx context.Context, chainType walletdomai
 	return w, nil
 }
 
+func (m *memoryWallets) ListByUserID(ctx context.Context, userID string) ([]walletdomain.UserWallet, error) {
+	wallets := []walletdomain.UserWallet{}
+	for _, wallet := range m.byAddress {
+		if wallet.UserID == userID {
+			wallets = append(wallets, *wallet)
+		}
+	}
+	return wallets, nil
+}
+
 func (m *memoryWallets) CreateWallet(ctx context.Context, w *walletdomain.UserWallet) error {
 	if w.ID == "" {
 		w.ID = "wal_test"
 	}
 	m.byAddress[string(w.ChainType)+":"+w.Address] = w
 	return nil
+}
+
+func (m *memoryWallets) DeleteByID(ctx context.Context, userID string, walletID string) error {
+	for key, wallet := range m.byAddress {
+		if wallet.ID == walletID && wallet.UserID == userID {
+			delete(m.byAddress, key)
+			return nil
+		}
+	}
+	return repository.ErrNotFound
 }
 
 func (m *memoryWallets) CreateNonce(ctx context.Context, nonce *walletdomain.Nonce) error {

@@ -64,6 +64,10 @@ func New(deps Dependencies) *gin.Engine {
 						authenticated.PATCH("/password", deps.Auth.ChangePassword)
 						authenticated.POST("/bind/email", deps.Auth.BindEmail)
 						authenticated.POST("/bind/phone", deps.Auth.BindPhone)
+						authenticated.DELETE("/bind/email", deps.Auth.UnbindEmail)
+						authenticated.DELETE("/bind/phone", deps.Auth.UnbindPhone)
+						authenticated.DELETE("/wallets/:wallet_id", deps.Auth.UnbindWallet)
+						authenticated.DELETE("/oauth-accounts/:account_id", deps.Auth.UnbindOAuthAccount)
 					}
 				}
 			}
