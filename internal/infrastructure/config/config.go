@@ -17,6 +17,7 @@ type Config struct {
 	Redis      RedisConfig      `mapstructure:"redis"`
 	JWT        JWTConfig        `mapstructure:"jwt"`
 	Wallet     WalletConfig     `mapstructure:"wallet"`
+	Auth       AuthConfig       `mapstructure:"auth"`
 	Phone      PhoneConfig      `mapstructure:"phone"`
 	Email      EmailConfig      `mapstructure:"email"`
 	OAuth      OAuthConfig      `mapstructure:"oauth"`
@@ -76,7 +77,18 @@ type JWTConfig struct {
 
 // WalletConfig contains wallet authentication settings.
 type WalletConfig struct {
-	NonceTTL time.Duration `mapstructure:"nonce_ttl"`
+	NonceTTL         time.Duration `mapstructure:"nonce_ttl"`
+	RateLimitEnabled bool          `mapstructure:"rate_limit_enabled"`
+	NonceLimit       int           `mapstructure:"nonce_limit"`
+	NonceWindow      time.Duration `mapstructure:"nonce_window"`
+}
+
+// AuthConfig contains password authentication security settings.
+// AuthConfig 保存密码登录安全配置。
+type AuthConfig struct {
+	RateLimitEnabled bool          `mapstructure:"rate_limit_enabled"`
+	LoginLimit       int           `mapstructure:"login_limit"`
+	LoginWindow      time.Duration `mapstructure:"login_window"`
 }
 
 // PhoneConfig contains phone verification-code login settings.
@@ -227,6 +239,12 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.public_key_path", "./configs/jwt_public.pem")
 	v.SetDefault("jwt.active_key_id", "default")
 	v.SetDefault("wallet.nonce_ttl", "5m")
+	v.SetDefault("wallet.rate_limit_enabled", true)
+	v.SetDefault("wallet.nonce_limit", 10)
+	v.SetDefault("wallet.nonce_window", "1m")
+	v.SetDefault("auth.rate_limit_enabled", true)
+	v.SetDefault("auth.login_limit", 5)
+	v.SetDefault("auth.login_window", "5m")
 	v.SetDefault("phone.enabled", true)
 	v.SetDefault("phone.code_store", "memory")
 	v.SetDefault("phone.code_ttl", "5m")

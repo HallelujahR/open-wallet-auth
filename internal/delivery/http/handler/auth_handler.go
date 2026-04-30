@@ -188,6 +188,8 @@ func writeAuthError(c *gin.Context, err error) {
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
 		case authusecase.ErrInvalidRefreshToken:
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
+		case authusecase.ErrRateLimited:
+			response.Error(c, http.StatusTooManyRequests, appErr.Code, appErr.Message)
 		default:
 			response.Error(c, http.StatusBadRequest, appErr.Code, appErr.Message)
 		}

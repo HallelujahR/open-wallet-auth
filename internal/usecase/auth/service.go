@@ -19,6 +19,7 @@ const (
 	ErrInvalidCredentials  = "AUTH_INVALID_CREDENTIALS"
 	ErrInvalidInput        = "AUTH_INVALID_INPUT"
 	ErrInvalidRefreshToken = "AUTH_INVALID_REFRESH_TOKEN"
+	ErrRateLimited         = "AUTH_RATE_LIMITED"
 )
 
 // PasswordHasher hashes and verifies user passwords.
@@ -48,9 +49,13 @@ type Service struct {
 	clients       repository.ClientRepository
 	refreshTokens repository.RefreshTokenRepository
 	activity      repository.ActivityRepository
+	limiter       repository.RateLimiter
 	hasher        PasswordHasher
 	tokenHasher   TokenHasher
 	issuer        TokenIssuer
+	rateLimit     bool
+	loginLimit    int
+	loginWindow   time.Duration
 }
 
 // LoginRequest is the input for password login.
@@ -122,18 +127,26 @@ func NewService(
 	clients repository.ClientRepository,
 	refreshTokens repository.RefreshTokenRepository,
 	activity repository.ActivityRepository,
+	limiter repository.RateLimiter,
 	hasher PasswordHasher,
 	tokenHasher TokenHasher,
 	issuer TokenIssuer,
+	rateLimit bool,
+	loginLimit int,
+	loginWindow time.Duration,
 ) *Service {
 	return &Service{
 		users:         users,
 		clients:       clients,
 		refreshTokens: refreshTokens,
 		activity:      activity,
+		limiter:       limiter,
 		hasher:        hasher,
 		tokenHasher:   tokenHasher,
 		issuer:        issuer,
+		rateLimit:     rateLimit,
+		loginLimit:    loginLimit,
+		loginWindow:   loginWindow,
 	}
 }
 
@@ -142,6 +155,9 @@ func NewService(
 func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, error) {
 	req.ClientID = defaultClientID(req.ClientID)
 	req.Email = strings.TrimSpace(req.Email)
+	if err := s.checkLoginLimit(ctx, req.ClientID, req.Email); err != nil {
+		return nil, err
+	}
 
 	client, err := s.clients.FindByClientID(ctx, req.ClientID)
 	if err != nil || client == nil || !client.IsActive() {
@@ -325,6 +341,22 @@ func (s *Service) Logout(ctx context.Context, req LogoutRequest) error {
 		return nil
 	}
 	return s.refreshTokens.Revoke(ctx, refreshToken.ID)
+}
+
+// checkLoginLimit verifies password-login rate limits.
+// checkLoginLimit 校验邮箱密码登录是否超过频率限制。
+func (s *Service) checkLoginLimit(ctx context.Context, clientID string, email string) error {
+	if !s.rateLimit || s.limiter == nil || email == "" {
+		return nil
+	}
+	ok, err := s.limiter.Allow(ctx, "auth:login:"+clientID+":"+strings.ToLower(email), s.loginLimit, s.loginWindow)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.NewError(ErrRateLimited, "too many login attempts")
+	}
+	return nil
 }
 
 // storeRefreshToken hashes and persists the opaque refresh token.

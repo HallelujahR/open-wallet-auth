@@ -12,6 +12,7 @@ The service owns authentication. Your business applications still own their own 
 - Email verification code sending and checking
 - Phone verification-code login
 - Redis-backed verification-code storage and rate limiting
+- Password-login and wallet-nonce rate limiting
 - EVM wallet signature login with SIWE-compatible messages
 - Google and GitHub OAuth start/callback flow
 - JWT access tokens signed with RS256
@@ -28,7 +29,7 @@ The service owns authentication. Your business applications still own their own 
 
 ## Status
 
-This project is in early development. It is suitable for local integration testing and architecture validation. Production use still requires additional hardening such as rate limiting, failed-login auditing, operational migrations, and stronger management APIs.
+This project is in early development. It is suitable for local integration testing and architecture validation. Production use still requires additional hardening such as failed-login auditing, operational migrations, and stronger management APIs.
 
 ## Architecture
 
@@ -164,6 +165,8 @@ Important settings:
 - `jwt.private_key_path`: RSA private key path
 - `jwt.public_key_path`: RSA public key path
 - `wallet.nonce_ttl`: wallet challenge lifetime
+- `wallet.rate_limit_*`: wallet nonce creation limits
+- `auth.rate_limit_*`: password-login limits
 - `phone.code_ttl`: phone verification-code lifetime
 - `phone.code_store`: verification-code storage, `memory` or `redis`
 - `phone.dev_code`: local development phone code
@@ -190,7 +193,6 @@ CGO_ENABLED=0 go build ./cmd/server
 
 ## Roadmap
 
-- Rate limiting for password login and wallet nonce endpoints
 - Failed-login auditing
 - Production migration command
 - Wallet binding and unbinding APIs

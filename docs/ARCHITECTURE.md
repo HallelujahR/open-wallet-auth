@@ -51,7 +51,7 @@ examples
 - Wallet auth lives in `internal/usecase/wallet`; EVM address and signature details are isolated in `internal/infrastructure/wallet`.
 - Phone auth lives in `internal/usecase/phone`; verification-code storage is behind `repository.PhoneCodeRepository`.
 - Email verification lives in `internal/usecase/email`; message delivery is behind usecase provider ports implemented by `internal/infrastructure/message`.
-- Verification-code rate limiting is behind `repository.RateLimiter`; Redis and no-op implementations live in infrastructure.
+- Rate limiting for verification codes, password login, and wallet nonce creation is behind `repository.RateLimiter`; Redis and no-op implementations live in infrastructure.
 - OAuth auth lives in `internal/usecase/oauth`; provider HTTP exchange and state storage are isolated in `internal/infrastructure/oauth`.
 - Client management and dynamic audience resolution live in `internal/usecase/client`.
 - Internal identity management lives in `internal/usecase/admin`; it can inspect identity users, login activity, wallet bindings, and OAuth bindings, but it does not own business-system profiles or permissions.

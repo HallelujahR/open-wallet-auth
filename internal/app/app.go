@@ -96,9 +96,24 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("initialize jwt service: %w", err)
 	}
+	phoneCodeRepo := phoneCodeRepository(cfg, redisClient)
+	emailCodeRepo := emailCodeRepository(cfg, redisClient)
+	limiter := rateLimiter(cfg, redisClient)
 	// Wire usecases with ports only; concrete adapters stay in infrastructure.
 	// 这里只做依赖装配：usecase 接收端口，具体实现留在 infrastructure 层。
-	authService := authusecase.NewService(userRepo, clientRepo, refreshTokenRepo, activityRepo, hasher, tokenHasher, tokenIssuer)
+	authService := authusecase.NewService(
+		userRepo,
+		clientRepo,
+		refreshTokenRepo,
+		activityRepo,
+		limiter,
+		hasher,
+		tokenHasher,
+		tokenIssuer,
+		cfg.Auth.RateLimitEnabled,
+		cfg.Auth.LoginLimit,
+		cfg.Auth.LoginWindow,
+	)
 	clientService := clientusecase.NewService(clientRepo)
 	adminService := adminusecase.NewService(adminusecase.Dependencies{
 		Users:    userRepo,
@@ -109,9 +124,6 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 	})
 	smsProvider, _ := inframessage.NewProvider(cfg.Phone.Provider)
 	_, emailProvider := inframessage.NewProvider(cfg.Email.Provider)
-	phoneCodeRepo := phoneCodeRepository(cfg, redisClient)
-	emailCodeRepo := emailCodeRepository(cfg, redisClient)
-	limiter := rateLimiter(cfg, redisClient)
 	phoneService := phoneusecase.NewService(phoneusecase.Dependencies{
 		Users:         userRepo,
 		Clients:       clientRepo,
@@ -187,9 +199,13 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 		RefreshTokens: refreshTokenRepo,
 		Activity:      activityRepo,
 		Verifier:      infrawallet.NewEVMVerifier(),
+		Limiter:       limiter,
 		TokenHasher:   tokenHasher,
 		Issuer:        tokenIssuer,
 		NonceTTL:      cfg.Wallet.NonceTTL,
+		RateLimit:     cfg.Wallet.RateLimitEnabled,
+		NonceLimit:    cfg.Wallet.NonceLimit,
+		NonceWindow:   cfg.Wallet.NonceWindow,
 		Clock:         clock.SystemClock{},
 	})
 

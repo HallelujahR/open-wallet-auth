@@ -42,6 +42,14 @@ jwt:
 
 wallet:
   nonce_ttl: 5m
+  rate_limit_enabled: true
+  nonce_limit: 10
+  nonce_window: 1m
+
+auth:
+  rate_limit_enabled: true
+  login_limit: 5
+  login_window: 5m
 
 phone:
   enabled: true

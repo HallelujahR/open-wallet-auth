@@ -22,6 +22,7 @@ const (
 	ErrInvalidClient        = "CLIENT_INVALID"
 	ErrInvalidNonce         = "WALLET_INVALID_NONCE"
 	ErrInvalidSignature     = "WALLET_INVALID_SIGNATURE"
+	ErrRateLimited          = "WALLET_RATE_LIMITED"
 )
 
 // Clock supplies time to keep wallet flows deterministic in tests.
@@ -59,9 +60,13 @@ type Service struct {
 	refreshTokens repository.RefreshTokenRepository
 	activity      repository.ActivityRepository
 	verifier      AddressVerifier
+	limiter       repository.RateLimiter
 	tokenHasher   TokenHasher
 	issuer        TokenIssuer
 	ttl           time.Duration
+	rateLimit     bool
+	nonceLimit    int
+	nonceWindow   time.Duration
 	clock         Clock
 }
 
@@ -74,9 +79,13 @@ type Dependencies struct {
 	RefreshTokens repository.RefreshTokenRepository
 	Activity      repository.ActivityRepository
 	Verifier      AddressVerifier
+	Limiter       repository.RateLimiter
 	TokenHasher   TokenHasher
 	Issuer        TokenIssuer
 	NonceTTL      time.Duration
+	RateLimit     bool
+	NonceLimit    int
+	NonceWindow   time.Duration
 	Clock         Clock
 }
 
@@ -127,9 +136,13 @@ func NewService(deps Dependencies) *Service {
 		refreshTokens: deps.RefreshTokens,
 		activity:      deps.Activity,
 		verifier:      deps.Verifier,
+		limiter:       deps.Limiter,
 		tokenHasher:   deps.TokenHasher,
 		issuer:        deps.Issuer,
 		ttl:           deps.NonceTTL,
+		rateLimit:     deps.RateLimit,
+		nonceLimit:    deps.NonceLimit,
+		nonceWindow:   deps.NonceWindow,
 		clock:         deps.Clock,
 	}
 }
@@ -147,6 +160,9 @@ func (s *Service) CreateNonce(ctx context.Context, req NonceRequest) (*NonceResu
 	}
 	if req.ChainID <= 0 {
 		req.ChainID = 1
+	}
+	if err := s.checkNonceLimit(ctx, address); err != nil {
+		return nil, err
 	}
 
 	value, err := randomNonce()
@@ -264,6 +280,22 @@ func (s *Service) VerifySignature(ctx context.Context, req VerifyRequest) (*Veri
 		Wallets:  []string{address},
 		Token:    pair,
 	}, nil
+}
+
+// checkNonceLimit verifies wallet nonce creation limits.
+// checkNonceLimit 校验钱包 nonce 创建是否超过频率限制。
+func (s *Service) checkNonceLimit(ctx context.Context, address string) error {
+	if !s.rateLimit || s.limiter == nil {
+		return nil
+	}
+	ok, err := s.limiter.Allow(ctx, "wallet:nonce:"+strings.ToLower(address), s.nonceLimit, s.nonceWindow)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.NewError(ErrRateLimited, "too many wallet nonce requests")
+	}
+	return nil
 }
 
 // BuildSIWEMessage returns the exact message clients must ask wallets to sign.

@@ -34,6 +34,28 @@ func TestServiceCreateNonceReturnsMessage(t *testing.T) {
 	}
 }
 
+func TestServiceCreateNonceRejectsRateLimitedAddress(t *testing.T) {
+	service := newTestService()
+	service.limiter = denyLimiter{}
+	service.rateLimit = true
+	service.nonceLimit = 1
+	service.nonceWindow = time.Minute
+
+	_, err := service.CreateNonce(context.Background(), NonceRequest{
+		Address: "0x0000000000000000000000000000000000000001",
+		Domain:  "example.com",
+		ChainID: 1,
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	var appErr *domain.Error
+	if !errors.As(err, &appErr) || appErr.Code != ErrRateLimited {
+		t.Fatalf("expected %s, got %v", ErrRateLimited, err)
+	}
+}
+
 func TestServiceVerifySignatureCreatesWalletUser(t *testing.T) {
 	service := newTestService()
 	result, err := service.CreateNonce(context.Background(), NonceRequest{
@@ -126,6 +148,12 @@ func (fakeVerifier) NormalizeAddress(address string) (string, error) {
 
 func (fakeVerifier) VerifyMessage(address string, message string, signature string) (bool, error) {
 	return signature == "valid", nil
+}
+
+type denyLimiter struct{}
+
+func (denyLimiter) Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error) {
+	return false, nil
 }
 
 type memoryWallets struct {
