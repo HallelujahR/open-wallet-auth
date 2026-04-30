@@ -32,6 +32,14 @@ type ChangePasswordRequest struct {
 	NewPassword     string `json:"new_password" binding:"required,min=8"`
 }
 
+// ResetPasswordRequest is the HTTP body for resetting a password with email code.
+// ResetPasswordRequest 是使用邮箱验证码重置密码的 HTTP 请求体。
+type ResetPasswordRequest struct {
+	Email       string `json:"email" binding:"required,email"`
+	Code        string `json:"code" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=8"`
+}
+
 // AuthUser is the user payload returned by auth endpoints.
 type AuthUser struct {
 	ID       string `json:"id"`

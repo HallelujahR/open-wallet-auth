@@ -16,7 +16,7 @@ import (
 
 func TestServiceRegisterSuccess(t *testing.T) {
 	users := newMemoryUsers()
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	result, err := service.Register(context.Background(), RegisterRequest{
 		ClientID: "default",
@@ -42,7 +42,7 @@ func TestServiceRegisterRejectsExistingEmail(t *testing.T) {
 		Email:  "alice@example.com",
 		Status: user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	_, err := service.Register(context.Background(), RegisterRequest{
 		ClientID: "default",
@@ -68,7 +68,7 @@ func TestServiceLoginRejectsInvalidPassword(t *testing.T) {
 		PasswordHash: "hash:correct",
 		Status:       user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	_, err := service.Login(context.Background(), LoginRequest{
 		ClientID: "default",
@@ -94,7 +94,7 @@ func TestServiceLoginRejectsRateLimitedEmail(t *testing.T) {
 		PasswordHash: "hash:correct",
 		Status:       user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), denyLimiter{}, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, true, 1, time.Minute)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, denyLimiter{}, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, true, 1, time.Minute)
 
 	_, err := service.Login(context.Background(), LoginRequest{
 		ClientID: "default",
@@ -129,7 +129,7 @@ func TestServiceRefreshRotatesRefreshToken(t *testing.T) {
 	}
 	refreshTokens.byID["rft_old"] = refreshTokens.byHash["hash:old_refresh"]
 	activity := newMemoryActivity()
-	service := NewService(users, defaultClients(), refreshTokens, activity, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), refreshTokens, activity, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	result, err := service.Refresh(context.Background(), RefreshRequest{RefreshToken: "old_refresh"})
 	if err != nil {
@@ -155,7 +155,7 @@ func TestServiceChangePasswordUpdatesHash(t *testing.T) {
 		PasswordHash: "hash:old-password",
 		Status:       user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	err := service.ChangePassword(context.Background(), ChangePasswordRequest{
 		UserID:          "usr_existing",
@@ -179,7 +179,7 @@ func TestServiceChangePasswordRejectsInvalidCurrentPassword(t *testing.T) {
 		PasswordHash: "hash:old-password",
 		Status:       user.StatusActive,
 	}
-	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
 
 	err := service.ChangePassword(context.Background(), ChangePasswordRequest{
 		UserID:          "usr_existing",
@@ -193,6 +193,56 @@ func TestServiceChangePasswordRejectsInvalidCurrentPassword(t *testing.T) {
 	var appErr *domain.Error
 	if !errors.As(err, &appErr) || appErr.Code != ErrInvalidCredentials {
 		t.Fatalf("expected %s, got %v", ErrInvalidCredentials, err)
+	}
+}
+
+func TestServiceResetPasswordUpdatesHashWithEmailCode(t *testing.T) {
+	users := newMemoryUsers()
+	existing := &user.User{
+		ID:           "usr_existing",
+		Username:     "alice",
+		Email:        "alice@example.com",
+		PasswordHash: "hash:old-password",
+		Status:       user.StatusActive,
+	}
+	users.byEmail["alice@example.com"] = existing
+	users.byID["usr_existing"] = existing
+	codes := newMemoryEmailCodes()
+	if err := codes.Save(context.Background(), "alice@example.com", "123456", time.Now().Add(time.Minute)); err != nil {
+		t.Fatalf("save code returned error: %v", err)
+	}
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), codes, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+
+	err := service.ResetPassword(context.Background(), ResetPasswordRequest{
+		Email:       "alice@example.com",
+		Code:        "123456",
+		NewPassword: "new-password",
+	})
+	if err != nil {
+		t.Fatalf("reset password returned error: %v", err)
+	}
+	if users.byEmail["alice@example.com"].PasswordHash != "hash:new-password" {
+		t.Fatal("expected password hash to be updated")
+	}
+}
+
+func TestServiceResetPasswordRejectsInvalidCode(t *testing.T) {
+	users := newMemoryUsers()
+	codes := newMemoryEmailCodes()
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), codes, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+
+	err := service.ResetPassword(context.Background(), ResetPasswordRequest{
+		Email:       "alice@example.com",
+		Code:        "wrong",
+		NewPassword: "new-password",
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	var appErr *domain.Error
+	if !errors.As(err, &appErr) || appErr.Code != ErrInvalidCode {
+		t.Fatalf("expected %s, got %v", ErrInvalidCode, err)
 	}
 }
 
@@ -273,6 +323,33 @@ type memoryRefreshTokens struct {
 type memoryActivity struct {
 	loginCount      int
 	userClientCount int
+}
+
+type memoryEmailCodes struct {
+	codes map[string]memoryEmailCode
+}
+
+type memoryEmailCode struct {
+	code      string
+	expiresAt time.Time
+}
+
+func newMemoryEmailCodes() *memoryEmailCodes {
+	return &memoryEmailCodes{codes: map[string]memoryEmailCode{}}
+}
+
+func (m *memoryEmailCodes) Save(ctx context.Context, email string, code string, expiresAt time.Time) error {
+	m.codes[email] = memoryEmailCode{code: code, expiresAt: expiresAt}
+	return nil
+}
+
+func (m *memoryEmailCodes) Verify(ctx context.Context, email string, code string, now time.Time) (bool, error) {
+	stored, ok := m.codes[email]
+	if !ok || stored.code != code || !stored.expiresAt.After(now) {
+		return false, nil
+	}
+	delete(m.codes, email)
+	return true, nil
 }
 
 func newMemoryActivity() *memoryActivity {

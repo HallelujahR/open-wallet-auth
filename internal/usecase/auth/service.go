@@ -18,6 +18,7 @@ const (
 	ErrInvalidClient       = "CLIENT_INVALID"
 	ErrInvalidCredentials  = "AUTH_INVALID_CREDENTIALS"
 	ErrInvalidInput        = "AUTH_INVALID_INPUT"
+	ErrInvalidCode         = "AUTH_INVALID_CODE"
 	ErrInvalidRefreshToken = "AUTH_INVALID_REFRESH_TOKEN"
 	ErrRateLimited         = "AUTH_RATE_LIMITED"
 )
@@ -49,6 +50,7 @@ type Service struct {
 	clients       repository.ClientRepository
 	refreshTokens repository.RefreshTokenRepository
 	activity      repository.ActivityRepository
+	emailCodes    repository.EmailCodeRepository
 	limiter       repository.RateLimiter
 	hasher        PasswordHasher
 	tokenHasher   TokenHasher
@@ -128,6 +130,14 @@ type ChangePasswordRequest struct {
 	NewPassword     string
 }
 
+// ResetPasswordRequest is the input for resetting a password with an email code.
+// ResetPasswordRequest 是使用邮箱验证码重置密码的用例输入。
+type ResetPasswordRequest struct {
+	Email       string
+	Code        string
+	NewPassword string
+}
+
 // NewService creates the auth usecase service with its required ports.
 // NewService 创建认证用例服务，并通过端口注入外部依赖。
 func NewService(
@@ -135,6 +145,7 @@ func NewService(
 	clients repository.ClientRepository,
 	refreshTokens repository.RefreshTokenRepository,
 	activity repository.ActivityRepository,
+	emailCodes repository.EmailCodeRepository,
 	limiter repository.RateLimiter,
 	hasher PasswordHasher,
 	tokenHasher TokenHasher,
@@ -148,6 +159,7 @@ func NewService(
 		clients:       clients,
 		refreshTokens: refreshTokens,
 		activity:      activity,
+		emailCodes:    emailCodes,
 		limiter:       limiter,
 		hasher:        hasher,
 		tokenHasher:   tokenHasher,
@@ -375,6 +387,44 @@ func (s *Service) ChangePassword(ctx context.Context, req ChangePasswordRequest)
 		return err
 	}
 	if err := s.users.UpdatePassword(ctx, userID, hash); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ResetPassword verifies an email code and replaces the user's password hash.
+// ResetPassword 校验邮箱验证码后重置用户密码哈希。
+func (s *Service) ResetPassword(ctx context.Context, req ResetPasswordRequest) error {
+	if s.emailCodes == nil {
+		return domain.NewError(ErrInvalidInput, "password reset is not configured")
+	}
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	code := strings.TrimSpace(req.Code)
+	if email == "" || code == "" || len(req.NewPassword) < 8 {
+		return domain.NewError(ErrInvalidInput, "email, code, and a new password with at least 8 characters are required")
+	}
+
+	ok, err := s.emailCodes.Verify(ctx, email, code, time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.NewError(ErrInvalidCode, "invalid or expired email code")
+	}
+
+	u, err := s.users.FindByEmail(ctx, email)
+	if err != nil || u == nil || !u.IsActive() {
+		return domain.NewError(ErrInvalidCredentials, "invalid email user")
+	}
+	if s.hasher.Compare(u.PasswordHash, req.NewPassword) {
+		return domain.NewError(ErrInvalidInput, "new password must be different")
+	}
+
+	hash, err := s.hasher.Hash(req.NewPassword)
+	if err != nil {
+		return err
+	}
+	if err := s.users.UpdatePassword(ctx, u.ID, hash); err != nil {
 		return err
 	}
 	return nil

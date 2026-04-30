@@ -59,6 +59,18 @@ paths:
       responses:
         "200":
           description: Password changed
+  /api/v1/auth/password/reset:
+    post:
+      summary: Reset a password with an email verification code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset
   /api/v1/wallet/nonce:
     post:
       summary: Create a SIWE-compatible wallet login challenge
@@ -365,6 +377,21 @@ components:
         - new_password
       properties:
         current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+    ResetPasswordRequest:
+      type: object
+      required:
+        - email
+        - code
+        - new_password
+      properties:
+        email:
+          type: string
+          format: email
+        code:
           type: string
         new_password:
           type: string

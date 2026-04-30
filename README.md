@@ -20,6 +20,7 @@ The service owns authentication. Your business applications still own their own 
 - Refresh token persistence and rotation
 - Refresh token session management and revocation APIs
 - Authenticated password change endpoint
+- Email-code password reset endpoint
 - Multi-client login with `client_id` and JWT audience
 - Login activity and user-client tracking
 - Internal identity management APIs for users, bindings, and login logs
@@ -116,6 +117,14 @@ curl -X PATCH http://localhost:8080/api/v1/auth/password \
   -d '{"current_password":"password123","new_password":"new-password123"}'
 ```
 
+Reset a password with an email code:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/password/reset \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"alice@example.com","code":"123456","new_password":"new-password123"}'
+```
+
 Refresh token:
 
 ```bash
@@ -207,6 +216,6 @@ CGO_ENABLED=0 go build ./cmd/server
 - Production migration command
 - Wallet binding and unbinding APIs
 - Account linking between password users and wallet users
-- Safer password recovery flows
+- Password recovery hardening and audit events
 - Stronger admin/RBAC model for service management
 - More framework integration examples

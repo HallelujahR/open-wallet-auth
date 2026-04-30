@@ -47,7 +47,7 @@ examples
 
 ## Current Boundaries
 
-- Password auth lives in `internal/usecase/auth`.
+- Password auth, authenticated password change, and email-code password reset live in `internal/usecase/auth`.
 - Wallet auth lives in `internal/usecase/wallet`; EVM address and signature details are isolated in `internal/infrastructure/wallet`.
 - Phone auth lives in `internal/usecase/phone`; verification-code storage is behind `repository.PhoneCodeRepository`.
 - Email verification lives in `internal/usecase/email`; message delivery is behind usecase provider ports implemented by `internal/infrastructure/message`.

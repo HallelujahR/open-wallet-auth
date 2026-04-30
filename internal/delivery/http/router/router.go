@@ -56,6 +56,7 @@ func New(deps Dependencies) *gin.Engine {
 				auth.POST("/login", deps.Auth.Login)
 				auth.POST("/refresh", deps.Auth.Refresh)
 				auth.POST("/logout", deps.Auth.Logout)
+				auth.POST("/password/reset", deps.Auth.ResetPassword)
 				if deps.Token != nil && deps.AudienceResolver != nil {
 					authenticated := auth.Group("", middleware.AuthenticateClient(deps.Token, deps.AudienceResolver))
 					{

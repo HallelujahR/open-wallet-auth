@@ -179,6 +179,27 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	response.OK(c, gin.H{"password_changed": true})
 }
 
+// ResetPassword resets a password with a verified email code.
+// ResetPassword 使用邮箱验证码重置用户密码。
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req dto.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, authusecase.ErrInvalidInput, "invalid request")
+		return
+	}
+
+	if err := h.auth.ResetPassword(c.Request.Context(), authusecase.ResetPasswordRequest{
+		Email:       req.Email,
+		Code:        req.Code,
+		NewPassword: req.NewPassword,
+	}); err != nil {
+		writeAuthError(c, err)
+		return
+	}
+
+	response.OK(c, gin.H{"password_reset": true})
+}
+
 // Me returns the authenticated user claims injected by auth middleware.
 // Me 返回认证中间件注入的当前用户 claims。
 func (h *AuthHandler) Me(c *gin.Context) {
@@ -219,6 +240,8 @@ func writeAuthError(c *gin.Context, err error) {
 		case authusecase.ErrEmailAlreadyExists:
 			response.Error(c, http.StatusConflict, appErr.Code, appErr.Message)
 		case authusecase.ErrInvalidClient:
+			response.Error(c, http.StatusBadRequest, appErr.Code, appErr.Message)
+		case authusecase.ErrInvalidCode:
 			response.Error(c, http.StatusBadRequest, appErr.Code, appErr.Message)
 		case authusecase.ErrInvalidCredentials:
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)

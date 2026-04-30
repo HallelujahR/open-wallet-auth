@@ -106,6 +106,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 		clientRepo,
 		refreshTokenRepo,
 		activityRepo,
+		emailCodeRepo,
 		limiter,
 		hasher,
 		tokenHasher,
