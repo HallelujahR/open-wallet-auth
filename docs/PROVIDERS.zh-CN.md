@@ -1,9 +1,11 @@
 # 短信和邮件服务商接入
 
-Open Wallet Auth 默认提供 `noop` 和 `webhook` 两种消息服务商模式。
+Open Wallet Auth 提供 `noop`、`webhook`、`smtp`、`aliyun_sms` 四种消息服务商模式。
 
 - `noop`：不真正发送消息，适合本地开发。
-- `webhook`：认证服务把验证码发送请求转发到你自己的 HTTP 服务，由你的服务再对接阿里云短信、腾讯云短信、SendGrid、Resend、企业邮件网关等。
+- `webhook`：认证服务把验证码发送请求转发到你自己的 HTTP 服务。
+- `smtp`：直接通过 SMTP 发送邮箱验证码。
+- `aliyun_sms`：直接通过阿里云短信 SendSms API 发送手机号验证码。
 
 ## 开关
 
@@ -50,16 +52,18 @@ email:
 phone:
   provider:
     type: webhook
-    webhook_url: https://your-message-service.example.com/messages
-    bearer_token: your-secret-token
+    webhook:
+      url: https://your-message-service.example.com/messages
+      bearer_token: your-secret-token
     headers:
       X-Provider: open-wallet-auth
 
 email:
   provider:
     type: webhook
-    webhook_url: https://your-message-service.example.com/messages
-    bearer_token: your-secret-token
+    webhook:
+      url: https://your-message-service.example.com/messages
+      bearer_token: your-secret-token
     headers:
       X-Provider: open-wallet-auth
 ```
@@ -86,6 +90,39 @@ email:
 ```
 
 你的 Webhook 服务只需要返回任意 `2xx` 状态码，认证服务就会认为发送成功。非 `2xx` 会被视为发送失败。
+
+## SMTP 邮件配置
+
+```yaml
+email:
+  provider:
+    type: smtp
+    smtp:
+      host: smtp.example.com
+      port: 587
+      username: noreply@example.com
+      password: your-smtp-password
+      from: noreply@example.com
+```
+
+`from` 为空时默认使用 `username`。真实密码建议通过环境变量或服务器密钥管理注入，不要提交到仓库。
+
+## 阿里云短信配置
+
+```yaml
+phone:
+  provider:
+    type: aliyun_sms
+    aliyun_sms:
+      access_key_id: your-access-key-id
+      access_key_secret: your-access-key-secret
+      sign_name: your-approved-sign-name
+      template_code: SMS_000000000
+      region_id: cn-hangzhou
+      endpoint: https://dysmsapi.aliyuncs.com
+```
+
+当前实现会把验证码作为模板变量 `code` 发送，因此阿里云短信模板需要包含 `${code}`。签名和模板必须先在阿里云控制台审核通过。
 
 ## 自定义 Go 适配器
 

@@ -109,12 +109,42 @@ type EmailConfig struct {
 	Provider            MessageProviderConfig `mapstructure:"provider"`
 }
 
-// MessageProviderConfig contains webhook-style message provider settings.
+// MessageProviderConfig contains message provider settings.
+// MessageProviderConfig 保存短信/邮件服务商配置。
 type MessageProviderConfig struct {
-	Type        string            `mapstructure:"type"`
-	WebhookURL  string            `mapstructure:"webhook_url"`
-	BearerToken string            `mapstructure:"bearer_token"`
-	Headers     map[string]string `mapstructure:"headers"`
+	Type      string            `mapstructure:"type"`
+	Webhook   WebhookConfig     `mapstructure:"webhook"`
+	SMTP      SMTPConfig        `mapstructure:"smtp"`
+	AliyunSMS AliyunSMSConfig   `mapstructure:"aliyun_sms"`
+	Headers   map[string]string `mapstructure:"headers"`
+}
+
+// WebhookConfig contains generic HTTP message gateway settings.
+// WebhookConfig 保存通用 HTTP 消息网关配置。
+type WebhookConfig struct {
+	URL         string `mapstructure:"url"`
+	BearerToken string `mapstructure:"bearer_token"`
+}
+
+// SMTPConfig contains SMTP email provider settings.
+// SMTPConfig 保存 SMTP 邮件服务商配置。
+type SMTPConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	From     string `mapstructure:"from"`
+}
+
+// AliyunSMSConfig contains Aliyun SMS provider settings.
+// AliyunSMSConfig 保存阿里云短信服务商配置。
+type AliyunSMSConfig struct {
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	AccessKeySecret string `mapstructure:"access_key_secret"`
+	SignName        string `mapstructure:"sign_name"`
+	TemplateCode    string `mapstructure:"template_code"`
+	RegionID        string `mapstructure:"region_id"`
+	Endpoint        string `mapstructure:"endpoint"`
 }
 
 // OAuthConfig contains third-party OAuth provider settings.
@@ -208,6 +238,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("phone.verify_limit", 5)
 	v.SetDefault("phone.verify_window", "5m")
 	v.SetDefault("phone.provider.type", "noop")
+	v.SetDefault("phone.provider.aliyun_sms.region_id", "cn-hangzhou")
+	v.SetDefault("phone.provider.aliyun_sms.endpoint", "https://dysmsapi.aliyuncs.com")
 	v.SetDefault("email.verification_enabled", true)
 	v.SetDefault("email.code_store", "memory")
 	v.SetDefault("email.code_ttl", "15m")
@@ -219,6 +251,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("email.verify_limit", 5)
 	v.SetDefault("email.verify_window", "5m")
 	v.SetDefault("email.provider.type", "noop")
+	v.SetDefault("email.provider.smtp.port", 587)
 	v.SetDefault("oauth.state_ttl", "10m")
 	v.SetDefault("oauth.google.auth_url", "https://accounts.google.com/o/oauth2/v2/auth")
 	v.SetDefault("oauth.google.token_url", "https://oauth2.googleapis.com/token")

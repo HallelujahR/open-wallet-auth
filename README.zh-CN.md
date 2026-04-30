@@ -167,11 +167,11 @@ curl -X POST http://localhost:8080/api/v1/wallet/verify \
 - `phone.dev_code`：本地开发验证码
 - `phone.rate_limit_*`：手机号验证码发送和校验限流配置
 - `phone.enabled`：是否开启手机号验证码登录
-- `phone.provider.*`：自定义短信服务商 Webhook 配置
+- `phone.provider.*`：短信服务商配置，支持 `noop`、`webhook`、`aliyun_sms`
 - `email.verification_enabled`：是否开启邮箱验证接口
 - `email.code_store`：验证码存储方式，支持 `memory` 或 `redis`
 - `email.rate_limit_*`：邮箱验证码发送和校验限流配置
-- `email.provider.*`：自定义邮件服务商 Webhook 配置
+- `email.provider.*`：邮件服务商配置，支持 `noop`、`webhook`、`smtp`
 - `redis.enabled`：是否启用 Redis 适配器，用于验证码存储和限流
 - `oauth.google.*`：Google OAuth 凭据和端点
 - `oauth.github.*`：GitHub OAuth 凭据和端点

@@ -167,11 +167,11 @@ Important settings:
 - `phone.dev_code`: local development phone code
 - `phone.rate_limit_*`: phone code send and verify limits
 - `phone.enabled`: enable or disable phone-code login
-- `phone.provider.*`: custom SMS provider webhook settings
+- `phone.provider.*`: SMS provider settings, including `noop`, `webhook`, and `aliyun_sms`
 - `email.verification_enabled`: enable or disable email verification endpoints
 - `email.code_store`: verification-code storage, `memory` or `redis`
 - `email.rate_limit_*`: email code send and verify limits
-- `email.provider.*`: custom email provider webhook settings
+- `email.provider.*`: email provider settings, including `noop`, `webhook`, and `smtp`
 - `redis.enabled`: enable Redis adapters for code storage and rate limiting
 - `oauth.google.*`: Google OAuth credentials and endpoints
 - `oauth.github.*`: GitHub OAuth credentials and endpoints

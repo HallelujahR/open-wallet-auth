@@ -57,8 +57,16 @@ phone:
   verify_window: 5m
   provider:
     type: noop
-    webhook_url: ""
-    bearer_token: ""
+    webhook:
+      url: ""
+      bearer_token: ""
+    aliyun_sms:
+      access_key_id: ""
+      access_key_secret: ""
+      sign_name: ""
+      template_code: ""
+      region_id: cn-hangzhou
+      endpoint: https://dysmsapi.aliyuncs.com
     headers: {}
 
 email:
@@ -75,8 +83,15 @@ email:
   verify_window: 5m
   provider:
     type: noop
-    webhook_url: ""
-    bearer_token: ""
+    webhook:
+      url: ""
+      bearer_token: ""
+    smtp:
+      host: ""
+      port: 587
+      username: ""
+      password: ""
+      from: ""
     headers: {}
 
 oauth:
