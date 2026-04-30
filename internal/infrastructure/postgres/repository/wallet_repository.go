@@ -118,6 +118,19 @@ func (r *WalletRepository) ListByUserID(ctx context.Context, userID string) ([]w
 	return wallets, nil
 }
 
+// DeleteByID removes one wallet binding owned by a user.
+// DeleteByID 删除某个用户名下的钱包绑定。
+func (r *WalletRepository) DeleteByID(ctx context.Context, userID string, walletID string) error {
+	result := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", walletID, userID).Delete(&model.UserWallet{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domainrepo.ErrNotFound
+	}
+	return nil
+}
+
 // toDomainWallet converts a wallet row into the domain wallet entity.
 // toDomainWallet 将钱包数据库行转换为领域钱包实体。
 func toDomainWallet(row model.UserWallet) *walletdomain.UserWallet {

@@ -47,12 +47,14 @@ type AdminActivityRepository interface {
 // AdminWalletRepository 定义身份管理接口需要的钱包查询能力。
 type AdminWalletRepository interface {
 	ListByUserID(ctx context.Context, userID string) ([]wallet.UserWallet, error)
+	DeleteByID(ctx context.Context, userID string, walletID string) error
 }
 
 // AdminOAuthAccountRepository defines OAuth account queries required by identity management.
 // AdminOAuthAccountRepository 定义身份管理接口需要的第三方账号查询能力。
 type AdminOAuthAccountRepository interface {
 	ListByUserID(ctx context.Context, userID string) ([]oauth.Account, error)
+	DeleteByID(ctx context.Context, userID string, accountID string) error
 }
 
 // AdminRefreshTokenRepository defines session management operations.

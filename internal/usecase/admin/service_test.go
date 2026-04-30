@@ -99,6 +99,22 @@ func TestServiceRevokeUserSessions(t *testing.T) {
 	}
 }
 
+func TestServiceUnbindWallet(t *testing.T) {
+	service := newTestService()
+
+	if err := service.UnbindWallet(context.Background(), UnbindRequest{UserID: "usr_1", BindingID: "wal_1"}); err != nil {
+		t.Fatalf("UnbindWallet returned error: %v", err)
+	}
+}
+
+func TestServiceUnbindOAuthAccount(t *testing.T) {
+	service := newTestService()
+
+	if err := service.UnbindOAuthAccount(context.Background(), UnbindRequest{UserID: "usr_1", BindingID: "oac_1"}); err != nil {
+		t.Fatalf("UnbindOAuthAccount returned error: %v", err)
+	}
+}
+
 func newTestService() *Service {
 	users := &memoryAdminUsers{status: user.StatusActive}
 	return NewService(Dependencies{
@@ -155,10 +171,24 @@ func (memoryAdminWallets) ListByUserID(ctx context.Context, userID string) ([]wa
 	return []wallet.UserWallet{{ID: "wal_1", UserID: userID, ChainType: wallet.ChainTypeEVM, Address: "0x0000000000000000000000000000000000000001", VerifiedAt: testTime, CreatedAt: testTime}}, nil
 }
 
+func (memoryAdminWallets) DeleteByID(ctx context.Context, userID string, walletID string) error {
+	if userID != "usr_1" || walletID != "wal_1" {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
 type memoryAdminAccounts struct{}
 
 func (memoryAdminAccounts) ListByUserID(ctx context.Context, userID string) ([]oauth.Account, error) {
 	return []oauth.Account{{ID: "oac_1", UserID: userID, Provider: "github", ProviderSubject: "10001", CreatedAt: testTime, UpdatedAt: testTime}}, nil
+}
+
+func (memoryAdminAccounts) DeleteByID(ctx context.Context, userID string, accountID string) error {
+	if userID != "usr_1" || accountID != "oac_1" {
+		return repository.ErrNotFound
+	}
+	return nil
 }
 
 type memoryAdminSessions struct{}

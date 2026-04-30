@@ -72,6 +72,19 @@ func (r *OAuthAccountRepository) ListByUserID(ctx context.Context, userID string
 	return accounts, nil
 }
 
+// DeleteByID removes one OAuth account binding owned by a user.
+// DeleteByID 删除某个用户名下的第三方账号绑定。
+func (r *OAuthAccountRepository) DeleteByID(ctx context.Context, userID string, accountID string) error {
+	result := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", accountID, userID).Delete(&model.OAuthAccount{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domainrepo.ErrNotFound
+	}
+	return nil
+}
+
 // toDomainOAuthAccount converts a database row into a domain OAuth account.
 // toDomainOAuthAccount 将数据库行转换为领域 OAuth 账号实体。
 func toDomainOAuthAccount(row model.OAuthAccount) *oauth.Account {

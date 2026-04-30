@@ -103,6 +103,8 @@ func New(deps Dependencies) *gin.Engine {
 				admin.GET("/users/:user_id", deps.Admin.GetUser)
 				admin.PATCH("/users/:user_id/status", deps.Admin.UpdateUserStatus)
 				admin.DELETE("/users/:user_id/sessions", deps.Admin.RevokeUserSessions)
+				admin.DELETE("/users/:user_id/wallets/:wallet_id", deps.Admin.UnbindWallet)
+				admin.DELETE("/users/:user_id/oauth-accounts/:account_id", deps.Admin.UnbindOAuthAccount)
 				admin.GET("/login-logs", deps.Admin.ListLoginLogs)
 				admin.GET("/sessions", deps.Admin.ListSessions)
 				admin.DELETE("/sessions/:session_id", deps.Admin.RevokeSession)

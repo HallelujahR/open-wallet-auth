@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	ErrInvalidInput = "ADMIN_INVALID_INPUT"
-	ErrUserNotFound = "ADMIN_USER_NOT_FOUND"
+	ErrInvalidInput    = "ADMIN_INVALID_INPUT"
+	ErrUserNotFound    = "ADMIN_USER_NOT_FOUND"
+	ErrBindingNotFound = "ADMIN_BINDING_NOT_FOUND"
 )
 
 // Service orchestrates identity-management queries and commands.
@@ -117,6 +118,13 @@ type RevokeUserSessionsRequest struct {
 // RevokeSessionsResult 描述本次吊销的会话数量。
 type RevokeSessionsResult struct {
 	Revoked int64
+}
+
+// UnbindRequest is the input for removing a login-method binding.
+// UnbindRequest 是移除登录方式绑定的用例输入。
+type UnbindRequest struct {
+	UserID    string
+	BindingID string
 }
 
 // NewService creates the identity-management usecase service.
@@ -254,6 +262,49 @@ func (s *Service) RevokeUserSessions(ctx context.Context, req RevokeUserSessions
 		return nil, err
 	}
 	return &RevokeSessionsResult{Revoked: count}, nil
+}
+
+// UnbindWallet removes one wallet binding from an identity user.
+// UnbindWallet 从身份用户上解绑一个钱包。
+func (s *Service) UnbindWallet(ctx context.Context, req UnbindRequest) error {
+	userID, bindingID, err := normalizeBindingInput(req)
+	if err != nil {
+		return err
+	}
+	if err := s.wallets.DeleteByID(ctx, userID, bindingID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return domain.NewError(ErrBindingNotFound, "wallet binding not found")
+		}
+		return err
+	}
+	return nil
+}
+
+// UnbindOAuthAccount removes one OAuth account binding from an identity user.
+// UnbindOAuthAccount 从身份用户上解绑一个第三方账号。
+func (s *Service) UnbindOAuthAccount(ctx context.Context, req UnbindRequest) error {
+	userID, bindingID, err := normalizeBindingInput(req)
+	if err != nil {
+		return err
+	}
+	if err := s.accounts.DeleteByID(ctx, userID, bindingID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return domain.NewError(ErrBindingNotFound, "oauth account binding not found")
+		}
+		return err
+	}
+	return nil
+}
+
+// normalizeBindingInput validates user and binding ids for unlink operations.
+// normalizeBindingInput 校验解绑操作中的用户 ID 和绑定 ID。
+func normalizeBindingInput(req UnbindRequest) (string, string, error) {
+	userID := strings.TrimSpace(req.UserID)
+	bindingID := strings.TrimSpace(req.BindingID)
+	if userID == "" || bindingID == "" {
+		return "", "", domain.NewError(ErrInvalidInput, "user_id and binding_id are required")
+	}
+	return userID, bindingID, nil
 }
 
 // normalizePage returns bounded pagination values for management lists.

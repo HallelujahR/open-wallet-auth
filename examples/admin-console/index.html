@@ -459,8 +459,8 @@
           </div>
           ${renderTable("登录系统", ["Client", "首次登录", "最近登录", "次数"], (detail.clients || []).map((item) => [item.client_id, item.first_login_at, item.last_login_at, item.login_count]))}
           ${renderSessions(detail.sessions || [])}
-          ${renderTable("钱包绑定", ["链", "地址", "主钱包", "验证时间"], (detail.wallets || []).map((item) => [item.chain_type, item.address, item.is_primary ? "是" : "否", item.verified_at]))}
-          ${renderTable("第三方账号", ["服务商", "Subject", "邮箱", "用户名"], (detail.accounts || []).map((item) => [item.provider, item.provider_subject, item.provider_email || "-", item.provider_username || "-"]))}
+          ${renderWallets(detail.wallets || [])}
+          ${renderAccounts(detail.accounts || [])}
           ${renderTable("最近登录日志", ["Client", "方式", "IP", "时间"], logs.map((item) => [item.client_id, item.login_method, item.ip || "-", item.created_at]))}
         `;
         nodes.detail.querySelectorAll("[data-status]").forEach((button) => {
@@ -471,6 +471,12 @@
         });
         nodes.detail.querySelectorAll("[data-revoke-user-sessions]").forEach((button) => {
           button.addEventListener("click", () => revokeUserSessions(button.dataset.revokeUserSessions));
+        });
+        nodes.detail.querySelectorAll("[data-unbind-wallet]").forEach((button) => {
+          button.addEventListener("click", () => unbindWallet(user.id, button.dataset.unbindWallet));
+        });
+        nodes.detail.querySelectorAll("[data-unbind-account]").forEach((button) => {
+          button.addEventListener("click", () => unbindAccount(user.id, button.dataset.unbindAccount));
         });
       }
 
@@ -495,6 +501,60 @@
             <h2>登录会话</h2>
             <table>
               <thead><tr><th>Client</th><th>IP</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </section>
+        `;
+      }
+
+      function renderWallets(wallets) {
+        const rows = wallets.length
+          ? wallets
+              .map(
+                (item) => `
+                  <tr>
+                    <td>${escapeHtml(item.chain_type)}</td>
+                    <td>${escapeHtml(item.address)}</td>
+                    <td>${escapeHtml(item.is_primary ? "是" : "否")}</td>
+                    <td>${escapeHtml(item.verified_at)}</td>
+                    <td><button class="secondary" type="button" data-unbind-wallet="${escapeHtml(item.id)}">解绑</button></td>
+                  </tr>
+                `,
+              )
+              .join("")
+          : `<tr><td colspan="5" class="subtle">暂无数据</td></tr>`;
+        return `
+          <section>
+            <h2>钱包绑定</h2>
+            <table>
+              <thead><tr><th>链</th><th>地址</th><th>主钱包</th><th>验证时间</th><th>操作</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </section>
+        `;
+      }
+
+      function renderAccounts(accounts) {
+        const rows = accounts.length
+          ? accounts
+              .map(
+                (item) => `
+                  <tr>
+                    <td>${escapeHtml(item.provider)}</td>
+                    <td>${escapeHtml(item.provider_subject)}</td>
+                    <td>${escapeHtml(item.provider_email || "-")}</td>
+                    <td>${escapeHtml(item.provider_username || "-")}</td>
+                    <td><button class="secondary" type="button" data-unbind-account="${escapeHtml(item.id)}">解绑</button></td>
+                  </tr>
+                `,
+              )
+              .join("")
+          : `<tr><td colspan="5" class="subtle">暂无数据</td></tr>`;
+        return `
+          <section>
+            <h2>第三方账号</h2>
+            <table>
+              <thead><tr><th>服务商</th><th>Subject</th><th>邮箱</th><th>用户名</th><th>操作</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
           </section>
@@ -533,6 +593,20 @@
 
       async function revokeUserSessions(userID) {
         await api(`/api/v1/admin/users/${encodeURIComponent(userID)}/sessions`, { method: "DELETE" });
+        await loadUserDetail(userID);
+      }
+
+      async function unbindWallet(userID, walletID) {
+        await api(`/api/v1/admin/users/${encodeURIComponent(userID)}/wallets/${encodeURIComponent(walletID)}`, {
+          method: "DELETE",
+        });
+        await loadUserDetail(userID);
+      }
+
+      async function unbindAccount(userID, accountID) {
+        await api(`/api/v1/admin/users/${encodeURIComponent(userID)}/oauth-accounts/${encodeURIComponent(accountID)}`, {
+          method: "DELETE",
+        });
         await loadUserDetail(userID);
       }
 

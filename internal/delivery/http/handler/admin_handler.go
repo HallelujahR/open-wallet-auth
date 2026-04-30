@@ -129,6 +129,32 @@ func (h *AdminHandler) RevokeUserSessions(c *gin.Context) {
 	response.OK(c, dto.AdminRevokeSessionsResponse{Revoked: result.Revoked})
 }
 
+// UnbindWallet removes a wallet binding from one identity user.
+// UnbindWallet 从身份用户上解绑一个钱包。
+func (h *AdminHandler) UnbindWallet(c *gin.Context) {
+	if err := h.admin.UnbindWallet(c.Request.Context(), adminusecase.UnbindRequest{
+		UserID:    c.Param("user_id"),
+		BindingID: c.Param("wallet_id"),
+	}); err != nil {
+		writeAdminError(c, err)
+		return
+	}
+	response.OK(c, gin.H{"unbound": true})
+}
+
+// UnbindOAuthAccount removes an OAuth account binding from one identity user.
+// UnbindOAuthAccount 从身份用户上解绑一个第三方账号。
+func (h *AdminHandler) UnbindOAuthAccount(c *gin.Context) {
+	if err := h.admin.UnbindOAuthAccount(c.Request.Context(), adminusecase.UnbindRequest{
+		UserID:    c.Param("user_id"),
+		BindingID: c.Param("account_id"),
+	}); err != nil {
+		writeAdminError(c, err)
+		return
+	}
+	response.OK(c, gin.H{"unbound": true})
+}
+
 // ListLoginLogs returns paginated login audit events.
 // ListLoginLogs 返回分页登录审计事件。
 func (h *AdminHandler) ListLoginLogs(c *gin.Context) {
@@ -162,6 +188,8 @@ func writeAdminError(c *gin.Context, err error) {
 	if errors.As(err, &appErr) {
 		switch appErr.Code {
 		case adminusecase.ErrUserNotFound:
+			response.Error(c, http.StatusNotFound, appErr.Code, appErr.Message)
+		case adminusecase.ErrBindingNotFound:
 			response.Error(c, http.StatusNotFound, appErr.Code, appErr.Message)
 		default:
 			response.Error(c, http.StatusBadRequest, appErr.Code, appErr.Message)

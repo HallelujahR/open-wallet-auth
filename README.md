@@ -21,6 +21,7 @@ The service owns authentication. Your business applications still own their own 
 - Multi-client login with `client_id` and JWT audience
 - Login activity and user-client tracking
 - Internal identity management APIs for users, bindings, and login logs
+- Admin unbinding APIs for wallet and OAuth account bindings
 - Browser CORS configuration
 - Browser wallet login example
 - Gin API JWT verification example
@@ -194,6 +195,6 @@ CGO_ENABLED=0 go build ./cmd/server
 - Production migration command
 - Wallet binding and unbinding APIs
 - Account linking between password users and wallet users
-- Account unbinding and safer password recovery flows
+- Safer password recovery flows
 - Stronger admin/RBAC model for service management
 - More framework integration examples

@@ -249,6 +249,40 @@ paths:
       responses:
         "200":
           description: User sessions revoked
+  /api/v1/admin/users/{user_id}/wallets/{wallet_id}:
+    delete:
+      summary: Unbind one wallet from an identity user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: wallet_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Wallet unbound
+  /api/v1/admin/users/{user_id}/oauth-accounts/{account_id}:
+    delete:
+      summary: Unbind one OAuth account from an identity user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: account_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OAuth account unbound
   /api/v1/admin/sessions:
     get:
       summary: List refresh-token sessions for internal management
