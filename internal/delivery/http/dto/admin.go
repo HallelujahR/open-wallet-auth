@@ -1,5 +1,19 @@
 package dto
 
+// AdminLoginRequest is the request body for management-console login.
+// AdminLoginRequest 是认证管理后台登录请求体。
+type AdminLoginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// AdminLoginResponse contains the management session credential used by the console.
+// AdminLoginResponse 返回管理后台后续调用接口所需的会话凭证。
+type AdminLoginResponse struct {
+	TokenType  string `json:"token_type"`
+	AdminToken string `json:"admin_token"`
+}
+
 // AdminUserResponse is the management view of an identity user.
 // AdminUserResponse 是身份用户的管理视图。
 type AdminUserResponse struct {

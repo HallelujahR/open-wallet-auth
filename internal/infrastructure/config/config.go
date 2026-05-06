@@ -181,7 +181,9 @@ type OAuthProviderConfig struct {
 
 // ManagementConfig contains settings for management-only APIs.
 type ManagementConfig struct {
-	AdminToken string `mapstructure:"admin_token"`
+	AdminUsername string `mapstructure:"admin_username"`
+	AdminPassword string `mapstructure:"admin_password"`
+	AdminToken    string `mapstructure:"admin_token"`
 }
 
 // Load reads configuration from defaults, config files, and environment variables.
@@ -224,6 +226,9 @@ func (c Config) ValidateProduction() error {
 	}
 	if c.Management.AdminToken == "" || c.Management.AdminToken == "dev-admin-token" || len(c.Management.AdminToken) < 32 {
 		problems = append(problems, "management.admin_token must be at least 32 characters and non-default")
+	}
+	if c.Management.AdminUsername == "" || c.Management.AdminPassword == "" || c.Management.AdminPassword == "admin123456" || len(c.Management.AdminPassword) < 12 {
+		problems = append(problems, "management.admin_username and a strong management.admin_password are required")
 	}
 	if c.Phone.ExposeDevCode || c.Email.ExposeDevCode {
 		problems = append(problems, "phone.expose_dev_code and email.expose_dev_code must be false")
@@ -326,5 +331,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("oauth.github.token_url", "https://github.com/login/oauth/access_token")
 	v.SetDefault("oauth.github.user_info_url", "https://api.github.com/user")
 	v.SetDefault("oauth.github.scopes", []string{"read:user", "user:email"})
+	v.SetDefault("management.admin_username", "admin")
+	v.SetDefault("management.admin_password", "admin123456")
 	v.SetDefault("management.admin_token", "")
 }

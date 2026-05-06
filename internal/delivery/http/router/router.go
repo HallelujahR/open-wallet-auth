@@ -123,6 +123,9 @@ func New(deps Dependencies) *gin.Engine {
 			}
 		}
 		if deps.Admin != nil {
+			management := handler.NewManagementHandler(deps.Config.Management)
+			v1.POST("/admin/login", management.Login)
+
 			admin := v1.Group("/admin", middleware.RequireAdminToken(deps.AdminToken))
 			{
 				admin.GET("/users", deps.Admin.ListUsers)

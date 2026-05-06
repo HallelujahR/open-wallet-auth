@@ -12,6 +12,7 @@ http:
   cors_allowed_origins:
     - http://localhost:3000
     - http://localhost:5173
+    - http://localhost:5174
     - "null"
 
 log:
@@ -125,4 +126,6 @@ oauth:
       - user:email
 
 management:
+  admin_username: admin
+  admin_password: admin123456
   admin_token: dev-admin-token
