@@ -121,6 +121,12 @@ oauth:
       # blockx.example.com:
       #   client_id: ""
       #   client_secret: ""
+    tenant_credentials:
+      # Prefer this list form when hostnames contain dots.
+      # 域名包含点号时建议使用列表形式，避免配置解析器把点号当层级。
+      # - host: blockx.example.com
+      #   client_id: ""
+      #   client_secret: ""
   github:
     client_id: ""
     client_secret: ""
@@ -137,6 +143,12 @@ oauth:
       #   client_id: ""
       #   client_secret: ""
       # label.example.com:
+      #   client_id: ""
+      #   client_secret: ""
+    tenant_credentials:
+      # Prefer this list form when hostnames contain dots.
+      # 域名包含点号时建议使用列表形式，避免配置解析器把点号当层级。
+      # - host: blockx.example.com
       #   client_id: ""
       #   client_secret: ""
 

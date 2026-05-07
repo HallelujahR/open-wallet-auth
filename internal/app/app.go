@@ -183,7 +183,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 				TokenURL:     cfg.OAuth.Google.TokenURL,
 				UserInfoURL:  cfg.OAuth.Google.UserInfoURL,
 				Scopes:       cfg.OAuth.Google.Scopes,
-				Tenants:      oauthTenants(cfg.OAuth.Google.Tenants),
+				Tenants:      oauthTenants(cfg.OAuth.Google.Tenants, cfg.OAuth.Google.TenantCredentials),
 			}),
 			infraoauth.NewHTTPProvider(infraoauth.ProviderConfig{
 				Name:         "github",
@@ -193,7 +193,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 				TokenURL:     cfg.OAuth.GitHub.TokenURL,
 				UserInfoURL:  cfg.OAuth.GitHub.UserInfoURL,
 				Scopes:       cfg.OAuth.GitHub.Scopes,
-				Tenants:      oauthTenants(cfg.OAuth.GitHub.Tenants),
+				Tenants:      oauthTenants(cfg.OAuth.GitHub.Tenants, cfg.OAuth.GitHub.TenantCredentials),
 			}),
 		},
 		TokenHasher: tokenHasher,
@@ -316,13 +316,23 @@ func emailCodeRepository(cfg *config.Config, client *goredis.Client) repository.
 
 // oauthTenants maps config tenant credentials into the OAuth provider adapter model.
 // oauthTenants 将配置层租户凭据转换为 OAuth provider 适配器可用的结构。
-func oauthTenants(source map[string]config.OAuthProviderTenantConfig) map[string]infraoauth.ProviderTenantConfig {
-	if len(source) == 0 {
+func oauthTenants(source map[string]config.OAuthProviderTenantConfig, entries []config.OAuthProviderTenantConfig) map[string]infraoauth.ProviderTenantConfig {
+	if len(source) == 0 && len(entries) == 0 {
 		return nil
 	}
-	tenants := make(map[string]infraoauth.ProviderTenantConfig, len(source))
+	tenants := make(map[string]infraoauth.ProviderTenantConfig, len(source)+len(entries))
 	for host, tenant := range source {
 		tenants[strings.ToLower(strings.TrimSpace(host))] = infraoauth.ProviderTenantConfig{
+			ClientID:     tenant.ClientID,
+			ClientSecret: tenant.ClientSecret,
+		}
+	}
+	for _, tenant := range entries {
+		host := strings.ToLower(strings.TrimSpace(tenant.Host))
+		if host == "" {
+			continue
+		}
+		tenants[host] = infraoauth.ProviderTenantConfig{
 			ClientID:     tenant.ClientID,
 			ClientSecret: tenant.ClientSecret,
 		}
