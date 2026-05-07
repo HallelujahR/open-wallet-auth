@@ -138,4 +138,30 @@ type EmailProvider interface {
 }
 ```
 
-然后在 `internal/app/app.go` 中替换默认 provider wiring。
+然后在 `internal/app/wire_services.go` 中替换默认 provider wiring。
+
+## OAuth Provider 配置
+
+Google 和 GitHub OAuth 配置位于 `oauth.google`、`oauth.github`。当前实现支持默认凭据，也支持按业务域名区分的 tenant credentials。
+
+默认凭据：
+
+```yaml
+oauth:
+  github:
+    client_id: your-github-client-id
+    client_secret: your-github-client-secret
+```
+
+按域名配置独立凭据：
+
+```yaml
+oauth:
+  github:
+    tenant_credentials:
+      - host: blockx.example.com
+        client_id: your-blockx-github-client-id
+        client_secret: your-blockx-github-client-secret
+```
+
+当不同业务域名需要配置不同 OAuth App 或不同回调地址时，使用 tenant credentials。

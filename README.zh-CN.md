@@ -66,16 +66,17 @@ flowchart LR
 - domain 保存身份、token、钱包、OAuth、审计等核心概念。
 - repository interfaces 是端口，infrastructure adapters 负责具体实现。
 
-架构说明见：[docs/ARCHITECTURE.zh-CN.md](docs/ARCHITECTURE.zh-CN.md)
+文档分工见：[docs/README.zh-CN.md](docs/README.zh-CN.md)。架构说明见：[docs/ARCHITECTURE.zh-CN.md](docs/ARCHITECTURE.zh-CN.md)
 
 ## 接入
 
+- [文档地图](docs/README.zh-CN.md)
 - [接入指南](docs/INTEGRATION.zh-CN.md)
 - [通用认证前端 Demo](examples/universal-auth-demo)
 - [身份管理控制台 Demo](examples/admin-console)
 - [短信和邮件服务商接入](docs/PROVIDERS.zh-CN.md)
 - [部署指南](docs/DEPLOYMENT.zh-CN.md)
-- [开源发布收敛检查](docs/OPEN_SOURCE_READINESS.zh-CN.md)
+- [发布准备检查](docs/OPEN_SOURCE_READINESS.zh-CN.md)
 - [浏览器钱包登录示例](examples/browser-wallet-login)
 - [Gin API JWT 校验示例](examples/gin-api)
 

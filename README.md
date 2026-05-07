@@ -66,16 +66,17 @@ flowchart LR
 - Domain models hold core identity, token, wallet, OAuth, and audit concepts.
 - Repository interfaces are ports; infrastructure adapters implement them.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for project layout and dependency rules.
+See [docs/README.md](docs/README.md) for documentation ownership and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for project layout and dependency rules.
 
 ## Integration
 
-- [Chinese integration guide](docs/INTEGRATION.zh-CN.md)
+- [Documentation map](docs/README.md)
+- [Integration guide](docs/INTEGRATION.md)
 - [Universal auth frontend demo](examples/universal-auth-demo)
 - [Admin console demo](examples/admin-console)
-- [SMS and email provider guide](docs/PROVIDERS.zh-CN.md)
+- [Provider configuration guide](docs/PROVIDERS.md)
 - [Deployment guide](docs/DEPLOYMENT.md)
-- [Open source readiness checklist](docs/OPEN_SOURCE_READINESS.zh-CN.md)
+- [Release readiness checklist](docs/OPEN_SOURCE_READINESS.md)
 - [Browser wallet login example](examples/browser-wallet-login)
 - [Gin API JWT verification example](examples/gin-api)
 

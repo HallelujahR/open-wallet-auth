@@ -37,7 +37,7 @@ Business API
 
 Go/Gin 后端可以参考：[Gin API JWT 校验示例](../examples/gin-api)。
 
-通用前端可以参考：[通用认证前端 Demo](../examples/universal-auth-demo)。当前后端已支持邮箱密码、邮箱验证码验证、手机号验证码、钱包登录，以及 Google/GitHub OAuth start/callback。短信和邮件发送可以通过 `phone.provider`、`email.provider` 接入自定义 Webhook 服务商；Google/GitHub 需要先配置对应 provider 的 `client_id` 和 `client_secret`。
+通用前端可以参考：[通用认证前端 Demo](../examples/universal-auth-demo)。当前后端已支持邮箱密码、手机号验证码登录、钱包登录，以及 Google/GitHub OAuth start/callback。邮箱验证码接口用于邮箱验证、邮箱绑定和密码重置，不是独立的邮箱验证码登录方式。短信和邮件发送可以通过 `phone.provider`、`email.provider` 接入 Webhook、SMTP、阿里云短信等服务商；Google/GitHub 需要先配置对应 provider 的 `client_id` 和 `client_secret`。
 
 短信和邮件服务商配置见：[短信和邮件服务商接入](PROVIDERS.zh-CN.md)。
 
@@ -88,4 +88,4 @@ Open Wallet Auth 通过 `client_id` 识别用户登录的是哪个系统。
 3. 在业务系统前端接入钱包登录按钮。
 4. 在业务系统后端加入 JWT middleware。
 5. 根据 JWT 的 `sub` 自动创建或关联本业务用户资料。
-6. 后续再补用户中心、钱包绑定管理、后台管理权限。
+6. 根据需要开放用户资料、钱包绑定、OAuth 绑定和后台身份管理能力。

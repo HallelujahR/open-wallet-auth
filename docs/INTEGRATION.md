@@ -1,0 +1,85 @@
+# Integration Guide
+
+[简体中文](INTEGRATION.zh-CN.md)
+
+This document explains how a business application integrates with Open Wallet Auth. The auth service owns authentication, token issuance, and JWKS. Business applications still own business profiles, permissions, orders, content, and domain data.
+
+## Integration Model
+
+```text
+Browser UI
+  -> Open Wallet Auth: register, login, create wallet nonce, verify signature, start OAuth, receive JWT
+  -> Business API: send Authorization: Bearer <access_token>
+
+Business API
+  -> Open Wallet Auth JWKS: fetch public keys
+  -> Local JWT Middleware: verify issuer, audience, signature, expiry
+  -> Business Logic: use sub/client_id as identity references
+```
+
+## What the Business System Must Do
+
+- Create a `client_id` for the application, for example `example-app`.
+- Add JWT verification middleware in the API gateway or backend service.
+- Use the JWT `sub` claim as `auth_user_id` in the business database.
+- Keep business-specific profile, role, permission, order, and content tables in the business system.
+
+The business system does not store auth passwords and does not verify wallet signatures itself.
+
+## Login Methods
+
+- Email/password: `/api/v1/auth/register`, `/api/v1/auth/login`
+- Phone code login: `/api/v1/phone/code`, `/api/v1/phone/login`
+- Wallet login: `/api/v1/wallet/nonce`, `/api/v1/wallet/verify`
+- OAuth login: `/api/v1/oauth/:provider/start`, `/api/v1/oauth/:provider/callback`
+- Email verification code: `/api/v1/email/code`, `/api/v1/email/verify`
+
+Email verification codes are used for email verification, password reset, and email binding. They are not currently a standalone email-code login method.
+
+## Wallet Login Flow
+
+1. Detect EIP-1193 wallet providers in the browser.
+2. Ask the user to choose a wallet when multiple injected wallets exist.
+3. Request accounts through the selected provider.
+4. Call `POST /api/v1/wallet/nonce` with address, domain, and chain ID.
+5. Ask the wallet to sign the returned message.
+6. Call `POST /api/v1/wallet/verify` with `client_id`, address, nonce, and signature.
+7. Store the returned access token and refresh token.
+8. Call business APIs with `Authorization: Bearer <access_token>`.
+
+## Business User Table
+
+The auth service `users` table is the shared identity table. It is not the full business user profile.
+
+Recommended business-side profile table:
+
+```sql
+CREATE TABLE app_users (
+  id VARCHAR(64) PRIMARY KEY,
+  auth_user_id VARCHAR(64) NOT NULL UNIQUE,
+  display_name VARCHAR(128),
+  avatar VARCHAR(512),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+When a valid JWT is received for the first time, the business system can create a local profile row for that `auth_user_id`.
+
+## Multi-Application Login
+
+Open Wallet Auth uses `client_id` to identify the business application.
+
+- Empty `client_id` is normalized to `default`.
+- Each business application should create its own explicit `client_id`.
+- The JWT `audience` must match what the business API expects.
+- `user_clients` records which applications a user has logged into.
+
+This lets multiple systems share authentication while still keeping system-specific business data separate.
+
+## References
+
+- [Universal auth demo](../examples/universal-auth-demo)
+- [Browser wallet login example](../examples/browser-wallet-login)
+- [Gin API JWT verification example](../examples/gin-api)
+- [Provider configuration](PROVIDERS.md)
