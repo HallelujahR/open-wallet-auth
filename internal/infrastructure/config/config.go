@@ -171,12 +171,20 @@ type OAuthConfig struct {
 
 // OAuthProviderConfig contains one OAuth provider's credentials.
 type OAuthProviderConfig struct {
-	ClientID     string   `mapstructure:"client_id"`
-	ClientSecret string   `mapstructure:"client_secret"`
-	AuthURL      string   `mapstructure:"auth_url"`
-	TokenURL     string   `mapstructure:"token_url"`
-	UserInfoURL  string   `mapstructure:"user_info_url"`
-	Scopes       []string `mapstructure:"scopes"`
+	ClientID     string                               `mapstructure:"client_id"`
+	ClientSecret string                               `mapstructure:"client_secret"`
+	AuthURL      string                               `mapstructure:"auth_url"`
+	TokenURL     string                               `mapstructure:"token_url"`
+	UserInfoURL  string                               `mapstructure:"user_info_url"`
+	Scopes       []string                             `mapstructure:"scopes"`
+	Tenants      map[string]OAuthProviderTenantConfig `mapstructure:"tenants"`
+}
+
+// OAuthProviderTenantConfig overrides provider credentials for one redirect host.
+// OAuthProviderTenantConfig 按回调域名覆盖 OAuth 凭据，适合 GitHub 这类单 App 单回调的服务商。
+type OAuthProviderTenantConfig struct {
+	ClientID     string `mapstructure:"client_id"`
+	ClientSecret string `mapstructure:"client_secret"`
 }
 
 // ManagementConfig contains settings for management-only APIs.

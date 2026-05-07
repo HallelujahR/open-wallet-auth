@@ -24,6 +24,14 @@ type ProviderConfig struct {
 	TokenURL     string
 	UserInfoURL  string
 	Scopes       []string
+	Tenants      map[string]ProviderTenantConfig
+}
+
+// ProviderTenantConfig overrides OAuth credentials for one redirect host.
+// ProviderTenantConfig 按 redirect_uri 域名覆盖 OAuth 凭据，保证多业务系统共用认证中台时仍可使用独立 OAuth App。
+type ProviderTenantConfig struct {
+	ClientID     string
+	ClientSecret string
 }
 
 // HTTPProvider implements OAuth code exchange and userinfo loading with net/http.
@@ -48,14 +56,30 @@ func (p *HTTPProvider) Name() string {
 // Configured reports whether all required provider settings are present.
 // Configured 判断该 OAuth 服务商是否已经具备完整配置。
 func (p *HTTPProvider) Configured() bool {
-	return p.cfg.ClientID != "" && p.cfg.ClientSecret != "" && p.cfg.AuthURL != "" && p.cfg.TokenURL != "" && p.cfg.UserInfoURL != ""
+	if p.configComplete(p.cfg.ClientID, p.cfg.ClientSecret) {
+		return true
+	}
+	for _, tenant := range p.cfg.Tenants {
+		if p.configComplete(tenant.ClientID, tenant.ClientSecret) {
+			return true
+		}
+	}
+	return false
+}
+
+// ConfiguredForRedirect reports whether redirect_uri can resolve a complete credential pair.
+// ConfiguredForRedirect 判断指定回调地址是否能匹配到完整 OAuth 凭据。
+func (p *HTTPProvider) ConfiguredForRedirect(redirectURI string) bool {
+	cfg := p.configForRedirect(redirectURI)
+	return p.configComplete(cfg.ClientID, cfg.ClientSecret)
 }
 
 // AuthURL builds the provider authorization URL for browser redirection.
 // AuthURL 构造浏览器需要跳转的第三方授权地址。
 func (p *HTTPProvider) AuthURL(state string, redirectURI string) string {
+	cfg := p.configForRedirect(redirectURI)
 	values := url.Values{}
-	values.Set("client_id", p.cfg.ClientID)
+	values.Set("client_id", cfg.ClientID)
 	values.Set("redirect_uri", redirectURI)
 	values.Set("response_type", "code")
 	values.Set("state", state)
@@ -68,10 +92,11 @@ func (p *HTTPProvider) AuthURL(state string, redirectURI string) string {
 // FetchUser exchanges the code and returns a normalized provider profile.
 // FetchUser 用授权码换取访问令牌，并返回归一化的第三方用户资料。
 func (p *HTTPProvider) FetchUser(ctx context.Context, code string, redirectURI string) (*oauthusecase.ProviderUser, error) {
-	if !p.Configured() {
+	cfg := p.configForRedirect(redirectURI)
+	if !p.configComplete(cfg.ClientID, cfg.ClientSecret) {
 		return nil, errors.New("oauth provider is not configured")
 	}
-	accessToken, err := p.exchangeToken(ctx, code, redirectURI)
+	accessToken, err := p.exchangeToken(ctx, cfg, code, redirectURI)
 	if err != nil {
 		return nil, err
 	}
@@ -80,10 +105,10 @@ func (p *HTTPProvider) FetchUser(ctx context.Context, code string, redirectURI s
 
 // exchangeToken calls the provider token endpoint with the authorization code.
 // exchangeToken 调用服务商 token endpoint，用授权码换取 access_token。
-func (p *HTTPProvider) exchangeToken(ctx context.Context, code string, redirectURI string) (string, error) {
+func (p *HTTPProvider) exchangeToken(ctx context.Context, cfg ProviderConfig, code string, redirectURI string) (string, error) {
 	form := url.Values{}
-	form.Set("client_id", p.cfg.ClientID)
-	form.Set("client_secret", p.cfg.ClientSecret)
+	form.Set("client_id", cfg.ClientID)
+	form.Set("client_secret", cfg.ClientSecret)
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("grant_type", "authorization_code")
@@ -116,6 +141,37 @@ func (p *HTTPProvider) exchangeToken(ctx context.Context, code string, redirectU
 		return "", errors.New("oauth token response missing access_token")
 	}
 	return payload.AccessToken, nil
+}
+
+// configComplete checks shared provider endpoints plus one credential pair.
+// configComplete 校验公共 OAuth 端点和某一组 client 凭据是否完整。
+func (p *HTTPProvider) configComplete(clientID string, clientSecret string) bool {
+	return clientID != "" && clientSecret != "" && p.cfg.AuthURL != "" && p.cfg.TokenURL != "" && p.cfg.UserInfoURL != ""
+}
+
+// configForRedirect returns tenant credentials matched by redirect_uri host.
+// configForRedirect 根据 redirect_uri 的 host 选择租户凭据，未命中时回退到默认凭据。
+func (p *HTTPProvider) configForRedirect(redirectURI string) ProviderConfig {
+	host := redirectHost(redirectURI)
+	if host != "" {
+		if tenant, ok := p.cfg.Tenants[host]; ok && tenant.ClientID != "" && tenant.ClientSecret != "" {
+			cfg := p.cfg
+			cfg.ClientID = tenant.ClientID
+			cfg.ClientSecret = tenant.ClientSecret
+			return cfg
+		}
+	}
+	return p.cfg
+}
+
+// redirectHost extracts a normalized host from redirect_uri.
+// redirectHost 从 redirect_uri 中提取归一化域名。
+func redirectHost(redirectURI string) string {
+	parsed, err := url.Parse(strings.TrimSpace(redirectURI))
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(parsed.Hostname())
 }
 
 // fetchUser loads raw userinfo and converts it into the usecase provider model.

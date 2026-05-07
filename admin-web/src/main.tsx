@@ -6,6 +6,8 @@ import zhCN from "antd/locale/zh_CN";
 import { App } from "./App";
 import "./styles/globals.css";
 
+const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ConfigProvider
@@ -19,7 +21,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         },
       }}
     >
-      <BrowserRouter>
+      <BrowserRouter basename={routerBasename}>
         <App />
       </BrowserRouter>
     </ConfigProvider>

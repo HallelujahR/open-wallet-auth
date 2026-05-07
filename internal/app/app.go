@@ -183,6 +183,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 				TokenURL:     cfg.OAuth.Google.TokenURL,
 				UserInfoURL:  cfg.OAuth.Google.UserInfoURL,
 				Scopes:       cfg.OAuth.Google.Scopes,
+				Tenants:      oauthTenants(cfg.OAuth.Google.Tenants),
 			}),
 			infraoauth.NewHTTPProvider(infraoauth.ProviderConfig{
 				Name:         "github",
@@ -192,6 +193,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Application, error) {
 				TokenURL:     cfg.OAuth.GitHub.TokenURL,
 				UserInfoURL:  cfg.OAuth.GitHub.UserInfoURL,
 				Scopes:       cfg.OAuth.GitHub.Scopes,
+				Tenants:      oauthTenants(cfg.OAuth.GitHub.Tenants),
 			}),
 		},
 		TokenHasher: tokenHasher,
@@ -310,6 +312,22 @@ func emailCodeRepository(cfg *config.Config, client *goredis.Client) repository.
 		return infraredis.NewCodeRepository(client, "owa:email_code")
 	}
 	return infraemail.NewMemoryCodeRepository()
+}
+
+// oauthTenants maps config tenant credentials into the OAuth provider adapter model.
+// oauthTenants 将配置层租户凭据转换为 OAuth provider 适配器可用的结构。
+func oauthTenants(source map[string]config.OAuthProviderTenantConfig) map[string]infraoauth.ProviderTenantConfig {
+	if len(source) == 0 {
+		return nil
+	}
+	tenants := make(map[string]infraoauth.ProviderTenantConfig, len(source))
+	for host, tenant := range source {
+		tenants[strings.ToLower(strings.TrimSpace(host))] = infraoauth.ProviderTenantConfig{
+			ClientID:     tenant.ClientID,
+			ClientSecret: tenant.ClientSecret,
+		}
+	}
+	return tenants
 }
 
 // rateLimiter selects Redis-backed or no-op rate limiting.

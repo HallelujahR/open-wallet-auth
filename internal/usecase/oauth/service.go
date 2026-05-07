@@ -46,6 +46,7 @@ type Provider interface {
 	AuthURL(state string, redirectURI string) string
 	FetchUser(ctx context.Context, code string, redirectURI string) (*ProviderUser, error)
 	Configured() bool
+	ConfiguredForRedirect(redirectURI string) bool
 }
 
 // StateStore persists short-lived OAuth state between start and callback.
@@ -186,6 +187,9 @@ func (s *Service) Start(ctx context.Context, req StartRequest) (*StartResult, er
 	redirectURI := strings.TrimSpace(req.RedirectURI)
 	if redirectURI == "" {
 		return nil, domain.NewError(ErrInvalidState, "redirect_uri is required")
+	}
+	if !provider.ConfiguredForRedirect(redirectURI) {
+		return nil, domain.NewError(ErrProviderFailed, "oauth provider is not configured for redirect_uri")
 	}
 	state, err := randomState()
 	if err != nil {

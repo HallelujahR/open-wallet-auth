@@ -115,6 +115,12 @@ oauth:
       - openid
       - email
       - profile
+    tenants:
+      # Optional per-business callback host credentials.
+      # 可选：按业务回调域名覆盖凭据。
+      # blockx.example.com:
+      #   client_id: ""
+      #   client_secret: ""
   github:
     client_id: ""
     client_secret: ""
@@ -124,6 +130,15 @@ oauth:
     scopes:
       - read:user
       - user:email
+    tenants:
+      # GitHub OAuth Apps allow one callback URL, so each business host can use its own app.
+      # GitHub OAuth App 通常只能配置一个回调地址，因此不同业务域名可配置独立 App。
+      # blockx.example.com:
+      #   client_id: ""
+      #   client_secret: ""
+      # label.example.com:
+      #   client_id: ""
+      #   client_secret: ""
 
 management:
   admin_username: admin
