@@ -62,6 +62,7 @@ func newRouterDependencies(cfg *config.Config, logger *zap.Logger, storage *stor
 	return router.Dependencies{
 		Config:           cfg,
 		Logger:           logger,
+		CORSOrigins:      settingsService,
 		Auth:             handler.NewAuthHandler(authService),
 		Wallet:           handler.NewWalletHandler(newWalletService(cfg, storage, runtime)),
 		Phone:            handler.NewPhoneHandler(newPhoneService(cfg, storage, runtime, settingsService)),
@@ -152,6 +153,9 @@ func newOAuthService(cfg *config.Config, storage *storageBundle, runtime *runtim
 // defaultSettingsSnapshot 将启动配置转换为管理后台可编辑的服务商配置默认值。
 func defaultSettingsSnapshot(cfg *config.Config) settingsusecase.Snapshot {
 	return settingsusecase.Snapshot{
+		HTTP: settingsusecase.HTTPSettings{
+			CORSAllowedOrigins: cfg.HTTP.CORSAllowedOrigins,
+		},
 		Phone: settingsusecase.PhoneSettings{
 			Enabled:  cfg.Phone.Enabled,
 			Provider: messageSettings(cfg.Phone.Provider),

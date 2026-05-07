@@ -182,6 +182,9 @@ export type OAuthProviderSettings = {
 };
 
 export type RuntimeSettings = {
+  http: {
+    cors_allowed_origins: string[];
+  };
   phone: {
     enabled: boolean;
     provider: MessageProviderSettings;

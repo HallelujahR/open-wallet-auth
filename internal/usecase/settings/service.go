@@ -21,9 +21,16 @@ type Service struct {
 // Snapshot is the full provider settings payload used by management APIs.
 // Snapshot 是管理接口读写的完整服务商配置快照。
 type Snapshot struct {
+	HTTP  HTTPSettings  `json:"http"`
 	Phone PhoneSettings `json:"phone"`
 	Email EmailSettings `json:"email"`
 	OAuth OAuthSettings `json:"oauth"`
+}
+
+// HTTPSettings contains browser-facing HTTP settings that can change at runtime.
+// HTTPSettings 保存可运行期调整的浏览器访问配置。
+type HTTPSettings struct {
+	CORSAllowedOrigins []string `json:"cors_allowed_origins"`
 }
 
 // PhoneSettings contains phone login and SMS provider settings.
@@ -176,6 +183,16 @@ func (s *Service) EmailVerificationEnabled(ctx context.Context) (bool, error) {
 	return current.Email.VerificationEnabled, nil
 }
 
+// CORSAllowedOrigins returns current browser origins allowed to call the auth service.
+// CORSAllowedOrigins 返回当前允许调用认证服务的浏览器来源。
+func (s *Service) CORSAllowedOrigins(ctx context.Context) ([]string, error) {
+	current, err := s.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return current.HTTP.CORSAllowedOrigins, nil
+}
+
 // Update validates and persists editable provider settings.
 // Update 校验并持久化管理后台提交的服务商配置。
 func (s *Service) Update(ctx context.Context, next Snapshot) (*PublicSnapshot, error) {
@@ -198,10 +215,30 @@ func (s *Service) Update(ctx context.Context, next Snapshot) (*PublicSnapshot, e
 // normalize trims common string fields before persistence.
 // normalize 在持久化前清理常见字符串字段。
 func normalize(s *Snapshot) {
+	s.HTTP.CORSAllowedOrigins = normalizeOrigins(s.HTTP.CORSAllowedOrigins)
 	s.Phone.Provider.Type = strings.ToLower(strings.TrimSpace(s.Phone.Provider.Type))
 	s.Email.Provider.Type = strings.ToLower(strings.TrimSpace(s.Email.Provider.Type))
 	normalizeOAuth(&s.OAuth.Google)
 	normalizeOAuth(&s.OAuth.GitHub)
+}
+
+// normalizeOrigins trims empty origins and removes duplicates.
+// normalizeOrigins 清理空来源并去重。
+func normalizeOrigins(origins []string) []string {
+	seen := map[string]struct{}{}
+	normalized := make([]string, 0, len(origins))
+	for _, origin := range origins {
+		origin = strings.TrimSpace(origin)
+		if origin == "" {
+			continue
+		}
+		if _, ok := seen[origin]; ok {
+			continue
+		}
+		seen[origin] = struct{}{}
+		normalized = append(normalized, origin)
+	}
+	return normalized
 }
 
 // normalizeOAuth trims OAuth provider and tenant fields.

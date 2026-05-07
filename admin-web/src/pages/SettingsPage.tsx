@@ -1,5 +1,5 @@
 import { CopyOutlined, SaveOutlined, SyncOutlined } from "@ant-design/icons";
-import { Button, Card, Col, Form, Input, InputNumber, Row, Select, Space, Switch, Tabs, Typography, message } from "antd";
+import { Button, Card, Col, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Tabs, Typography, message } from "antd";
 import { useEffect, useState } from "react";
 import { adminApi } from "../api/admin";
 import { authApiBaseUrl } from "../config";
@@ -42,17 +42,25 @@ export function SettingsPage() {
 
   const saveSettings = async () => {
     const values = await form.validateFields();
-    setSaving(true);
-    try {
-      const result = await adminApi.updateSettings(values);
-      form.setFieldsValue(result.settings);
-      setSecrets(result.secrets || {});
-      message.success("系统配置已保存");
-    } catch (error: any) {
-      message.error(error.message || "保存系统配置失败");
-    } finally {
-      setSaving(false);
-    }
+    Modal.confirm({
+      title: "确认保存系统配置？",
+      content: "本次修改会立即影响 OAuth 登录、验证码发送或浏览器跨域访问。密钥输入框留空时会保留原密钥。",
+      okText: "确认保存",
+      cancelText: "取消",
+      onOk: async () => {
+        setSaving(true);
+        try {
+          const result = await adminApi.updateSettings(values);
+          form.setFieldsValue(result.settings);
+          setSecrets(result.secrets || {});
+          message.success("系统配置已保存");
+        } catch (error: any) {
+          message.error(error.message || "保存系统配置失败");
+        } finally {
+          setSaving(false);
+        }
+      },
+    });
   };
 
   useEffect(() => {
@@ -82,6 +90,11 @@ export function SettingsPage() {
         <Tabs
           items={[
             {
+              key: "access",
+              label: "访问控制 CORS",
+              children: <AccessSettingsCard />,
+            },
+            {
               key: "oauth",
               label: "第三方登录 OAuth",
               children: (
@@ -107,6 +120,23 @@ export function SettingsPage() {
         />
       </Form>
     </div>
+  );
+}
+
+function AccessSettingsCard() {
+  return (
+    <Card title="浏览器跨域来源 CORS Allowed Origins">
+      <Typography.Paragraph type="secondary">
+        这里配置允许哪些业务前端从浏览器直接调用认证服务，例如 BlockX 或 LabelService 的前端域名。保存后立即生效，不需要重启。
+      </Typography.Paragraph>
+      <Form.Item
+        label="Allowed Origins"
+        name={["http", "cors_allowed_origins"]}
+        extra="填写完整 origin，例如 http://localhost:5173 或 https://blockx.example.com。生产环境不建议使用 * 或 null。"
+      >
+        <Select mode="tags" tokenSeparators={[",", " "]} placeholder="https://blockx.example.com" />
+      </Form.Item>
+    </Card>
   );
 }
 
@@ -238,6 +268,7 @@ function MessageProviderCard({
   secretPrefix: string;
   secrets: RuntimeSettingsResult["secrets"];
 }) {
+  const providerType = Form.useWatch([root, "provider", "type"]) || "noop";
   return (
     <Card title={title}>
       <Typography.Paragraph type="secondary">
@@ -254,68 +285,98 @@ function MessageProviderCard({
       <Form.Item label="Provider Type" name={[root, "provider", "type"]} extra="选择当前验证码实际发送方式。">
         <Select options={providerOptions} />
       </Form.Item>
-      <Typography.Title level={5}>Webhook 回调</Typography.Title>
-      <Form.Item label="Webhook URL" name={[root, "provider", "webhook", "url"]} extra="认证服务会把验证码发送请求 POST 到这个地址。">
-        <Input />
-      </Form.Item>
-      <Form.Item label="Bearer Token" name={[root, "provider", "webhook", "bearer_token"]} extra={<SecretHint status={secrets[`${secretPrefix}.webhook.bearer_token`]} />}>
-        <Input.Password placeholder="留空则保留当前密钥" autoComplete="new-password" />
-      </Form.Item>
 
-      <Typography.Title level={5}>SMTP 邮件</Typography.Title>
-      <Row gutter={12}>
-        <Col span={16}>
-          <Form.Item label="SMTP Host" name={[root, "provider", "smtp", "host"]}>
-            <Input />
-          </Form.Item>
-        </Col>
-        <Col span={8}>
-          <Form.Item label="Port" name={[root, "provider", "smtp", "port"]}>
-            <InputNumber min={1} max={65535} style={{ width: "100%" }} />
-          </Form.Item>
-        </Col>
-      </Row>
-      <Form.Item label="Username" name={[root, "provider", "smtp", "username"]}>
-        <Input />
-      </Form.Item>
-      <Form.Item label="Password" name={[root, "provider", "smtp", "password"]} extra={<SecretHint status={secrets[`${secretPrefix}.smtp.password`]} />}>
-        <Input.Password placeholder="留空则保留当前密钥" autoComplete="new-password" />
-      </Form.Item>
-      <Form.Item label="From" name={[root, "provider", "smtp", "from"]} extra="为空时默认使用 SMTP Username。">
-        <Input />
-      </Form.Item>
+      {providerType === "noop" && (
+        <Card size="small">
+          <Typography.Text type="secondary">Noop 不会发送真实短信或邮件，适合本地开发和演示环境。</Typography.Text>
+        </Card>
+      )}
 
-      <Typography.Title level={5}>阿里云短信 Aliyun SMS</Typography.Title>
-      <Form.Item label="Access Key ID" name={[root, "provider", "aliyun_sms", "access_key_id"]}>
-        <Input />
-      </Form.Item>
-      <Form.Item label="Access Key Secret" name={[root, "provider", "aliyun_sms", "access_key_secret"]} extra={<SecretHint status={secrets[`${secretPrefix}.aliyun_sms.access_key_secret`]} />}>
-        <Input.Password placeholder="留空则保留当前密钥" autoComplete="new-password" />
-      </Form.Item>
-      <Row gutter={12}>
-        <Col span={12}>
-          <Form.Item label="Sign Name" name={[root, "provider", "aliyun_sms", "sign_name"]}>
+      {providerType === "webhook" && (
+        <>
+          <Typography.Title level={5}>Webhook 回调</Typography.Title>
+          <Form.Item label="Webhook URL" name={[root, "provider", "webhook", "url"]} extra="认证服务会把验证码发送请求 POST 到这个地址。">
             <Input />
           </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="Template Code" name={[root, "provider", "aliyun_sms", "template_code"]} extra="短信模板需要包含验证码变量 ${code}。">
+          <Form.Item label="Bearer Token" name={[root, "provider", "webhook", "bearer_token"]} extra={<SecretHint status={secrets[`${secretPrefix}.webhook.bearer_token`]} />}>
+            <Input.Password placeholder="留空则保留当前密钥" autoComplete="new-password" />
+          </Form.Item>
+        </>
+      )}
+
+      {root === "email" && providerType === "smtp" && (
+        <>
+          <Typography.Title level={5}>SMTP 邮件</Typography.Title>
+          <Row gutter={12}>
+            <Col span={16}>
+              <Form.Item label="SMTP Host" name={[root, "provider", "smtp", "host"]}>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Port" name={[root, "provider", "smtp", "port"]}>
+                <InputNumber min={1} max={65535} style={{ width: "100%" }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="Username" name={[root, "provider", "smtp", "username"]}>
             <Input />
           </Form.Item>
-        </Col>
-      </Row>
-      <Row gutter={12}>
-        <Col span={12}>
-          <Form.Item label="Region" name={[root, "provider", "aliyun_sms", "region_id"]}>
+          <Form.Item label="Password" name={[root, "provider", "smtp", "password"]} extra={<SecretHint status={secrets[`${secretPrefix}.smtp.password`]} />}>
+            <Input.Password placeholder="留空则保留当前密钥" autoComplete="new-password" />
+          </Form.Item>
+          <Form.Item label="From" name={[root, "provider", "smtp", "from"]} extra="为空时默认使用 SMTP Username。">
             <Input />
           </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="Endpoint" name={[root, "provider", "aliyun_sms", "endpoint"]}>
+        </>
+      )}
+
+      {root === "phone" && providerType === "aliyun_sms" && (
+        <>
+          <Typography.Title level={5}>阿里云短信 Aliyun SMS</Typography.Title>
+          <Form.Item label="Access Key ID" name={[root, "provider", "aliyun_sms", "access_key_id"]}>
             <Input />
           </Form.Item>
-        </Col>
-      </Row>
+          <Form.Item label="Access Key Secret" name={[root, "provider", "aliyun_sms", "access_key_secret"]} extra={<SecretHint status={secrets[`${secretPrefix}.aliyun_sms.access_key_secret`]} />}>
+            <Input.Password placeholder="留空则保留当前密钥" autoComplete="new-password" />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item label="Sign Name" name={[root, "provider", "aliyun_sms", "sign_name"]}>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="Template Code" name={[root, "provider", "aliyun_sms", "template_code"]} extra="短信模板需要包含验证码变量 ${code}。">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item label="Region" name={[root, "provider", "aliyun_sms", "region_id"]}>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="Endpoint" name={[root, "provider", "aliyun_sms", "endpoint"]}>
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+        </>
+      )}
+
+      {root === "phone" && providerType === "smtp" && (
+        <Card size="small">
+          <Typography.Text type="secondary">SMTP 只适用于邮箱验证码。手机号验证码请选择 Webhook 或 Aliyun SMS。</Typography.Text>
+        </Card>
+      )}
+      {root === "email" && providerType === "aliyun_sms" && (
+        <Card size="small">
+          <Typography.Text type="secondary">Aliyun SMS 只适用于手机号验证码。邮箱验证码请选择 Webhook 或 SMTP。</Typography.Text>
+        </Card>
+      )}
     </Card>
   );
 }

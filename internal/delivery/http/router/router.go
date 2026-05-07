@@ -17,6 +17,7 @@ import (
 type Dependencies struct {
 	Config           *config.Config
 	Logger           *zap.Logger
+	CORSOrigins      middleware.CORSOriginResolver
 	Auth             *handler.AuthHandler
 	Wallet           *handler.WalletHandler
 	Phone            *handler.PhoneHandler
@@ -40,7 +41,7 @@ func New(deps Dependencies) *gin.Engine {
 
 	engine := gin.New()
 	engine.Use(middleware.RequestID())
-	engine.Use(middleware.CORS(deps.Config.HTTP.CORSAllowedOrigins))
+	engine.Use(middleware.CORS(deps.Config.HTTP.CORSAllowedOrigins, deps.CORSOrigins))
 	engine.Use(middleware.Recovery(deps.Logger))
 	engine.Use(middleware.AccessLog(deps.Logger))
 
