@@ -4,6 +4,9 @@ const DEFAULT_AUTH_API_BASE_URL = "http://localhost:8081";
 // runtimeAuthApiBaseUrl 让管理台跟随当前访问域名请求 API，避免 HTTP/HTTPS 混用触发跨域预检。
 function runtimeAuthApiBaseUrl() {
   if (typeof window !== "undefined" && window.location.origin) {
+    if (window.location.port === "5173") {
+      return DEFAULT_AUTH_API_BASE_URL;
+    }
     return window.location.origin;
   }
   return DEFAULT_AUTH_API_BASE_URL;
