@@ -32,7 +32,7 @@ func newHTTPRouter(cfg *config.Config, logger *zap.Logger, storage *storageBundl
 // newRouterDependencies wires usecases and HTTP handlers without starting the server.
 // newRouterDependencies 装配用例服务和 HTTP handler，但不启动服务。
 func newRouterDependencies(cfg *config.Config, logger *zap.Logger, storage *storageBundle, runtime *runtimeAdapters) router.Dependencies {
-	settingsService := settingsusecase.NewService(storage.settings, defaultSettingsSnapshot(cfg))
+	settingsService := settingsusecase.NewService(storage.settings, defaultSettingsSnapshot(cfg), readonlySettings(cfg))
 	authService := authusecase.NewService(
 		storage.users,
 		storage.clients,
@@ -167,6 +167,40 @@ func defaultSettingsSnapshot(cfg *config.Config) settingsusecase.Snapshot {
 		OAuth: settingsusecase.OAuthSettings{
 			Google: oauthSettings(cfg.OAuth.Google),
 			GitHub: oauthSettings(cfg.OAuth.GitHub),
+		},
+	}
+}
+
+// readonlySettings converts startup-only config into a redacted UI model.
+// readonlySettings 将启动级配置转换为管理后台只读展示模型。
+func readonlySettings(cfg *config.Config) settingsusecase.ReadonlySettings {
+	return settingsusecase.ReadonlySettings{
+		App: settingsusecase.ReadonlyAppSettings{
+			Name: cfg.App.Name,
+			Env:  cfg.App.Env,
+		},
+		HTTP: settingsusecase.ReadonlyHTTPSettings{
+			Host: cfg.HTTP.Host,
+			Port: cfg.HTTP.Port,
+		},
+		Database: settingsusecase.ReadonlyDatabaseSettings{
+			Driver:      cfg.Database.Driver,
+			DSN:         cfg.Database.DSN,
+			AutoMigrate: cfg.Database.AutoMigrate,
+		},
+		Redis: settingsusecase.ReadonlyRedisSettings{
+			Enabled:  cfg.Redis.Enabled,
+			Addr:     cfg.Redis.Addr,
+			Password: cfg.Redis.Password,
+			DB:       cfg.Redis.DB,
+		},
+		JWT: settingsusecase.ReadonlyJWTSettings{
+			Issuer:          cfg.JWT.Issuer,
+			AccessTokenTTL:  cfg.JWT.AccessTokenTTL.String(),
+			RefreshTokenTTL: cfg.JWT.RefreshTokenTTL.String(),
+			PrivateKeyPath:  cfg.JWT.PrivateKeyPath,
+			PublicKeyPath:   cfg.JWT.PublicKeyPath,
+			ActiveKeyID:     cfg.JWT.ActiveKeyID,
 		},
 	}
 }

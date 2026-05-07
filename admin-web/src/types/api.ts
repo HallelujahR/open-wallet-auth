@@ -202,4 +202,35 @@ export type RuntimeSettings = {
 export type RuntimeSettingsResult = {
   settings: RuntimeSettings;
   secrets: Record<string, SecretStatus>;
+  readonly: ReadonlySettings;
+};
+
+export type ReadonlySettings = {
+  app: {
+    name: string;
+    env: string;
+  };
+  http: {
+    host: string;
+    port: number;
+  };
+  database: {
+    driver: string;
+    dsn: string;
+    auto_migrate: boolean;
+  };
+  redis: {
+    enabled: boolean;
+    addr: string;
+    password: string;
+    db: number;
+  };
+  jwt: {
+    issuer: string;
+    access_token_ttl: string;
+    refresh_token_ttl: string;
+    private_key_path: string;
+    public_key_path: string;
+    active_key_id: string;
+  };
 };

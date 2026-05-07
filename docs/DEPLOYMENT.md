@@ -46,6 +46,7 @@ Production deployments should set:
 The admin console can edit Google/GitHub OAuth credentials, SMS provider settings, email provider settings, and phone/email feature switches. Secret values are not returned by read APIs; submitting an empty secret keeps the existing value.
 
 Startup-level settings such as database DSN, Redis address, JWT key paths, HTTP port, and production safety policy should remain in environment variables or `config.yaml`.
+The admin console shows these startup-level settings as read-only data and redacts sensitive values such as database credentials and Redis passwords.
 
 ## Database Migration
 

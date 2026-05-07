@@ -46,6 +46,7 @@ cp configs/config.example.yaml configs/config.yaml
 管理后台可以编辑 Google/GitHub OAuth 凭据、短信服务商、邮件服务商，以及手机号/邮箱验证开关。读取接口不会返回密钥明文；提交空密钥表示保留已有值。
 
 数据库 DSN、Redis 地址、JWT 密钥路径、HTTP 端口、生产安全策略这类启动级配置仍建议使用环境变量或 `config.yaml` 管理。
+管理后台会只读展示这些启动级配置，并对 DSN、Redis 密码等敏感值脱敏；页面不会保存这些字段。
 
 ## 数据库迁移
 

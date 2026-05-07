@@ -16,6 +16,7 @@ const runtimeSettingsKey = "runtime.providers"
 type Service struct {
 	store    repository.SettingsRepository
 	defaults Snapshot
+	readonly ReadonlySettings
 }
 
 // Snapshot is the full provider settings payload used by management APIs.
@@ -119,17 +120,70 @@ type SecretStatus struct {
 	Masked     string `json:"masked"`
 }
 
+// ReadonlySettings contains startup-level settings shown but not editable in UI.
+// ReadonlySettings 保存只展示不允许页面修改的启动级配置。
+type ReadonlySettings struct {
+	App      ReadonlyAppSettings      `json:"app"`
+	HTTP     ReadonlyHTTPSettings     `json:"http"`
+	Database ReadonlyDatabaseSettings `json:"database"`
+	Redis    ReadonlyRedisSettings    `json:"redis"`
+	JWT      ReadonlyJWTSettings      `json:"jwt"`
+}
+
+// ReadonlyAppSettings contains service identity.
+// ReadonlyAppSettings 保存服务身份信息。
+type ReadonlyAppSettings struct {
+	Name string `json:"name"`
+	Env  string `json:"env"`
+}
+
+// ReadonlyHTTPSettings contains startup HTTP listener settings.
+// ReadonlyHTTPSettings 保存启动级 HTTP 监听配置。
+type ReadonlyHTTPSettings struct {
+	Host string `json:"host"`
+	Port int    `json:"port"`
+}
+
+// ReadonlyDatabaseSettings contains database connection settings.
+// ReadonlyDatabaseSettings 保存数据库连接配置。
+type ReadonlyDatabaseSettings struct {
+	Driver      string `json:"driver"`
+	DSN         string `json:"dsn"`
+	AutoMigrate bool   `json:"auto_migrate"`
+}
+
+// ReadonlyRedisSettings contains Redis connection settings.
+// ReadonlyRedisSettings 保存 Redis 连接配置。
+type ReadonlyRedisSettings struct {
+	Enabled  bool   `json:"enabled"`
+	Addr     string `json:"addr"`
+	Password string `json:"password"`
+	DB       int    `json:"db"`
+}
+
+// ReadonlyJWTSettings contains JWT key and lifetime settings.
+// ReadonlyJWTSettings 保存 JWT 密钥路径和生命周期配置。
+type ReadonlyJWTSettings struct {
+	Issuer          string `json:"issuer"`
+	AccessTokenTTL  string `json:"access_token_ttl"`
+	RefreshTokenTTL string `json:"refresh_token_ttl"`
+	PrivateKeyPath  string `json:"private_key_path"`
+	PublicKeyPath   string `json:"public_key_path"`
+	ActiveKeyID     string `json:"active_key_id"`
+}
+
 // PublicSnapshot is a redacted settings snapshot returned to the admin console.
 // PublicSnapshot 是返回管理后台的脱敏配置快照。
 type PublicSnapshot struct {
 	Settings Snapshot                `json:"settings"`
 	Secrets  map[string]SecretStatus `json:"secrets"`
+	Readonly ReadonlySettings        `json:"readonly"`
 }
 
 // NewService creates a settings service with immutable config defaults.
 // NewService 创建系统配置服务，并注入启动配置作为默认值。
-func NewService(store repository.SettingsRepository, defaults Snapshot) *Service {
-	return &Service{store: store, defaults: defaults}
+func NewService(store repository.SettingsRepository, defaults Snapshot, readonly ReadonlySettings) *Service {
+	return &Service{store: store, defaults: defaults, readonly: readonly}
 }
 
 // Get returns merged settings, using database overrides when present.
@@ -160,7 +214,7 @@ func (s *Service) Public(ctx context.Context) (*PublicSnapshot, error) {
 		return nil, err
 	}
 	redacted, secrets := redact(current)
-	return &PublicSnapshot{Settings: redacted, Secrets: secrets}, nil
+	return &PublicSnapshot{Settings: redacted, Secrets: secrets, Readonly: redactReadonly(s.readonly)}, nil
 }
 
 // PhoneEnabled returns the current phone-login switch.
@@ -333,4 +387,26 @@ func mask(value string) string {
 		return "******"
 	}
 	return value[:3] + "******" + value[len(value)-3:]
+}
+
+// redactReadonly masks sensitive startup settings.
+// redactReadonly 对启动级敏感配置做脱敏。
+func redactReadonly(readonly ReadonlySettings) ReadonlySettings {
+	readonly.Database.DSN = maskDSN(readonly.Database.DSN)
+	readonly.Redis.Password = mask(readonly.Redis.Password)
+	return readonly
+}
+
+// maskDSN keeps database type and host context while hiding credentials.
+// maskDSN 保留数据库类型和主机上下文，同时隐藏账号密码。
+func maskDSN(value string) string {
+	if value == "" {
+		return ""
+	}
+	at := strings.LastIndex(value, "@")
+	scheme := strings.Index(value, "://")
+	if at > 0 && scheme > 0 && scheme+3 < at {
+		return value[:scheme+3] + "***:***" + value[at:]
+	}
+	return mask(value)
 }

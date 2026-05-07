@@ -1,9 +1,9 @@
 import { CopyOutlined, SaveOutlined, SyncOutlined } from "@ant-design/icons";
-import { Button, Card, Col, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Tabs, Typography, message } from "antd";
+import { Alert, Button, Card, Col, Descriptions, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Tabs, Typography, message } from "antd";
 import { useEffect, useState } from "react";
 import { adminApi } from "../api/admin";
 import { authApiBaseUrl } from "../config";
-import type { RuntimeSettingsResult, SecretStatus } from "../types/api";
+import type { ReadonlySettings, RuntimeSettingsResult, SecretStatus } from "../types/api";
 
 const providerOptions = [
   { label: "不发送 Noop", value: "noop" },
@@ -26,6 +26,7 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [secrets, setSecrets] = useState<RuntimeSettingsResult["secrets"]>({});
+  const [readonly, setReadonly] = useState<ReadonlySettings | null>(null);
 
   const loadSettings = async () => {
     setLoading(true);
@@ -33,6 +34,7 @@ export function SettingsPage() {
       const result = await adminApi.getSettings();
       form.setFieldsValue(result.settings);
       setSecrets(result.secrets || {});
+      setReadonly(result.readonly);
     } catch (error: any) {
       message.error(error.message || "加载系统配置失败");
     } finally {
@@ -90,6 +92,11 @@ export function SettingsPage() {
         <Tabs
           items={[
             {
+              key: "runtime",
+              label: "只读配置 Runtime",
+              children: <ReadonlySettingsPanel settings={readonly} />,
+            },
+            {
               key: "access",
               label: "访问控制 CORS",
               children: <AccessSettingsCard />,
@@ -120,6 +127,55 @@ export function SettingsPage() {
         />
       </Form>
     </div>
+  );
+}
+
+function ReadonlySettingsPanel({ settings }: { settings: ReadonlySettings | null }) {
+  if (!settings) {
+    return <Card loading />;
+  }
+  return (
+    <Space direction="vertical" size={16} style={{ width: "100%" }}>
+      <Alert
+        type="info"
+        showIcon
+        message="这些是启动级配置，只展示不允许在页面修改。"
+        description="数据库 DSN、Redis 地址、HTTP 端口、JWT 密钥路径等配置通常来自 config.yaml 或环境变量，修改后需要重启服务。为了避免误操作导致服务不可用，管理后台只做只读展示。"
+      />
+      <Card title="服务信息 App / HTTP">
+        <Descriptions bordered column={1}>
+          <Descriptions.Item label="服务名称">{settings.app.name}</Descriptions.Item>
+          <Descriptions.Item label="运行环境">{settings.app.env}</Descriptions.Item>
+          <Descriptions.Item label="监听地址">{settings.http.host}</Descriptions.Item>
+          <Descriptions.Item label="监听端口">{settings.http.port}</Descriptions.Item>
+        </Descriptions>
+      </Card>
+      <Card title="数据库 Database">
+        <Descriptions bordered column={1}>
+          <Descriptions.Item label="驱动 Driver">{settings.database.driver}</Descriptions.Item>
+          <Descriptions.Item label="连接地址 DSN">{settings.database.dsn || "-"}</Descriptions.Item>
+          <Descriptions.Item label="自动迁移 Auto Migrate">{settings.database.auto_migrate ? "开启" : "关闭"}</Descriptions.Item>
+        </Descriptions>
+      </Card>
+      <Card title="Redis">
+        <Descriptions bordered column={1}>
+          <Descriptions.Item label="是否启用">{settings.redis.enabled ? "启用" : "未启用"}</Descriptions.Item>
+          <Descriptions.Item label="地址 Addr">{settings.redis.addr || "-"}</Descriptions.Item>
+          <Descriptions.Item label="密码 Password">{settings.redis.password || "未配置"}</Descriptions.Item>
+          <Descriptions.Item label="DB">{settings.redis.db}</Descriptions.Item>
+        </Descriptions>
+      </Card>
+      <Card title="JWT / JWKS">
+        <Descriptions bordered column={1}>
+          <Descriptions.Item label="签发方 Issuer">{settings.jwt.issuer}</Descriptions.Item>
+          <Descriptions.Item label="Access Token TTL">{settings.jwt.access_token_ttl}</Descriptions.Item>
+          <Descriptions.Item label="Refresh Token TTL">{settings.jwt.refresh_token_ttl}</Descriptions.Item>
+          <Descriptions.Item label="私钥路径 Private Key Path">{settings.jwt.private_key_path}</Descriptions.Item>
+          <Descriptions.Item label="公钥路径 Public Key Path">{settings.jwt.public_key_path}</Descriptions.Item>
+          <Descriptions.Item label="当前 Key ID">{settings.jwt.active_key_id}</Descriptions.Item>
+        </Descriptions>
+      </Card>
+    </Space>
   );
 }
 
