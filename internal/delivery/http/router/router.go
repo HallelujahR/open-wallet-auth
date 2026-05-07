@@ -1,6 +1,11 @@
 package router
 
 import (
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
@@ -146,5 +151,34 @@ func New(deps Dependencies) *gin.Engine {
 		}
 	}
 
+	registerAdminConsole(engine)
+
 	return engine
+}
+
+// registerAdminConsole serves the built management console when admin-web/dist exists.
+// registerAdminConsole 在存在 admin-web/dist 时挂载管理控制台静态页面，根路径直接进入控制台。
+func registerAdminConsole(engine *gin.Engine) {
+	const distDir = "admin-web/dist"
+	indexFile := filepath.Join(distDir, "index.html")
+	if _, err := os.Stat(indexFile); err != nil {
+		return
+	}
+
+	engine.Static("/assets", filepath.Join(distDir, "assets"))
+	engine.GET("/", func(c *gin.Context) {
+		c.File(indexFile)
+	})
+	engine.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/.well-known/") {
+			c.String(http.StatusNotFound, "404 page not found")
+			return
+		}
+		if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
+			c.String(http.StatusNotFound, "404 page not found")
+			return
+		}
+		c.File(indexFile)
+	})
 }
