@@ -197,7 +197,14 @@ func (p *HTTPProvider) fetchUser(ctx context.Context, accessToken string) (*oaut
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		return nil, err
 	}
-	return normalizeUser(p.Name(), raw), nil
+	profile := normalizeUser(p.Name(), raw)
+	if p.Name() == "github" && profile.Email == "" {
+		if email, err := p.fetchGitHubPrimaryEmail(ctx, accessToken); err == nil {
+			profile.Email = email
+			profile.EmailVerified = email != ""
+		}
+	}
+	return profile, nil
 }
 
 // normalizeUser maps provider-specific JSON into a normalized ProviderUser.
@@ -206,19 +213,56 @@ func normalizeUser(provider string, raw map[string]any) *oauthusecase.ProviderUs
 	switch provider {
 	case "github":
 		return &oauthusecase.ProviderUser{
-			Subject:   stringValue(raw["id"]),
-			Email:     stringValue(raw["email"]),
-			Username:  stringValue(raw["login"]),
-			AvatarURL: stringValue(raw["avatar_url"]),
+			Subject:       stringValue(raw["id"]),
+			Email:         stringValue(raw["email"]),
+			EmailVerified: stringValue(raw["email"]) != "",
+			Username:      stringValue(raw["login"]),
+			AvatarURL:     stringValue(raw["avatar_url"]),
 		}
 	default:
 		return &oauthusecase.ProviderUser{
-			Subject:   firstString(raw["sub"], raw["id"]),
-			Email:     stringValue(raw["email"]),
-			Username:  firstString(raw["name"], raw["login"], raw["email"]),
-			AvatarURL: firstString(raw["picture"], raw["avatar_url"]),
+			Subject:       firstString(raw["sub"], raw["id"]),
+			Email:         stringValue(raw["email"]),
+			EmailVerified: boolValue(raw["email_verified"]),
+			Username:      firstString(raw["name"], raw["login"], raw["email"]),
+			AvatarURL:     firstString(raw["picture"], raw["avatar_url"]),
 		}
 	}
+}
+
+// fetchGitHubPrimaryEmail loads the verified primary email from GitHub's email API.
+// fetchGitHubPrimaryEmail 从 GitHub 邮箱列表接口读取已验证的主邮箱。
+func (p *HTTPProvider) fetchGitHubPrimaryEmail(ctx context.Context, accessToken string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/emails", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", errors.New("github email endpoint returned non-2xx status")
+	}
+
+	var emails []struct {
+		Email    string `json:"email"`
+		Primary  bool   `json:"primary"`
+		Verified bool   `json:"verified"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&emails); err != nil {
+		return "", err
+	}
+	for _, email := range emails {
+		if email.Primary && email.Verified && strings.TrimSpace(email.Email) != "" {
+			return strings.TrimSpace(email.Email), nil
+		}
+	}
+	return "", nil
 }
 
 // firstString returns the first non-empty string-like value.
@@ -243,6 +287,13 @@ func stringValue(value any) string {
 	default:
 		return ""
 	}
+}
+
+// boolValue converts simple JSON boolean values.
+// boolValue 转换 JSON 布尔值。
+func boolValue(value any) bool {
+	v, ok := value.(bool)
+	return ok && v
 }
 
 // jsonNumber renders a JSON number without scientific notation surprises.

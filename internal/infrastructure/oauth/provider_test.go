@@ -84,3 +84,21 @@ func TestHTTPProviderConfiguredForRedirectRejectsUnknownTenantWithoutDefault(t *
 		t.Fatal("expected unknown tenant redirect to be rejected when no default credentials exist")
 	}
 }
+
+// TestNormalizeUserReadsGoogleEmailVerification keeps trusted-email merging provider-driven.
+// TestNormalizeUserReadsGoogleEmailVerification 验证 Google 的 email_verified 会进入统一用户资料。
+func TestNormalizeUserReadsGoogleEmailVerification(t *testing.T) {
+	profile := normalizeUser("google", map[string]any{
+		"sub":            "google-subject",
+		"email":          "river@example.com",
+		"email_verified": true,
+		"name":           "River",
+	})
+
+	if !profile.EmailVerified {
+		t.Fatal("expected google email to be marked verified")
+	}
+	if profile.Email != "river@example.com" {
+		t.Fatalf("expected email to be normalized, got %q", profile.Email)
+	}
+}

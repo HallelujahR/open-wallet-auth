@@ -33,10 +33,11 @@ type Clock interface {
 // ProviderUser is the normalized profile returned by an OAuth provider.
 // ProviderUser 是第三方 OAuth 用户资料的统一表示，避免 usecase 依赖 Google/GitHub 原始响应。
 type ProviderUser struct {
-	Subject   string
-	Email     string
-	Username  string
-	AvatarURL string
+	Subject       string
+	Email         string
+	EmailVerified bool
+	Username      string
+	AvatarURL     string
 }
 
 // Provider hides third-party OAuth implementation details from usecases.
@@ -317,7 +318,13 @@ func (s *Service) resolveOAuthTargetUser(ctx context.Context, provider string, p
 			return nil, err
 		}
 		if existing != nil {
-			return nil, domain.NewError(ErrOAuthBound, "oauth email is already used by another account; login first and bind explicitly")
+			if !profile.EmailVerified {
+				return nil, domain.NewError(ErrOAuthBound, "oauth email is already used by another account; login first and bind explicitly")
+			}
+			if !existing.IsActive() {
+				return nil, domain.NewError(ErrProviderFailed, "oauth user is unavailable")
+			}
+			return existing, nil
 		}
 	}
 	username := strings.TrimSpace(profile.Username)
