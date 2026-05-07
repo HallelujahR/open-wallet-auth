@@ -24,6 +24,7 @@ type Dependencies struct {
 	OAuth            *handler.OAuthHandler
 	Client           *handler.ClientHandler
 	Admin            *handler.AdminHandler
+	Settings         *handler.SettingsHandler
 	Token            middleware.TokenVerifier
 	AudienceResolver middleware.ClientAudienceResolver
 	JWKS             *handler.JWKSHandler
@@ -143,6 +144,10 @@ func New(deps Dependencies) *gin.Engine {
 				admin.GET("/security-events", deps.Admin.ListSecurityEvents)
 				admin.GET("/sessions", deps.Admin.ListSessions)
 				admin.DELETE("/sessions/:session_id", deps.Admin.RevokeSession)
+				if deps.Settings != nil {
+					admin.GET("/settings", deps.Settings.Get)
+					admin.PUT("/settings", deps.Settings.Update)
+				}
 				if deps.Client != nil {
 					admin.POST("/clients", deps.Client.Create)
 					admin.GET("/clients", deps.Client.List)

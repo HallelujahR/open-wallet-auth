@@ -129,3 +129,74 @@ export type ClientCreateInput = {
   allowed_origins: string[];
   allowed_redirect_uris: string[];
 };
+
+export type SecretStatus = {
+  configured: boolean;
+  masked: string;
+};
+
+export type WebhookSettings = {
+  url: string;
+  bearer_token?: string;
+};
+
+export type SMTPSettings = {
+  host: string;
+  port: number;
+  username: string;
+  password?: string;
+  from: string;
+};
+
+export type AliyunSMSSettings = {
+  access_key_id: string;
+  access_key_secret?: string;
+  sign_name: string;
+  template_code: string;
+  region_id: string;
+  endpoint: string;
+};
+
+export type MessageProviderSettings = {
+  type: string;
+  webhook: WebhookSettings;
+  smtp: SMTPSettings;
+  aliyun_sms: AliyunSMSSettings;
+  headers: Record<string, string>;
+};
+
+export type OAuthTenantSettings = {
+  host: string;
+  client_id: string;
+  client_secret?: string;
+};
+
+export type OAuthProviderSettings = {
+  client_id: string;
+  client_secret?: string;
+  auth_url: string;
+  token_url: string;
+  user_info_url: string;
+  scopes: string[];
+  tenant_credentials: OAuthTenantSettings[];
+};
+
+export type RuntimeSettings = {
+  phone: {
+    enabled: boolean;
+    provider: MessageProviderSettings;
+  };
+  email: {
+    verification_enabled: boolean;
+    provider: MessageProviderSettings;
+  };
+  oauth: {
+    google: OAuthProviderSettings;
+    github: OAuthProviderSettings;
+  };
+};
+
+export type RuntimeSettingsResult = {
+  settings: RuntimeSettings;
+  secrets: Record<string, SecretStatus>;
+};

@@ -8,6 +8,7 @@ This guide describes a production-oriented deployment path for Open Wallet Auth.
 
 - Open Wallet Auth server: Go HTTP API and embedded admin console.
 - PostgreSQL: persistent identity, client, session, binding, and audit data.
+- `system_settings`: PostgreSQL table for admin-console editable OAuth/SMS/email provider settings.
 - Redis: verification-code storage, OAuth state storage, and rate limiting when those options are enabled.
 - Admin console: built from `admin-web` and served by the Go server at `/`.
 
@@ -41,6 +42,10 @@ Production deployments should set:
 - Persistent JWT private/public key paths or key material.
 - Real SMS and email providers when verification is enabled.
 - OAuth callback URLs that match the public auth domain, for example `https://auth.example.com/api/v1/oauth/github/callback`.
+
+The admin console can edit Google/GitHub OAuth credentials, SMS provider settings, email provider settings, and phone/email feature switches. Secret values are not returned by read APIs; submitting an empty secret keeps the existing value.
+
+Startup-level settings such as database DSN, Redis address, JWT key paths, HTTP port, and production safety policy should remain in environment variables or `config.yaml`.
 
 ## Database Migration
 

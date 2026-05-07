@@ -38,6 +38,7 @@ The service owns authentication. Your business applications still own their own 
 - Internal identity management APIs for users, bindings, and login logs
 - Management API for security operation audit events
 - Admin unbinding APIs for wallet and OAuth account bindings
+- Visual provider settings for Google/GitHub OAuth, SMS, and email in the admin console
 - Production configuration safety checks
 - Browser CORS configuration
 - Browser wallet login example

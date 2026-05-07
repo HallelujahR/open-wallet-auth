@@ -8,6 +8,7 @@
 
 - Open Wallet Auth 服务：Go HTTP API 和内置管理控制台。
 - PostgreSQL：持久化身份、接入应用、会话、绑定关系和审计数据。
+- `system_settings`：PostgreSQL 表，用于保存管理后台可编辑的 OAuth、短信、邮件服务商配置。
 - Redis：在开启相关配置时，用于验证码存储、OAuth state 存储和限流。
 - 管理控制台：由 `admin-web` 构建，并由 Go 服务在 `/` 路径提供访问。
 
@@ -41,6 +42,10 @@ cp configs/config.example.yaml configs/config.yaml
 - 持久化 JWT 私钥/公钥路径或密钥内容。
 - 开启短信/邮件验证时，配置真实短信和邮件服务商。
 - OAuth 回调地址必须匹配认证服务公网域名，例如 `https://auth.example.com/api/v1/oauth/github/callback`。
+
+管理后台可以编辑 Google/GitHub OAuth 凭据、短信服务商、邮件服务商，以及手机号/邮箱验证开关。读取接口不会返回密钥明文；提交空密钥表示保留已有值。
+
+数据库 DSN、Redis 地址、JWT 密钥路径、HTTP 端口、生产安全策略这类启动级配置仍建议使用环境变量或 `config.yaml` 管理。
 
 ## 数据库迁移
 

@@ -11,6 +11,8 @@ import type {
   PageResult,
   SecurityEvent,
   Session,
+  RuntimeSettings,
+  RuntimeSettingsResult,
 } from "../types/api";
 
 export const adminApi = {
@@ -79,5 +81,11 @@ export const adminApi = {
   },
   createClient(input: ClientCreateInput) {
     return request<Client>({ url: "/api/v1/admin/clients", method: "POST", data: input });
+  },
+  getSettings() {
+    return request<RuntimeSettingsResult>({ url: "/api/v1/admin/settings", method: "GET" });
+  },
+  updateSettings(input: RuntimeSettings) {
+    return request<RuntimeSettingsResult>({ url: "/api/v1/admin/settings", method: "PUT", data: input });
   },
 };

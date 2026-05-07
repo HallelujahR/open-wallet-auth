@@ -21,6 +21,7 @@ type storageBundle struct {
 	activity      *pgrepo.ActivityRepository
 	wallets       *pgrepo.WalletRepository
 	accounts      *pgrepo.OAuthAccountRepository
+	settings      *pgrepo.SettingsRepository
 }
 
 // newStorage opens PostgreSQL, runs optional auto migration, and creates repositories.
@@ -32,7 +33,7 @@ func newStorage(ctx context.Context, cfg *config.Config) (*storageBundle, error)
 	}
 
 	if cfg.Database.AutoMigrate {
-		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.UserWallet{}, &model.OAuthAccount{}, &model.WalletNonce{}, &model.RefreshToken{}, &model.LoginLog{}, &model.SecurityEvent{}, &model.UserClient{}); err != nil {
+		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.UserWallet{}, &model.OAuthAccount{}, &model.WalletNonce{}, &model.RefreshToken{}, &model.LoginLog{}, &model.SecurityEvent{}, &model.UserClient{}, &model.SystemSetting{}); err != nil {
 			return nil, fmt.Errorf("auto migrate database: %w", err)
 		}
 	}
@@ -50,5 +51,6 @@ func newStorage(ctx context.Context, cfg *config.Config) (*storageBundle, error)
 		activity:      pgrepo.NewActivityRepository(db),
 		wallets:       pgrepo.NewWalletRepository(db),
 		accounts:      pgrepo.NewOAuthAccountRepository(db),
+		settings:      pgrepo.NewSettingsRepository(db),
 	}, nil
 }

@@ -4,6 +4,8 @@
 
 This document describes SMS, email, and OAuth provider configuration. Business-system JWT integration is covered in [INTEGRATION.md](INTEGRATION.md), and production runtime operations are covered in [DEPLOYMENT.md](DEPLOYMENT.md).
 
+These provider settings can be edited in the admin console under System Settings. Secret fields are redacted when read back; leave a secret input empty to keep the existing value.
+
 ## SMS and Email Providers
 
 Open Wallet Auth supports four message-provider modes:

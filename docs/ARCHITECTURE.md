@@ -62,6 +62,7 @@ examples
 - Wallet auth and authenticated wallet binding live in `internal/usecase/wallet`; EVM address and signature details are isolated in `internal/infrastructure/wallet`.
 - Phone auth lives in `internal/usecase/phone`; verification-code storage is behind `repository.PhoneCodeRepository`.
 - Email verification lives in `internal/usecase/email`; message delivery is behind usecase provider ports implemented by `internal/infrastructure/message`.
+- Runtime-editable provider settings live in `internal/usecase/settings`; PostgreSQL stores the settings in `system_settings`, while HTTP handlers return redacted secret fields to the admin console.
 - Rate limiting for verification codes, password login, and wallet nonce creation is behind `repository.RateLimiter`; Redis and no-op implementations live in infrastructure.
 - OAuth auth lives in `internal/usecase/oauth`; provider HTTP exchange and state storage are isolated in `internal/infrastructure/oauth`.
 - Client management and dynamic audience resolution live in `internal/usecase/client`.
@@ -74,6 +75,7 @@ examples
 - HTTP handlers do not access the database directly.
 - Browser CORS is handled as HTTP middleware from runtime config; business client ownership still belongs to the client usecase.
 - The management console is a separate frontend package; it calls same-origin `/api/v1/admin/*` APIs in production.
+- Google/GitHub OAuth, SMS, and email providers are resolved dynamically from editable settings so credential changes can take effect without restarting the service.
 
 ## Known Gaps
 

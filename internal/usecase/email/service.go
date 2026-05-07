@@ -37,12 +37,19 @@ type EmailProvider interface {
 	SendEmail(ctx context.Context, msg EmailMessage) error
 }
 
+// EnabledResolver supplies the current email-verification switch.
+// EnabledResolver 提供当前邮箱验证开关。
+type EnabledResolver interface {
+	EmailVerificationEnabled(ctx context.Context) (bool, error)
+}
+
 // Service orchestrates email verification-code sending and checking.
 // Service 只负责邮箱验证码业务规则，邮件网关和服务商细节由 infrastructure 适配。
 type Service struct {
 	codes         repository.EmailCodeRepository
 	limiter       repository.RateLimiter
 	sender        EmailProvider
+	enabledReader EnabledResolver
 	enabled       bool
 	codeTTL       time.Duration
 	rateLimit     bool
@@ -61,6 +68,7 @@ type Dependencies struct {
 	Codes         repository.EmailCodeRepository
 	Limiter       repository.RateLimiter
 	Sender        EmailProvider
+	EnabledReader EnabledResolver
 	Enabled       bool
 	CodeTTL       time.Duration
 	RateLimit     bool
@@ -108,6 +116,7 @@ func NewService(deps Dependencies) *Service {
 		codes:         deps.Codes,
 		limiter:       deps.Limiter,
 		sender:        deps.Sender,
+		enabledReader: deps.EnabledReader,
 		enabled:       deps.Enabled,
 		codeTTL:       deps.CodeTTL,
 		rateLimit:     deps.RateLimit,
@@ -124,7 +133,11 @@ func NewService(deps Dependencies) *Service {
 // RequestCode creates and sends a short-lived email verification code.
 // RequestCode 通过 EmailProvider 端口发送验证码，支持 noop/webhook/自定义服务商实现。
 func (s *Service) RequestCode(ctx context.Context, req CodeRequest) (*CodeResult, error) {
-	if !s.enabled {
+	enabled, err := s.isEnabled(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
 		return nil, domain.NewError(ErrDisabled, "email verification is disabled")
 	}
 	email := normalizeEmail(req.Email)
@@ -157,7 +170,11 @@ func (s *Service) RequestCode(ctx context.Context, req CodeRequest) (*CodeResult
 // VerifyCode checks and consumes an email verification code.
 // VerifyCode 校验成功后消费验证码，避免同一验证码重复使用。
 func (s *Service) VerifyCode(ctx context.Context, req VerifyRequest) (*VerifyResult, error) {
-	if !s.enabled {
+	enabled, err := s.isEnabled(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
 		return nil, domain.NewError(ErrDisabled, "email verification is disabled")
 	}
 	email := normalizeEmail(req.Email)
@@ -198,4 +215,13 @@ func (s *Service) checkLimit(ctx context.Context, key string, limit int, window 
 // normalizeEmail 去除空白并转小写，保证邮箱验证码存取口径一致。
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// isEnabled reads the latest runtime switch when a resolver is configured.
+// isEnabled 在配置 resolver 时读取最新运行期开关，否则使用启动配置。
+func (s *Service) isEnabled(ctx context.Context) (bool, error) {
+	if s.enabledReader == nil {
+		return s.enabled, nil
+	}
+	return s.enabledReader.EmailVerificationEnabled(ctx)
 }
