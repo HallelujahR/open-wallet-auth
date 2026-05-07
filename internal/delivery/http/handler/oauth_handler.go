@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 
@@ -33,6 +34,7 @@ func (h *OAuthHandler) Start(c *gin.Context) {
 		Provider:    c.Param("provider"),
 		ClientID:    c.Query("client_id"),
 		RedirectURI: c.Query("redirect_uri"),
+		ReturnURI:   c.Query("return_uri"),
 	})
 	if err != nil {
 		writeOAuthError(c, err)
@@ -53,6 +55,7 @@ func (h *OAuthHandler) BindStart(c *gin.Context) {
 		Provider:    c.Param("provider"),
 		ClientID:    c.Query("client_id"),
 		RedirectURI: c.Query("redirect_uri"),
+		ReturnURI:   c.Query("return_uri"),
 		BindUserID:  authClaims.UserID,
 	})
 	if err != nil {
@@ -76,6 +79,10 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 		writeOAuthError(c, err)
 		return
 	}
+	if result.ReturnURI != "" {
+		c.Redirect(http.StatusFound, oauthReturnURL(result))
+		return
+	}
 	response.OK(c, dto.AuthResponse{
 		User: dto.AuthUser{
 			ID:       result.UserID,
@@ -89,6 +96,16 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 			TokenType:    "Bearer",
 		},
 	})
+}
+
+// oauthReturnURL appends the identity token to the business callback fragment.
+// oauthReturnURL 将中台 token 放入业务回调地址的 fragment，避免 token 出现在服务端请求日志中。
+func oauthReturnURL(result *oauthusecase.CallbackResult) string {
+	values := url.Values{}
+	values.Set("access_token", result.Token.AccessToken)
+	values.Set("token_type", "Bearer")
+	values.Set("expires_at", result.Token.ExpiresAt.Format(timeFormatRFC3339))
+	return result.ReturnURI + "#" + values.Encode()
 }
 
 // currentOAuthAuthClaims reads token claims from Gin context.

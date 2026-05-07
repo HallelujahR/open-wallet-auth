@@ -7,3 +7,8 @@ coverage.out
 configs/config.yaml
 configs/jwt_private.pem
 configs/jwt_public.pem
+admin-web/node_modules/
+admin-web/dist/
+admin-web/*.tsbuildinfo
+admin-web/vite.config.js
+admin-web/vite.config.d.ts

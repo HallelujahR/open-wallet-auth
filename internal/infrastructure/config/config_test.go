@@ -68,6 +68,7 @@ func TestValidateProductionRejectsUnsafeSettings(t *testing.T) {
 	for _, want := range []string{
 		"database.auto_migrate",
 		"management.admin_token",
+		"management.admin_username",
 		"expose_dev_code",
 		"phone.provider.type",
 		"email.provider.type",
@@ -87,9 +88,13 @@ func TestValidateProductionAcceptsHardenedSettings(t *testing.T) {
 	privateKeyPath := writeTempFile(t, "private.pem")
 	publicKeyPath := writeTempFile(t, "public.pem")
 	cfg := Config{
-		App:        AppConfig{Env: "production"},
-		Management: ManagementConfig{AdminToken: "0123456789abcdef0123456789abcdef"},
-		Database:   DatabaseConfig{AutoMigrate: false},
+		App: AppConfig{Env: "production"},
+		Management: ManagementConfig{
+			AdminUsername: "admin",
+			AdminPassword: "strong-admin-password",
+			AdminToken:    "0123456789abcdef0123456789abcdef",
+		},
+		Database: DatabaseConfig{AutoMigrate: false},
 		Phone: PhoneConfig{
 			Enabled:       true,
 			ExposeDevCode: false,

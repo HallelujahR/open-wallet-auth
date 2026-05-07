@@ -54,6 +54,12 @@ type SMSProvider interface {
 	SendSMS(ctx context.Context, msg SMSMessage) error
 }
 
+// EnabledResolver supplies the current phone-login switch.
+// EnabledResolver 提供当前手机号登录开关。
+type EnabledResolver interface {
+	PhoneEnabled(ctx context.Context) (bool, error)
+}
+
 // Service orchestrates phone verification-code login.
 // Service 只编排验证码、用户、token，不直接依赖任何短信云厂商 SDK。
 type Service struct {
@@ -64,6 +70,7 @@ type Service struct {
 	codes         repository.PhoneCodeRepository
 	limiter       repository.RateLimiter
 	sender        SMSProvider
+	enabledReader EnabledResolver
 	tokenHasher   TokenHasher
 	issuer        TokenIssuer
 	enabled       bool
@@ -88,6 +95,7 @@ type Dependencies struct {
 	Codes         repository.PhoneCodeRepository
 	Limiter       repository.RateLimiter
 	Sender        SMSProvider
+	EnabledReader EnabledResolver
 	TokenHasher   TokenHasher
 	Issuer        TokenIssuer
 	Enabled       bool
@@ -147,6 +155,7 @@ func NewService(deps Dependencies) *Service {
 		codes:         deps.Codes,
 		limiter:       deps.Limiter,
 		sender:        deps.Sender,
+		enabledReader: deps.EnabledReader,
 		tokenHasher:   deps.TokenHasher,
 		issuer:        deps.Issuer,
 		enabled:       deps.Enabled,
@@ -167,7 +176,11 @@ func NewService(deps Dependencies) *Service {
 func (s *Service) RequestCode(ctx context.Context, req CodeRequest) (*CodeResult, error) {
 	clientID := defaultClientID(req.ClientID)
 	phone := normalizePhone(req.Phone)
-	if !s.enabled {
+	enabled, err := s.isEnabled(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
 		return nil, domain.NewError(ErrDisabled, "phone login is disabled")
 	}
 	if phone == "" {
@@ -207,7 +220,11 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 	clientID := defaultClientID(req.ClientID)
 	phone := normalizePhone(req.Phone)
 	code := strings.TrimSpace(req.Code)
-	if !s.enabled {
+	enabled, err := s.isEnabled(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
 		return nil, domain.NewError(ErrDisabled, "phone login is disabled")
 	}
 	if phone == "" || code == "" {
@@ -317,6 +334,15 @@ func safePhoneSuffix(phone string) string {
 		return phone
 	}
 	return phone[len(phone)-4:]
+}
+
+// isEnabled reads the latest runtime switch when a resolver is configured.
+// isEnabled 在配置 resolver 时读取最新运行期开关，否则使用启动配置。
+func (s *Service) isEnabled(ctx context.Context) (bool, error) {
+	if s.enabledReader == nil {
+		return s.enabled, nil
+	}
+	return s.enabledReader.PhoneEnabled(ctx)
 }
 
 // defaultClientID normalizes an empty client id to the built-in default client.

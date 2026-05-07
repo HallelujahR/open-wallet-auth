@@ -171,17 +171,29 @@ type OAuthConfig struct {
 
 // OAuthProviderConfig contains one OAuth provider's credentials.
 type OAuthProviderConfig struct {
-	ClientID     string   `mapstructure:"client_id"`
-	ClientSecret string   `mapstructure:"client_secret"`
-	AuthURL      string   `mapstructure:"auth_url"`
-	TokenURL     string   `mapstructure:"token_url"`
-	UserInfoURL  string   `mapstructure:"user_info_url"`
-	Scopes       []string `mapstructure:"scopes"`
+	ClientID          string                               `mapstructure:"client_id"`
+	ClientSecret      string                               `mapstructure:"client_secret"`
+	AuthURL           string                               `mapstructure:"auth_url"`
+	TokenURL          string                               `mapstructure:"token_url"`
+	UserInfoURL       string                               `mapstructure:"user_info_url"`
+	Scopes            []string                             `mapstructure:"scopes"`
+	Tenants           map[string]OAuthProviderTenantConfig `mapstructure:"tenants"`
+	TenantCredentials []OAuthProviderTenantConfig          `mapstructure:"tenant_credentials"`
+}
+
+// OAuthProviderTenantConfig overrides provider credentials for one redirect host.
+// OAuthProviderTenantConfig 按回调域名覆盖 OAuth 凭据，适合 GitHub 这类单 App 单回调的服务商。
+type OAuthProviderTenantConfig struct {
+	Host         string `mapstructure:"host"`
+	ClientID     string `mapstructure:"client_id"`
+	ClientSecret string `mapstructure:"client_secret"`
 }
 
 // ManagementConfig contains settings for management-only APIs.
 type ManagementConfig struct {
-	AdminToken string `mapstructure:"admin_token"`
+	AdminUsername string `mapstructure:"admin_username"`
+	AdminPassword string `mapstructure:"admin_password"`
+	AdminToken    string `mapstructure:"admin_token"`
 }
 
 // Load reads configuration from defaults, config files, and environment variables.
@@ -224,6 +236,9 @@ func (c Config) ValidateProduction() error {
 	}
 	if c.Management.AdminToken == "" || c.Management.AdminToken == "dev-admin-token" || len(c.Management.AdminToken) < 32 {
 		problems = append(problems, "management.admin_token must be at least 32 characters and non-default")
+	}
+	if c.Management.AdminUsername == "" || c.Management.AdminPassword == "" || c.Management.AdminPassword == "admin123456" || len(c.Management.AdminPassword) < 12 {
+		problems = append(problems, "management.admin_username and a strong management.admin_password are required")
 	}
 	if c.Phone.ExposeDevCode || c.Email.ExposeDevCode {
 		problems = append(problems, "phone.expose_dev_code and email.expose_dev_code must be false")
@@ -326,5 +341,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("oauth.github.token_url", "https://github.com/login/oauth/access_token")
 	v.SetDefault("oauth.github.user_info_url", "https://api.github.com/user")
 	v.SetDefault("oauth.github.scopes", []string{"read:user", "user:email"})
+	v.SetDefault("management.admin_username", "admin")
+	v.SetDefault("management.admin_password", "admin123456")
 	v.SetDefault("management.admin_token", "")
 }

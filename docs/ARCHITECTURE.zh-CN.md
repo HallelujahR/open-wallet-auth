@@ -23,7 +23,7 @@ cmd/migrate
   生产数据库迁移命令。执行 migrations 目录中的版本化 SQL 文件。
 
 internal/app
-  依赖装配和应用生命周期管理。
+  依赖装配和应用生命周期管理。存储、运行时适配器、HTTP 服务装配拆分为小文件。
 
 internal/domain
   核心实体和值对象，不依赖框架。
@@ -40,11 +40,17 @@ internal/delivery/http
 internal/infrastructure
   PostgreSQL、JWT、哈希、日志、配置、消息服务商等外部适配器。
 
+admin-web
+  React + Vite 管理控制台。生产构建产物由 Go 服务在 `/` 路径提供访问。
+
 api
   OpenAPI 规范。
 
 migrations
   SQL 数据库迁移脚本。
+
+deployments
+  部署辅助脚本和环境相关运维文件。
 
 examples
   通用业务系统接入示例。
@@ -56,6 +62,7 @@ examples
 - 钱包登录和已登录绑定钱包位于 `internal/usecase/wallet`；EVM 地址和签名细节隔离在 `internal/infrastructure/wallet`。
 - 手机号登录位于 `internal/usecase/phone`；验证码存储通过 `repository.PhoneCodeRepository` 抽象。
 - 邮箱验证位于 `internal/usecase/email`；短信/邮件发送通过 usecase provider port 抽象，并由 `internal/infrastructure/message` 实现。
+- 运行期可编辑服务商配置位于 `internal/usecase/settings`；PostgreSQL 通过 `system_settings` 保存配置，HTTP handler 返回给管理后台前会脱敏密钥字段。
 - 验证码、密码登录、钱包 nonce 的限流通过 `repository.RateLimiter` 抽象；Redis 和 no-op 实现在 infrastructure 层。
 - OAuth 登录位于 `internal/usecase/oauth`；服务商 HTTP 交换和 state 存储隔离在 `internal/infrastructure/oauth`。
 - Client 管理和 JWT audience 动态解析位于 `internal/usecase/client`。
@@ -66,6 +73,8 @@ examples
 - JWT 签发、校验和 JWKS 生成位于 `internal/infrastructure/jwt`。
 - HTTP handler 不直接访问数据库。
 - CORS 由 HTTP 中间件按运行配置处理；业务 client 归属仍由 client usecase 管理。
+- 管理控制台是独立前端包；生产环境通过同源 `/api/v1/admin/*` API 调用后端。
+- Google/GitHub OAuth、短信和邮件服务商会从可编辑配置动态解析，凭据变更后不需要重启服务即可生效。
 
 ## 已知边界与后续方向
 

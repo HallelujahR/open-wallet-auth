@@ -33,19 +33,21 @@ type Clock interface {
 // ProviderUser is the normalized profile returned by an OAuth provider.
 // ProviderUser 是第三方 OAuth 用户资料的统一表示，避免 usecase 依赖 Google/GitHub 原始响应。
 type ProviderUser struct {
-	Subject   string
-	Email     string
-	Username  string
-	AvatarURL string
+	Subject       string
+	Email         string
+	EmailVerified bool
+	Username      string
+	AvatarURL     string
 }
 
 // Provider hides third-party OAuth implementation details from usecases.
 // Provider 是 OAuth 服务商端口，具体 HTTP token/userinfo 交换实现放在 infrastructure 层。
 type Provider interface {
 	Name() string
-	AuthURL(state string, redirectURI string) string
-	FetchUser(ctx context.Context, code string, redirectURI string) (*ProviderUser, error)
+	AuthURL(state string, redirectURI string, credentialURI string) string
+	FetchUser(ctx context.Context, code string, redirectURI string, credentialURI string) (*ProviderUser, error)
 	Configured() bool
+	ConfiguredForRedirect(redirectURI string) bool
 }
 
 // StateStore persists short-lived OAuth state between start and callback.
@@ -71,9 +73,11 @@ type TokenHasher interface {
 // StateValue records trusted values from the OAuth start request.
 // StateValue 保存 OAuth 发起阶段已校验的可信参数。
 type StateValue struct {
-	ClientID    string
-	RedirectURI string
-	BindUserID  string
+	ClientID      string
+	RedirectURI   string
+	CredentialURI string
+	ReturnURI     string
+	BindUserID    string
 }
 
 // Service orchestrates OAuth start and callback login.
@@ -114,6 +118,7 @@ type StartRequest struct {
 	Provider    string
 	ClientID    string
 	RedirectURI string
+	ReturnURI   string
 	BindUserID  string
 }
 
@@ -138,10 +143,11 @@ type CallbackRequest struct {
 // CallbackResult is returned after a successful OAuth callback.
 // CallbackResult 是 OAuth 回调登录成功后的用例输出。
 type CallbackResult struct {
-	UserID   string
-	Username string
-	Email    string
-	Token    *token.Pair
+	UserID    string
+	Username  string
+	Email     string
+	ReturnURI string
+	Token     *token.Pair
 }
 
 // NewService creates the OAuth usecase service.
@@ -187,14 +193,28 @@ func (s *Service) Start(ctx context.Context, req StartRequest) (*StartResult, er
 	if redirectURI == "" {
 		return nil, domain.NewError(ErrInvalidState, "redirect_uri is required")
 	}
+	returnURI := strings.TrimSpace(req.ReturnURI)
+	credentialURI := redirectURI
+	if returnURI != "" {
+		credentialURI = returnURI
+	}
+	if !provider.ConfiguredForRedirect(credentialURI) {
+		return nil, domain.NewError(ErrProviderFailed, "oauth provider is not configured for redirect_uri")
+	}
 	state, err := randomState()
 	if err != nil {
 		return nil, err
 	}
-	if err := s.states.Save(ctx, state, StateValue{ClientID: client.ClientID, RedirectURI: redirectURI, BindUserID: strings.TrimSpace(req.BindUserID)}, s.clock.Now().UTC().Add(s.stateTTL)); err != nil {
+	if err := s.states.Save(ctx, state, StateValue{
+		ClientID:      client.ClientID,
+		RedirectURI:   redirectURI,
+		CredentialURI: credentialURI,
+		ReturnURI:     returnURI,
+		BindUserID:    strings.TrimSpace(req.BindUserID),
+	}, s.clock.Now().UTC().Add(s.stateTTL)); err != nil {
 		return nil, err
 	}
-	return &StartResult{Provider: provider.Name(), AuthURL: provider.AuthURL(state, redirectURI), State: state}, nil
+	return &StartResult{Provider: provider.Name(), AuthURL: provider.AuthURL(state, redirectURI, credentialURI), State: state}, nil
 }
 
 // Callback exchanges an OAuth code for a provider user, links the account, and issues tokens.
@@ -212,7 +232,7 @@ func (s *Service) Callback(ctx context.Context, req CallbackRequest) (*CallbackR
 	if err != nil || client == nil || !client.IsActive() {
 		return nil, domain.NewError(ErrInvalidClient, "invalid client")
 	}
-	profile, err := provider.FetchUser(ctx, strings.TrimSpace(req.Code), state.RedirectURI)
+	profile, err := provider.FetchUser(ctx, strings.TrimSpace(req.Code), state.RedirectURI, state.CredentialURI)
 	if err != nil || profile == nil || profile.Subject == "" {
 		return nil, domain.WrapError(ErrProviderFailed, "oauth provider request failed", err)
 	}
@@ -264,7 +284,7 @@ func (s *Service) Callback(ctx context.Context, req CallbackRequest) (*CallbackR
 			return nil, err
 		}
 	}
-	return &CallbackResult{UserID: u.ID, Username: u.Username, Email: u.Email, Token: pair}, nil
+	return &CallbackResult{UserID: u.ID, Username: u.Username, Email: u.Email, ReturnURI: state.ReturnURI, Token: pair}, nil
 }
 
 // resolveUser links an OAuth profile according to explicit binding rules.
@@ -313,7 +333,13 @@ func (s *Service) resolveOAuthTargetUser(ctx context.Context, provider string, p
 			return nil, err
 		}
 		if existing != nil {
-			return nil, domain.NewError(ErrOAuthBound, "oauth email is already used by another account; login first and bind explicitly")
+			if !profile.EmailVerified {
+				return nil, domain.NewError(ErrOAuthBound, "oauth email is already used by another account; login first and bind explicitly")
+			}
+			if !existing.IsActive() {
+				return nil, domain.NewError(ErrProviderFailed, "oauth user is unavailable")
+			}
+			return existing, nil
 		}
 	}
 	username := strings.TrimSpace(profile.Username)

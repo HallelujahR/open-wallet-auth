@@ -1,6 +1,11 @@
 package router
 
 import (
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
@@ -12,6 +17,7 @@ import (
 type Dependencies struct {
 	Config           *config.Config
 	Logger           *zap.Logger
+	CORSOrigins      middleware.CORSOriginResolver
 	Auth             *handler.AuthHandler
 	Wallet           *handler.WalletHandler
 	Phone            *handler.PhoneHandler
@@ -19,6 +25,7 @@ type Dependencies struct {
 	OAuth            *handler.OAuthHandler
 	Client           *handler.ClientHandler
 	Admin            *handler.AdminHandler
+	Settings         *handler.SettingsHandler
 	Token            middleware.TokenVerifier
 	AudienceResolver middleware.ClientAudienceResolver
 	JWKS             *handler.JWKSHandler
@@ -34,7 +41,7 @@ func New(deps Dependencies) *gin.Engine {
 
 	engine := gin.New()
 	engine.Use(middleware.RequestID())
-	engine.Use(middleware.CORS(deps.Config.HTTP.CORSAllowedOrigins))
+	engine.Use(middleware.CORS(deps.Config.HTTP.CORSAllowedOrigins, deps.CORSOrigins))
 	engine.Use(middleware.Recovery(deps.Logger))
 	engine.Use(middleware.AccessLog(deps.Logger))
 
@@ -123,6 +130,9 @@ func New(deps Dependencies) *gin.Engine {
 			}
 		}
 		if deps.Admin != nil {
+			management := handler.NewManagementHandler(deps.Config.Management)
+			v1.POST("/admin/login", management.Login)
+
 			admin := v1.Group("/admin", middleware.RequireAdminToken(deps.AdminToken))
 			{
 				admin.GET("/users", deps.Admin.ListUsers)
@@ -135,6 +145,10 @@ func New(deps Dependencies) *gin.Engine {
 				admin.GET("/security-events", deps.Admin.ListSecurityEvents)
 				admin.GET("/sessions", deps.Admin.ListSessions)
 				admin.DELETE("/sessions/:session_id", deps.Admin.RevokeSession)
+				if deps.Settings != nil {
+					admin.GET("/settings", deps.Settings.Get)
+					admin.PUT("/settings", deps.Settings.Update)
+				}
 				if deps.Client != nil {
 					admin.POST("/clients", deps.Client.Create)
 					admin.GET("/clients", deps.Client.List)
@@ -143,5 +157,34 @@ func New(deps Dependencies) *gin.Engine {
 		}
 	}
 
+	registerAdminConsole(engine)
+
 	return engine
+}
+
+// registerAdminConsole serves the built management console when admin-web/dist exists.
+// registerAdminConsole 在存在 admin-web/dist 时挂载管理控制台静态页面，根路径直接进入控制台。
+func registerAdminConsole(engine *gin.Engine) {
+	const distDir = "admin-web/dist"
+	indexFile := filepath.Join(distDir, "index.html")
+	if _, err := os.Stat(indexFile); err != nil {
+		return
+	}
+
+	engine.Static("/assets", filepath.Join(distDir, "assets"))
+	engine.GET("/", func(c *gin.Context) {
+		c.File(indexFile)
+	})
+	engine.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/.well-known/") {
+			c.String(http.StatusNotFound, "404 page not found")
+			return
+		}
+		if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
+			c.String(http.StatusNotFound, "404 page not found")
+			return
+		}
+		c.File(indexFile)
+	})
 }
