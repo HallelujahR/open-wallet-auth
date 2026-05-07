@@ -23,7 +23,7 @@ func TestHTTPProviderAuthURLUsesTenantCredentials(t *testing.T) {
 		},
 	})
 
-	authURL := provider.AuthURL("state-value", "https://label.lianxilabs.com/auth/oauth/callback?provider=github")
+	authURL := provider.AuthURL("state-value", "https://auth.lianxilabs.com/api/v1/oauth/github/callback", "https://label.lianxilabs.com/auth/oauth/callback?provider=github")
 	parsed, err := url.Parse(authURL)
 	if err != nil {
 		t.Fatalf("parse auth url: %v", err)
@@ -51,7 +51,7 @@ func TestHTTPProviderAuthURLFallsBackToDefaultCredentials(t *testing.T) {
 		},
 	})
 
-	authURL := provider.AuthURL("state-value", "https://blockx.lianxilabs.com/auth/oauth/callback?provider=github")
+	authURL := provider.AuthURL("state-value", "https://auth.lianxilabs.com/api/v1/oauth/github/callback", "https://blockx.lianxilabs.com/auth/oauth/callback?provider=github")
 	parsed, err := url.Parse(authURL)
 	if err != nil {
 		t.Fatalf("parse auth url: %v", err)

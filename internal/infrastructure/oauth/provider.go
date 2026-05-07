@@ -75,9 +75,9 @@ func (p *HTTPProvider) ConfiguredForRedirect(redirectURI string) bool {
 }
 
 // AuthURL builds the provider authorization URL for browser redirection.
-// AuthURL 构造浏览器需要跳转的第三方授权地址。
-func (p *HTTPProvider) AuthURL(state string, redirectURI string) string {
-	cfg := p.configForRedirect(redirectURI)
+// AuthURL 构造浏览器需要跳转的第三方授权地址，凭据可按业务 return_uri 域名选择。
+func (p *HTTPProvider) AuthURL(state string, redirectURI string, credentialURI string) string {
+	cfg := p.configForRedirect(credentialURI)
 	values := url.Values{}
 	values.Set("client_id", cfg.ClientID)
 	values.Set("redirect_uri", redirectURI)
@@ -90,9 +90,9 @@ func (p *HTTPProvider) AuthURL(state string, redirectURI string) string {
 }
 
 // FetchUser exchanges the code and returns a normalized provider profile.
-// FetchUser 用授权码换取访问令牌，并返回归一化的第三方用户资料。
-func (p *HTTPProvider) FetchUser(ctx context.Context, code string, redirectURI string) (*oauthusecase.ProviderUser, error) {
-	cfg := p.configForRedirect(redirectURI)
+// FetchUser 用授权码换取访问令牌，并按业务域名选择对应 OAuth 凭据。
+func (p *HTTPProvider) FetchUser(ctx context.Context, code string, redirectURI string, credentialURI string) (*oauthusecase.ProviderUser, error) {
+	cfg := p.configForRedirect(credentialURI)
 	if !p.configComplete(cfg.ClientID, cfg.ClientSecret) {
 		return nil, errors.New("oauth provider is not configured")
 	}
