@@ -23,7 +23,7 @@ cmd/migrate
   生产数据库迁移命令。执行 migrations 目录中的版本化 SQL 文件。
 
 internal/app
-  依赖装配和应用生命周期管理。
+  依赖装配和应用生命周期管理。存储、运行时适配器、HTTP 服务装配拆分为小文件。
 
 internal/domain
   核心实体和值对象，不依赖框架。
@@ -40,11 +40,17 @@ internal/delivery/http
 internal/infrastructure
   PostgreSQL、JWT、哈希、日志、配置、消息服务商等外部适配器。
 
+admin-web
+  React + Vite 管理控制台。生产构建产物由 Go 服务在 `/` 路径提供访问。
+
 api
   OpenAPI 规范。
 
 migrations
   SQL 数据库迁移脚本。
+
+deployments
+  部署辅助脚本和环境相关运维文件。
 
 examples
   通用业务系统接入示例。
@@ -66,6 +72,7 @@ examples
 - JWT 签发、校验和 JWKS 生成位于 `internal/infrastructure/jwt`。
 - HTTP handler 不直接访问数据库。
 - CORS 由 HTTP 中间件按运行配置处理；业务 client 归属仍由 client usecase 管理。
+- 管理控制台是独立前端包；生产环境通过同源 `/api/v1/admin/*` API 调用后端。
 
 ## 已知边界与后续方向
 

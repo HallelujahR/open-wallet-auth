@@ -74,6 +74,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for project layout and dependen
 - [Universal auth frontend demo](examples/universal-auth-demo)
 - [Admin console demo](examples/admin-console)
 - [SMS and email provider guide](docs/PROVIDERS.zh-CN.md)
+- [Deployment guide](docs/DEPLOYMENT.md)
 - [Open source readiness checklist](docs/OPEN_SOURCE_READINESS.zh-CN.md)
 - [Browser wallet login example](examples/browser-wallet-login)
 - [Gin API JWT verification example](examples/gin-api)

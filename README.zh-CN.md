@@ -74,6 +74,7 @@ flowchart LR
 - [通用认证前端 Demo](examples/universal-auth-demo)
 - [身份管理控制台 Demo](examples/admin-console)
 - [短信和邮件服务商接入](docs/PROVIDERS.zh-CN.md)
+- [部署指南](docs/DEPLOYMENT.zh-CN.md)
 - [开源发布收敛检查](docs/OPEN_SOURCE_READINESS.zh-CN.md)
 - [浏览器钱包登录示例](examples/browser-wallet-login)
 - [Gin API JWT 校验示例](examples/gin-api)
