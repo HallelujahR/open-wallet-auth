@@ -1,7 +1,8 @@
-import { SaveOutlined, SyncOutlined } from "@ant-design/icons";
+import { CopyOutlined, SaveOutlined, SyncOutlined } from "@ant-design/icons";
 import { Button, Card, Col, Form, Input, InputNumber, Row, Select, Space, Switch, Tabs, Typography, message } from "antd";
 import { useEffect, useState } from "react";
 import { adminApi } from "../api/admin";
+import { authApiBaseUrl } from "../config";
 import type { RuntimeSettingsResult, SecretStatus } from "../types/api";
 
 const providerOptions = [
@@ -85,10 +86,13 @@ export function SettingsPage() {
               label: "第三方登录 OAuth",
               children: (
                 <Row gutter={[16, 16]}>
-                  <Col span={12}>
+                  <Col span={24}>
+                    <OAuthCallbackCard />
+                  </Col>
+                  <Col xs={24} xl={12}>
                     <OAuthProviderCard provider="google" title="Google OAuth" secrets={secrets} />
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} xl={12}>
                     <OAuthProviderCard provider="github" title="GitHub OAuth" secrets={secrets} />
                   </Col>
                 </Row>
@@ -97,21 +101,34 @@ export function SettingsPage() {
             {
               key: "message",
               label: "短信 SMS 与邮件 Email",
-              children: (
-                <Row gutter={[16, 16]}>
-                  <Col span={12}>
-                    <MessageProviderCard root="phone" title="手机号验证码" secretPrefix="phone.provider" secrets={secrets} />
-                  </Col>
-                  <Col span={12}>
-                    <MessageProviderCard root="email" title="邮箱验证码" secretPrefix="email.provider" secrets={secrets} />
-                  </Col>
-                </Row>
-              ),
+              children: <MessageSettingsTabs secrets={secrets} />,
             },
           ]}
         />
       </Form>
     </div>
+  );
+}
+
+function OAuthCallbackCard() {
+  const callbackURL = `${authApiBaseUrl}/api/v1/oauth/{provider}/callback`;
+  const copy = async (value: string) => {
+    await navigator.clipboard.writeText(value);
+    message.success("已复制回调地址");
+  };
+
+  return (
+    <Card title="OAuth 回调地址 Callback URL">
+      <Typography.Paragraph type="secondary">
+        Google 和 GitHub 控制台里的回调地址需要指向认证服务后端。下面的地址会根据当前认证服务地址自动生成，实际配置时把 {"{provider}"} 替换为 google 或 github。
+      </Typography.Paragraph>
+      <Input.Group compact>
+        <Input value={callbackURL} readOnly style={{ width: "calc(100% - 96px)" }} />
+        <Button icon={<CopyOutlined />} onClick={() => copy(callbackURL)}>
+          复制
+        </Button>
+      </Input.Group>
+    </Card>
   );
 }
 
@@ -124,26 +141,26 @@ function OAuthProviderCard({ provider, title, secrets }: { provider: "google" | 
       </Typography.Paragraph>
       <Row gutter={12}>
         <Col span={12}>
-          <Form.Item label="应用 ID Client ID" name={[...base, "client_id"]} extra="第三方平台创建 OAuth 应用后获得的公开应用标识。">
+          <Form.Item label="Client ID" name={[...base, "client_id"]} extra="第三方平台创建 OAuth 应用后获得的公开应用标识。">
             <Input placeholder="请输入 OAuth Client ID" />
           </Form.Item>
         </Col>
         <Col span={12}>
-          <Form.Item label="应用密钥 Client Secret" name={[...base, "client_secret"]} extra={<SecretHint status={secrets[`oauth.${provider}.client_secret`]} />}>
+          <Form.Item label="Client Secret" name={[...base, "client_secret"]} extra={<SecretHint status={secrets[`oauth.${provider}.client_secret`]} />}>
             <Input.Password placeholder="留空则保留当前密钥" autoComplete="new-password" />
           </Form.Item>
         </Col>
       </Row>
-      <Form.Item label="授权地址 Auth URL" name={[...base, "auth_url"]} extra="用户点击第三方登录后，浏览器会跳转到这个授权地址。">
+      <Form.Item label="Auth URL" name={[...base, "auth_url"]} extra="用户点击第三方登录后，浏览器会跳转到这个授权地址。">
         <Input />
       </Form.Item>
-      <Form.Item label="令牌交换地址 Token URL" name={[...base, "token_url"]} extra="认证服务用授权码 code 换取第三方 access token 的地址。">
+      <Form.Item label="Token URL" name={[...base, "token_url"]} extra="认证服务用授权码 code 换取第三方 access token 的地址。">
         <Input />
       </Form.Item>
-      <Form.Item label="用户信息地址 UserInfo URL" name={[...base, "user_info_url"]} extra="认证服务用第三方 access token 拉取用户资料的地址。">
+      <Form.Item label="UserInfo URL" name={[...base, "user_info_url"]} extra="认证服务用第三方 access token 拉取用户资料的地址。">
         <Input />
       </Form.Item>
-      <Form.Item label="授权范围 Scopes" name={[...base, "scopes"]} extra="需要向第三方申请的权限范围，例如 email、profile、read:user。">
+      <Form.Item label="Scopes" name={[...base, "scopes"]} extra="需要向第三方申请的权限范围，例如 email、profile、read:user。">
         <Select mode="tags" tokenSeparators={[",", " "]} />
       </Form.Item>
       <Form.List name={[...base, "tenant_credentials"]}>
@@ -159,17 +176,17 @@ function OAuthProviderCard({ provider, title, secrets }: { provider: "google" | 
               <Card key={field.key} size="small" style={{ marginBottom: 8 }}>
                 <Row gutter={12}>
                   <Col span={7}>
-                    <Form.Item label="业务域名 Host" name={[field.name, "host"]} extra="例如 blockx.example.com，用于匹配回调或返回地址。">
+                    <Form.Item label="Host" name={[field.name, "host"]} extra="例如 blockx.example.com，用于匹配回调或返回地址。">
                       <Input placeholder="blockx.example.com" />
                     </Form.Item>
                   </Col>
                   <Col span={7}>
-                    <Form.Item label="应用 ID Client ID" name={[field.name, "client_id"]}>
+                    <Form.Item label="Client ID" name={[field.name, "client_id"]}>
                       <Input />
                     </Form.Item>
                   </Col>
                   <Col span={7}>
-                    <Form.Item label="应用密钥 Client Secret" name={[field.name, "client_secret"]} extra="留空则保留该域名当前密钥。">
+                    <Form.Item label="Client Secret" name={[field.name, "client_secret"]} extra="留空则保留该域名当前密钥。">
                       <Input.Password placeholder="留空则保留当前密钥" autoComplete="new-password" />
                     </Form.Item>
                   </Col>
@@ -190,6 +207,26 @@ function OAuthProviderCard({ provider, title, secrets }: { provider: "google" | 
   );
 }
 
+function MessageSettingsTabs({ secrets }: { secrets: RuntimeSettingsResult["secrets"] }) {
+  return (
+    <Tabs
+      type="card"
+      items={[
+        {
+          key: "phone",
+          label: "手机号 Phone",
+          children: <MessageProviderCard root="phone" title="手机号验证码 Phone Code" secretPrefix="phone.provider" secrets={secrets} />,
+        },
+        {
+          key: "email",
+          label: "邮箱 Email",
+          children: <MessageProviderCard root="email" title="邮箱验证码 Email Code" secretPrefix="email.provider" secrets={secrets} />,
+        },
+      ]}
+    />
+  );
+}
+
 function MessageProviderCard({
   root,
   title,
@@ -207,74 +244,74 @@ function MessageProviderCard({
         配置验证码发送服务商。Noop 适合本地调试；Webhook 适合接入自有消息网关；SMTP 用于邮件；Aliyun SMS 用于阿里云短信。
       </Typography.Paragraph>
       <Form.Item
-        label={root === "phone" ? "启用手机号登录 Phone Login" : "启用邮箱验证 Email Verification"}
+        label={root === "phone" ? "Phone Login" : "Email Verification"}
         name={[root, root === "phone" ? "enabled" : "verification_enabled"]}
         valuePropName="checked"
         extra={root === "phone" ? "关闭后手机号验证码登录接口会返回禁用错误。" : "关闭后邮箱验证码发送和校验接口会返回禁用错误。"}
       >
         <Switch />
       </Form.Item>
-      <Form.Item label="服务商类型 Provider Type" name={[root, "provider", "type"]} extra="选择当前验证码实际发送方式。">
+      <Form.Item label="Provider Type" name={[root, "provider", "type"]} extra="选择当前验证码实际发送方式。">
         <Select options={providerOptions} />
       </Form.Item>
       <Typography.Title level={5}>Webhook 回调</Typography.Title>
-      <Form.Item label="回调地址 Webhook URL" name={[root, "provider", "webhook", "url"]} extra="认证服务会把验证码发送请求 POST 到这个地址。">
+      <Form.Item label="Webhook URL" name={[root, "provider", "webhook", "url"]} extra="认证服务会把验证码发送请求 POST 到这个地址。">
         <Input />
       </Form.Item>
-      <Form.Item label="访问令牌 Bearer Token" name={[root, "provider", "webhook", "bearer_token"]} extra={<SecretHint status={secrets[`${secretPrefix}.webhook.bearer_token`]} />}>
+      <Form.Item label="Bearer Token" name={[root, "provider", "webhook", "bearer_token"]} extra={<SecretHint status={secrets[`${secretPrefix}.webhook.bearer_token`]} />}>
         <Input.Password placeholder="留空则保留当前密钥" autoComplete="new-password" />
       </Form.Item>
 
       <Typography.Title level={5}>SMTP 邮件</Typography.Title>
       <Row gutter={12}>
         <Col span={16}>
-          <Form.Item label="服务器地址 SMTP Host" name={[root, "provider", "smtp", "host"]}>
+          <Form.Item label="SMTP Host" name={[root, "provider", "smtp", "host"]}>
             <Input />
           </Form.Item>
         </Col>
         <Col span={8}>
-          <Form.Item label="端口 Port" name={[root, "provider", "smtp", "port"]}>
+          <Form.Item label="Port" name={[root, "provider", "smtp", "port"]}>
             <InputNumber min={1} max={65535} style={{ width: "100%" }} />
           </Form.Item>
         </Col>
       </Row>
-      <Form.Item label="账号 Username" name={[root, "provider", "smtp", "username"]}>
+      <Form.Item label="Username" name={[root, "provider", "smtp", "username"]}>
         <Input />
       </Form.Item>
-      <Form.Item label="密码 Password" name={[root, "provider", "smtp", "password"]} extra={<SecretHint status={secrets[`${secretPrefix}.smtp.password`]} />}>
+      <Form.Item label="Password" name={[root, "provider", "smtp", "password"]} extra={<SecretHint status={secrets[`${secretPrefix}.smtp.password`]} />}>
         <Input.Password placeholder="留空则保留当前密钥" autoComplete="new-password" />
       </Form.Item>
-      <Form.Item label="发件人 From" name={[root, "provider", "smtp", "from"]} extra="为空时默认使用 SMTP Username。">
+      <Form.Item label="From" name={[root, "provider", "smtp", "from"]} extra="为空时默认使用 SMTP Username。">
         <Input />
       </Form.Item>
 
       <Typography.Title level={5}>阿里云短信 Aliyun SMS</Typography.Title>
-      <Form.Item label="访问密钥 ID Access Key ID" name={[root, "provider", "aliyun_sms", "access_key_id"]}>
+      <Form.Item label="Access Key ID" name={[root, "provider", "aliyun_sms", "access_key_id"]}>
         <Input />
       </Form.Item>
-      <Form.Item label="访问密钥 Secret Access Key Secret" name={[root, "provider", "aliyun_sms", "access_key_secret"]} extra={<SecretHint status={secrets[`${secretPrefix}.aliyun_sms.access_key_secret`]} />}>
+      <Form.Item label="Access Key Secret" name={[root, "provider", "aliyun_sms", "access_key_secret"]} extra={<SecretHint status={secrets[`${secretPrefix}.aliyun_sms.access_key_secret`]} />}>
         <Input.Password placeholder="留空则保留当前密钥" autoComplete="new-password" />
       </Form.Item>
       <Row gutter={12}>
         <Col span={12}>
-          <Form.Item label="短信签名 Sign Name" name={[root, "provider", "aliyun_sms", "sign_name"]}>
+          <Form.Item label="Sign Name" name={[root, "provider", "aliyun_sms", "sign_name"]}>
             <Input />
           </Form.Item>
         </Col>
         <Col span={12}>
-          <Form.Item label="模板编号 Template Code" name={[root, "provider", "aliyun_sms", "template_code"]} extra="短信模板需要包含验证码变量 ${code}。">
+          <Form.Item label="Template Code" name={[root, "provider", "aliyun_sms", "template_code"]} extra="短信模板需要包含验证码变量 ${code}。">
             <Input />
           </Form.Item>
         </Col>
       </Row>
       <Row gutter={12}>
         <Col span={12}>
-          <Form.Item label="地域 Region" name={[root, "provider", "aliyun_sms", "region_id"]}>
+          <Form.Item label="Region" name={[root, "provider", "aliyun_sms", "region_id"]}>
             <Input />
           </Form.Item>
         </Col>
         <Col span={12}>
-          <Form.Item label="接口地址 Endpoint" name={[root, "provider", "aliyun_sms", "endpoint"]}>
+          <Form.Item label="Endpoint" name={[root, "provider", "aliyun_sms", "endpoint"]}>
             <Input />
           </Form.Item>
         </Col>
