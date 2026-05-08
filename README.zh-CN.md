@@ -39,6 +39,10 @@ Open Wallet Auth 是一个自托管统一认证服务，用来把多个业务系
 - 管理后台：应用、身份用户、会话、审计、运行配置
 - 可视化配置登录页品牌、OAuth、短信、邮件、CORS 等运行期配置
 
+## 正在使用
+
+Open Wallet Auth 已被 [Lianxi Labs](https://lianxilabs.com) 用于生产环境，为 [BlockX](https://blockx.lianxilabs.com) 和 [Label Service](https://label.lianxilabs.com) 等业务系统提供统一认证能力。
+
 ## 快速开始
 
 详细步骤见：[快速开始](docs/QUICKSTART.zh-CN.md)

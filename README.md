@@ -39,6 +39,10 @@ Business backend
 - Management console for applications, identities, sessions, audit logs, and runtime settings
 - Runtime configuration for hosted-login branding, OAuth, SMS, email, and CORS
 
+## Production Usage
+
+Open Wallet Auth is used in production by [Lianxi Labs](https://lianxilabs.com) to provide centralized authentication for business systems including [BlockX](https://blockx.lianxilabs.com) and [Label Service](https://label.lianxilabs.com).
+
 ## Quick Start
 
 See the full guide: [Quick Start](docs/QUICKSTART.md)
