@@ -105,7 +105,7 @@ export function UnifiedLoginPage() {
         setAppName(result.client.name || result.client.client_id);
         setPageConfig({
           brandName: result.login.brand_name || "Open Wallet Auth",
-          brandMark: result.login.brand_mark || "L",
+          brandMark: result.login.brand_mark || "O",
           subtitle: result.login.subtitle || "",
           enableRegister: result.login.enable_register,
           enablePhone: result.login.enable_phone,

@@ -311,7 +311,7 @@ func normalizeLogin(login *LoginSettings) {
 		login.BrandName = "Open Wallet Auth"
 	}
 	if login.BrandMark == "" {
-		login.BrandMark = "L"
+		login.BrandMark = "O"
 	}
 }
 

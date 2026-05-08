@@ -158,7 +158,7 @@ func defaultSettingsSnapshot(cfg *config.Config) settingsusecase.Snapshot {
 		},
 		Login: settingsusecase.LoginSettings{
 			BrandName:      "Open Wallet Auth",
-			BrandMark:      "L",
+			BrandMark:      "O",
 			Subtitle:       "",
 			EnableRegister: true,
 			EnablePhone:    true,
