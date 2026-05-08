@@ -15,13 +15,13 @@ import { clearAdminSession, getAdminSession } from "../store/authStore";
 const { Header, Sider, Content } = Layout;
 
 const navItems = [
-  { key: "/", icon: <DashboardOutlined />, label: "管理概览" },
-  { key: "/applications", icon: <AppstoreOutlined />, label: "接入应用" },
-  { key: "/identities", icon: <TeamOutlined />, label: "身份用户" },
-  { key: "/sessions", icon: <SafetyOutlined />, label: "登录会话" },
-  { key: "/audit-logs", icon: <AuditOutlined />, label: "登录审计" },
-  { key: "/security-events", icon: <ApiOutlined />, label: "安全操作" },
-  { key: "/settings", icon: <SettingOutlined />, label: "系统设置" },
+  { key: "/console", icon: <DashboardOutlined />, label: "管理概览" },
+  { key: "/console/applications", icon: <AppstoreOutlined />, label: "接入应用" },
+  { key: "/console/identities", icon: <TeamOutlined />, label: "身份用户" },
+  { key: "/console/sessions", icon: <SafetyOutlined />, label: "登录会话" },
+  { key: "/console/audit-logs", icon: <AuditOutlined />, label: "登录审计" },
+  { key: "/console/security-events", icon: <ApiOutlined />, label: "安全操作" },
+  { key: "/console/settings", icon: <SettingOutlined />, label: "系统设置" },
 ];
 
 export function AdminLayout() {
@@ -31,7 +31,7 @@ export function AdminLayout() {
 
   const logout = () => {
     clearAdminSession();
-    navigate("/login", { replace: true });
+    navigate("/console/login", { replace: true });
   };
 
   return (

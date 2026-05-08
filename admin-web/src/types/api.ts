@@ -17,6 +17,56 @@ export type AdminLoginResult = {
   admin_token: string;
 };
 
+export type AuthUser = {
+  id: string;
+  username: string;
+  email?: string;
+  phone?: string;
+};
+
+export type TokenPair = {
+  access_token: string;
+  refresh_token: string;
+  expires_at: string;
+  token_type: string;
+};
+
+export type AuthResult = {
+  user: AuthUser;
+  token: TokenPair;
+};
+
+export type WalletNonceResult = {
+  nonce: string;
+  message: string;
+  expires_at: string;
+};
+
+export type OAuthStartResult = {
+  provider: string;
+  auth_url: string;
+  state: string;
+};
+
+export type PublicLoginConfig = {
+  client: {
+    client_id: string;
+    name: string;
+  };
+  login: LoginPageSettings;
+};
+
+export type LoginPageSettings = {
+  brand_name: string;
+  brand_mark: string;
+  subtitle: string;
+  enable_register: boolean;
+  enable_phone: boolean;
+  enable_github: boolean;
+  enable_google: boolean;
+  enable_wallet: boolean;
+};
+
 export type HealthStatus = {
   service: string;
   env: string;
@@ -185,6 +235,7 @@ export type RuntimeSettings = {
   http: {
     cors_allowed_origins: string[];
   };
+  login: LoginPageSettings;
   phone: {
     enabled: boolean;
     provider: MessageProviderSettings;

@@ -102,6 +102,11 @@ export function SettingsPage() {
               children: <AccessSettingsCard />,
             },
             {
+              key: "login",
+              label: "登录页 Login",
+              children: <LoginPageSettingsCard />,
+            },
+            {
               key: "oauth",
               label: "第三方登录 OAuth",
               children: (
@@ -176,6 +181,60 @@ function ReadonlySettingsPanel({ settings }: { settings: ReadonlySettings | null
         </Descriptions>
       </Card>
     </Space>
+  );
+}
+
+function LoginPageSettingsCard() {
+  return (
+    <Card title="统一登录页 Open Wallet Auth">
+      <Typography.Paragraph type="secondary">
+        这里配置业务用户看到的统一登录页。保存后立即生效，业务系统只需要传 client_id 和 return_uri，访问来源名称会从接入应用配置中读取。
+      </Typography.Paragraph>
+      <Row gutter={12}>
+        <Col xs={24} lg={10}>
+          <Form.Item label="品牌名称 Brand Name" name={["login", "brand_name"]} rules={[{ required: true, message: "请输入品牌名称" }]}>
+            <Input placeholder="Open Wallet Auth" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} lg={4}>
+          <Form.Item label="品牌标识 Mark" name={["login", "brand_mark"]} rules={[{ required: true, message: "请输入品牌标识" }]}>
+            <Input placeholder="L" maxLength={4} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} lg={10}>
+          <Form.Item label="副标题 Subtitle" name={["login", "subtitle"]} extra="为空时不展示副标题，适合保持登录页简洁。">
+            <Input placeholder="可选，例如 Unified Identity Gateway" />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={[12, 12]}>
+        <Col xs={24} md={8} lg={4}>
+          <Form.Item label="注册" name={["login", "enable_register"]} valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={8} lg={4}>
+          <Form.Item label="手机号" name={["login", "enable_phone"]} valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={8} lg={4}>
+          <Form.Item label="GitHub" name={["login", "enable_github"]} valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={8} lg={4}>
+          <Form.Item label="Google" name={["login", "enable_google"]} valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={8} lg={4}>
+          <Form.Item label="钱包" name={["login", "enable_wallet"]} valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Col>
+      </Row>
+    </Card>
   );
 }
 

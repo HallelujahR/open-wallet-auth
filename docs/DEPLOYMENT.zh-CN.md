@@ -82,10 +82,18 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/.well-known/jwks.json
 ```
 
-管理控制台访问地址：
+业务用户统一登录页访问地址：
 
 ```text
 http://localhost:8080/
+http://localhost:8080/login
+```
+
+认证管理后台访问地址：
+
+```text
+http://localhost:8080/console
+http://localhost:8080/console/login
 ```
 
 ## 发布检查

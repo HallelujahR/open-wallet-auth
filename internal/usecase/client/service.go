@@ -12,6 +12,7 @@ import (
 
 const (
 	ErrClientAlreadyExists = "CLIENT_ALREADY_EXISTS"
+	ErrClientNotFound      = "CLIENT_NOT_FOUND"
 	ErrInvalidClientInput  = "CLIENT_INVALID_INPUT"
 )
 
@@ -76,4 +77,21 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*clientdomain.
 // List 返回当前已配置的所有业务系统 client。
 func (s *Service) List(ctx context.Context) ([]clientdomain.Client, error) {
 	return s.clients.List(ctx)
+}
+
+// GetByClientID returns one configured application client.
+// GetByClientID 按 client_id 返回一个已配置的业务系统。
+func (s *Service) GetByClientID(ctx context.Context, clientID string) (*clientdomain.Client, error) {
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" {
+		clientID = "default"
+	}
+	client, err := s.clients.FindByClientID(ctx, clientID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, domain.NewError(ErrClientNotFound, "client not found")
+		}
+		return nil, err
+	}
+	return client, nil
 }

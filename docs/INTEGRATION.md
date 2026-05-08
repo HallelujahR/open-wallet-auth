@@ -36,6 +36,35 @@ The business system does not store auth passwords and does not verify wallet sig
 
 Email verification codes are used for email verification, password reset, and email binding. They are not currently a standalone email-code login method.
 
+## Unified Login Page
+
+For a more consistent user experience, a business application can skip its own login form and redirect users to the Open Wallet Auth login page:
+
+```text
+https://auth.example.com/login?client_id=example-app&return_uri=https%3A%2F%2Fapp.example.com%2Fauth%2Fcallback
+```
+
+Parameters:
+
+- `client_id`: the application ID registered in the auth service.
+- `return_uri`: the business callback URL that receives the auth result.
+
+The application display name is read from the auth service client registry, not from URL parameters, so users cannot spoof the source application name by editing the URL.
+
+After email, phone, Google, GitHub, or wallet login succeeds, the page redirects to:
+
+```text
+https://app.example.com/auth/callback#access_token=...&token_type=Bearer&expires_at=...
+```
+
+The business callback page reads the `access_token` from the URL fragment and exchanges it with its own backend for a local business token or session. This keeps password, OAuth, and wallet UI inside the auth service.
+
+Hosted login page branding and login methods are managed in the admin console:
+
+- Path: `/console/settings`
+- Tab: `登录页 Login`
+- Editable fields: brand name, brand mark, subtitle, registration, phone login, GitHub, Google, and wallet login.
+
 ## Wallet Login Flow
 
 1. Detect EIP-1193 wallet providers in the browser.

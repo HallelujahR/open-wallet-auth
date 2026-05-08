@@ -146,6 +146,133 @@ body {
   text-align: center;
 }
 
+.unified-login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(420px, 0.95fr) minmax(460px, 1.05fr);
+  background: #f4f7fb;
+}
+
+.unified-brand {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 72px;
+  color: #fff;
+  background:
+    linear-gradient(145deg, rgba(8, 26, 48, 0.98), rgba(26, 83, 91, 0.94)),
+    radial-gradient(circle at 80% 20%, rgba(98, 181, 166, 0.45), transparent 32%);
+}
+
+.unified-brand::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.45), transparent);
+}
+
+.unified-brand-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 520px;
+}
+
+.hosted-brand-mark {
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 28px;
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  border-radius: 14px;
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.unified-brand h1 {
+  margin: 0;
+  color: #fff !important;
+  font-size: 48px !important;
+  line-height: 1.08 !important;
+  letter-spacing: 0;
+}
+
+.unified-subtitle {
+  margin: 16px 0 0;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 18px;
+}
+
+.unified-app-banner {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 36px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.unified-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+
+.unified-card {
+  width: min(560px, 100%);
+  padding: 32px;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 16px 42px rgba(16, 24, 40, 0.14);
+}
+
+.unified-card-head h2 {
+  margin: 0 0 8px !important;
+  font-size: 26px !important;
+}
+
+.unified-alert {
+  margin-bottom: 16px;
+}
+
+.unified-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0 16px;
+  color: #607086;
+  font-size: 12px;
+}
+
+.unified-divider::before,
+.unified-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #dfe6ee;
+}
+
+.unified-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.unified-provider-grid .ant-btn {
+  min-height: 40px;
+}
+
 .admin-shell {
   min-height: 100vh;
 }
@@ -276,16 +403,23 @@ body {
 }
 
 @media (max-width: 900px) {
-  .login-page {
+  .login-page,
+  .unified-login-page {
     grid-template-columns: 1fr;
   }
 
-  .login-hero {
+  .login-hero,
+  .unified-brand {
     min-height: 320px;
     padding: 36px;
   }
 
-  .hero-copy h1 {
+  .hero-copy h1,
+  .unified-brand h1 {
     font-size: 32px;
+  }
+
+  .unified-provider-grid {
+    grid-template-columns: 1fr;
   }
 }

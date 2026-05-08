@@ -73,6 +73,7 @@ flowchart LR
 
 - [文档地图](docs/README.zh-CN.md)
 - [接入指南](docs/INTEGRATION.zh-CN.md)
+- [Open Wallet Auth 统一登录页](docs/INTEGRATION.zh-CN.md#统一登录页接入)
 - [通用认证前端 Demo](examples/universal-auth-demo)
 - [身份管理控制台 Demo](examples/admin-console)
 - [短信和邮件服务商接入](docs/PROVIDERS.zh-CN.md)
@@ -84,10 +85,10 @@ flowchart LR
 典型接入流程：
 
 1. 为业务系统创建一个 client。
-2. 前端请求钱包 nonce。
-3. 调用钱包对返回的 message 签名。
-4. 用签名换取 access token 和 refresh token。
-5. 业务后端通过 JWKS 本地校验 access token。
+2. 业务前端跳转到 `/login?client_id=...&return_uri=...`。
+3. 用户在 Open Wallet Auth 完成邮箱、手机、OAuth 或钱包登录。
+4. 认证中台将 access token 通过 URL fragment 返回业务系统回调页。
+5. 业务后端通过 JWKS 本地校验 access token，或换取本地业务 token。
 6. 业务库使用 JWT 的 `sub` 作为 `auth_user_id` 关联本地用户资料。
 
 ## 快速启动

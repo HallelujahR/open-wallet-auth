@@ -10,7 +10,7 @@ type FormValues = {
   password: string;
 };
 
-export function LoginPage() {
+export function AdminLoginPage() {
   const navigate = useNavigate();
 
   const submit = async (values: FormValues) => {
@@ -24,7 +24,7 @@ export function LoginPage() {
         adminToken: result.admin_token,
       });
       message.success("登录成功");
-      navigate("/", { replace: true });
+      navigate("/console", { replace: true });
     } catch (err: any) {
       message.error(err.message || "登录失败");
     }

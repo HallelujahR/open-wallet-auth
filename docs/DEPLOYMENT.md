@@ -82,10 +82,18 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/.well-known/jwks.json
 ```
 
-The admin console is available at:
+The user-facing unified login page is available at:
 
 ```text
 http://localhost:8080/
+http://localhost:8080/login
+```
+
+The admin console is available at:
+
+```text
+http://localhost:8080/console
+http://localhost:8080/console/login
 ```
 
 ## Release Checklist

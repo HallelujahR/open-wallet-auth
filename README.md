@@ -73,6 +73,7 @@ See [docs/README.md](docs/README.md) for documentation ownership and [docs/ARCHI
 
 - [Documentation map](docs/README.md)
 - [Integration guide](docs/INTEGRATION.md)
+- [Open Wallet Auth unified login page](docs/INTEGRATION.md#unified-login-page)
 - [Universal auth frontend demo](examples/universal-auth-demo)
 - [Admin console demo](examples/admin-console)
 - [Provider configuration guide](docs/PROVIDERS.md)
@@ -84,10 +85,10 @@ See [docs/README.md](docs/README.md) for documentation ownership and [docs/ARCHI
 Typical integration flow:
 
 1. Create a client for your business application.
-2. Use the browser wallet example or your own UI to request a nonce.
-3. Ask the wallet to sign the returned message.
-4. Exchange the signature for an access token and refresh token.
-5. Verify access tokens locally in your business API through JWKS.
+2. Redirect the business frontend to `/login?client_id=...&return_uri=...`.
+3. Let the user complete email, phone, OAuth, or wallet login in Open Wallet Auth.
+4. Receive the access token on the business callback page through the URL fragment.
+5. Verify access tokens locally through JWKS, or exchange them for a business-local token.
 6. Use the JWT `sub` claim as `auth_user_id` in your own business database.
 
 ## Quick Start

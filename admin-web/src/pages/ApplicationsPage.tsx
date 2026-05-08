@@ -52,7 +52,7 @@ export function ApplicationsPage() {
             <Input placeholder="blockx" />
           </Form.Item>
           <Form.Item name="name" label="应用名称" rules={[{ required: true }]}>
-            <Input placeholder="BlockX 链影" />
+            <Input placeholder="Example App" />
           </Form.Item>
           <Form.Item name="jwt_audience" label="令牌受众 JWT Audience" rules={[{ required: true }]}>
             <Input placeholder="blockx-api" />

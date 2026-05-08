@@ -39,6 +39,35 @@ Go/Gin 后端可以参考：[Gin API JWT 校验示例](../examples/gin-api)。
 
 通用前端可以参考：[通用认证前端 Demo](../examples/universal-auth-demo)。当前后端已支持邮箱密码、手机号验证码登录、钱包登录，以及 Google/GitHub OAuth start/callback。邮箱验证码接口用于邮箱验证、邮箱绑定和密码重置，不是独立的邮箱验证码登录方式。短信和邮件发送可以通过 `phone.provider`、`email.provider` 接入 Webhook、SMTP、阿里云短信等服务商；Google/GitHub 需要先配置对应 provider 的 `client_id` 和 `client_secret`。
 
+## 统一登录页接入
+
+如果希望用户体验更统一，业务系统可以不再实现自己的登录表单，而是直接跳转到 Open Wallet Auth 登录页：
+
+```text
+https://auth.example.com/login?client_id=example-app&return_uri=https%3A%2F%2Fapp.example.com%2Fauth%2Fcallback
+```
+
+参数说明：
+
+- `client_id`：业务系统在认证中台中的应用 ID。
+- `return_uri`：认证成功后返回业务系统的地址。
+
+登录页展示的业务系统名称来自认证中台“接入应用”中的应用名称，不从 URL 参数读取，避免前端参数被随意篡改。
+
+统一登录页完成邮箱、手机、Google、GitHub 或钱包登录后，会跳转到：
+
+```text
+https://app.example.com/auth/callback#access_token=...&token_type=Bearer&expires_at=...
+```
+
+业务系统回调页读取 URL fragment 中的 `access_token`，再交给自己的后端换取本地业务 token 或本地 session。这样业务系统不用保存认证密码，也不用复制第三方登录和钱包登录 UI。
+
+统一登录页的品牌和登录方式在管理后台配置：
+
+- 路径：`/console/settings`
+- Tab：`登录页 Login`
+- 可配置项：品牌名称、品牌标识、副标题、注册入口、手机号登录、GitHub、Google、钱包登录。
+
 短信和邮件服务商配置见：[短信和邮件服务商接入](PROVIDERS.zh-CN.md)。
 
 钱包登录是否需要让用户自选钱包：建议需要。现代浏览器可能同时安装 MetaMask、Rabby、OKX Wallet 等多个 EIP-1193 钱包。Demo 支持 EIP-6963 多钱包发现，能发现多个钱包时让用户选择；如果只发现一个注入钱包，则自动使用默认钱包。

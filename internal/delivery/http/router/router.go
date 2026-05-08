@@ -123,6 +123,7 @@ func New(deps Dependencies) *gin.Engine {
 			}
 		}
 		if deps.Client != nil {
+			v1.GET("/public/login-config", deps.Client.LoginConfig)
 			clients := v1.Group("/clients", middleware.RequireAdminToken(deps.AdminToken))
 			{
 				clients.POST("", deps.Client.Create)

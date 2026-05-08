@@ -11,18 +11,20 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
 	clientdomain "github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
 	clientusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/client"
+	settingsusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/settings"
 )
 
 // ClientHandler exposes application client management endpoints.
 // ClientHandler 暴露业务系统 client 管理接口。
 type ClientHandler struct {
-	clients *clientusecase.Service
+	clients  *clientusecase.Service
+	settings *settingsusecase.Service
 }
 
 // NewClientHandler creates a client management handler.
 // NewClientHandler 创建 client 管理 HTTP handler。
-func NewClientHandler(clients *clientusecase.Service) *ClientHandler {
-	return &ClientHandler{clients: clients}
+func NewClientHandler(clients *clientusecase.Service, settings *settingsusecase.Service) *ClientHandler {
+	return &ClientHandler{clients: clients, settings: settings}
 }
 
 // Create registers a new application client.
@@ -65,6 +67,37 @@ func (h *ClientHandler) List(c *gin.Context) {
 	response.OK(c, data)
 }
 
+// LoginConfig returns public login-page configuration for one application.
+// LoginConfig 返回某个业务系统的统一登录页公开配置。
+func (h *ClientHandler) LoginConfig(c *gin.Context) {
+	client, err := h.clients.GetByClientID(c.Request.Context(), c.Query("client_id"))
+	if err != nil {
+		writeClientError(c, err)
+		return
+	}
+	login, err := h.settings.LoginSettings(c.Request.Context())
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+	response.OK(c, dto.LoginConfigResponse{
+		Client: dto.PublicClientResponse{
+			ClientID: client.ClientID,
+			Name:     client.Name,
+		},
+		Login: dto.LoginPageSettingsResponse{
+			BrandName:      login.BrandName,
+			BrandMark:      login.BrandMark,
+			Subtitle:       login.Subtitle,
+			EnableRegister: login.EnableRegister,
+			EnablePhone:    login.EnablePhone,
+			EnableGitHub:   login.EnableGitHub,
+			EnableGoogle:   login.EnableGoogle,
+			EnableWallet:   login.EnableWallet,
+		},
+	})
+}
+
 // writeClientError maps client usecase errors to HTTP responses.
 // writeClientError 将 client 用例错误映射为 HTTP 响应。
 func writeClientError(c *gin.Context, err error) {
@@ -73,6 +106,8 @@ func writeClientError(c *gin.Context, err error) {
 		switch appErr.Code {
 		case clientusecase.ErrClientAlreadyExists:
 			response.Error(c, http.StatusConflict, appErr.Code, appErr.Message)
+		case clientusecase.ErrClientNotFound:
+			response.Error(c, http.StatusNotFound, appErr.Code, appErr.Message)
 		default:
 			response.Error(c, http.StatusBadRequest, appErr.Code, appErr.Message)
 		}

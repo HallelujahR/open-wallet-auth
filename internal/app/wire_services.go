@@ -68,7 +68,7 @@ func newRouterDependencies(cfg *config.Config, logger *zap.Logger, storage *stor
 		Phone:            handler.NewPhoneHandler(newPhoneService(cfg, storage, runtime, settingsService)),
 		Email:            handler.NewEmailHandler(newEmailService(cfg, runtime, settingsService)),
 		OAuth:            handler.NewOAuthHandler(newOAuthService(cfg, storage, runtime, settingsService)),
-		Client:           handler.NewClientHandler(clientService),
+		Client:           handler.NewClientHandler(clientService, settingsService),
 		Admin:            handler.NewAdminHandler(adminService),
 		Settings:         handler.NewSettingsHandler(settingsService),
 		Token:            runtime.issuer,
@@ -155,6 +155,16 @@ func defaultSettingsSnapshot(cfg *config.Config) settingsusecase.Snapshot {
 	return settingsusecase.Snapshot{
 		HTTP: settingsusecase.HTTPSettings{
 			CORSAllowedOrigins: cfg.HTTP.CORSAllowedOrigins,
+		},
+		Login: settingsusecase.LoginSettings{
+			BrandName:      "Open Wallet Auth",
+			BrandMark:      "L",
+			Subtitle:       "",
+			EnableRegister: true,
+			EnablePhone:    true,
+			EnableGitHub:   true,
+			EnableGoogle:   true,
+			EnableWallet:   true,
 		},
 		Phone: settingsusecase.PhoneSettings{
 			Enabled:  cfg.Phone.Enabled,

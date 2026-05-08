@@ -16,14 +16,14 @@ func TestHTTPProviderAuthURLUsesTenantCredentials(t *testing.T) {
 		TokenURL:     "https://github.com/login/oauth/access_token",
 		UserInfoURL:  "https://api.github.com/user",
 		Tenants: map[string]ProviderTenantConfig{
-			"label.lianxilabs.com": {
+			"label.example.com": {
 				ClientID:     "label-client",
 				ClientSecret: "label-secret",
 			},
 		},
 	})
 
-	authURL := provider.AuthURL("state-value", "https://auth.lianxilabs.com/api/v1/oauth/github/callback", "https://label.lianxilabs.com/auth/oauth/callback?provider=github")
+	authURL := provider.AuthURL("state-value", "https://auth.example.com/api/v1/oauth/github/callback", "https://label.example.com/auth/oauth/callback?provider=github")
 	parsed, err := url.Parse(authURL)
 	if err != nil {
 		t.Fatalf("parse auth url: %v", err)
@@ -44,14 +44,14 @@ func TestHTTPProviderAuthURLFallsBackToDefaultCredentials(t *testing.T) {
 		TokenURL:     "https://github.com/login/oauth/access_token",
 		UserInfoURL:  "https://api.github.com/user",
 		Tenants: map[string]ProviderTenantConfig{
-			"label.lianxilabs.com": {
+			"label.example.com": {
 				ClientID:     "label-client",
 				ClientSecret: "label-secret",
 			},
 		},
 	})
 
-	authURL := provider.AuthURL("state-value", "https://auth.lianxilabs.com/api/v1/oauth/github/callback", "https://blockx.lianxilabs.com/auth/oauth/callback?provider=github")
+	authURL := provider.AuthURL("state-value", "https://auth.example.com/api/v1/oauth/github/callback", "https://blockx.example.com/auth/oauth/callback?provider=github")
 	parsed, err := url.Parse(authURL)
 	if err != nil {
 		t.Fatalf("parse auth url: %v", err)
@@ -70,17 +70,17 @@ func TestHTTPProviderConfiguredForRedirectRejectsUnknownTenantWithoutDefault(t *
 		TokenURL:    "https://github.com/login/oauth/access_token",
 		UserInfoURL: "https://api.github.com/user",
 		Tenants: map[string]ProviderTenantConfig{
-			"label.lianxilabs.com": {
+			"label.example.com": {
 				ClientID:     "label-client",
 				ClientSecret: "label-secret",
 			},
 		},
 	})
 
-	if !provider.ConfiguredForRedirect("https://label.lianxilabs.com/auth/oauth/callback?provider=github") {
+	if !provider.ConfiguredForRedirect("https://label.example.com/auth/oauth/callback?provider=github") {
 		t.Fatal("expected label tenant redirect to be configured")
 	}
-	if provider.ConfiguredForRedirect("https://blockx.lianxilabs.com/auth/oauth/callback?provider=github") {
+	if provider.ConfiguredForRedirect("https://blockx.example.com/auth/oauth/callback?provider=github") {
 		t.Fatal("expected unknown tenant redirect to be rejected when no default credentials exist")
 	}
 }

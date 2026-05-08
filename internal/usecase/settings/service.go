@@ -23,6 +23,7 @@ type Service struct {
 // Snapshot 是管理接口读写的完整服务商配置快照。
 type Snapshot struct {
 	HTTP  HTTPSettings  `json:"http"`
+	Login LoginSettings `json:"login"`
 	Phone PhoneSettings `json:"phone"`
 	Email EmailSettings `json:"email"`
 	OAuth OAuthSettings `json:"oauth"`
@@ -32,6 +33,19 @@ type Snapshot struct {
 // HTTPSettings 保存可运行期调整的浏览器访问配置。
 type HTTPSettings struct {
 	CORSAllowedOrigins []string `json:"cors_allowed_origins"`
+}
+
+// LoginSettings contains user-facing hosted login page settings.
+// LoginSettings 保存面向业务用户的统一登录页配置。
+type LoginSettings struct {
+	BrandName      string `json:"brand_name"`
+	BrandMark      string `json:"brand_mark"`
+	Subtitle       string `json:"subtitle"`
+	EnableRegister bool   `json:"enable_register"`
+	EnablePhone    bool   `json:"enable_phone"`
+	EnableGitHub   bool   `json:"enable_github"`
+	EnableGoogle   bool   `json:"enable_google"`
+	EnableWallet   bool   `json:"enable_wallet"`
 }
 
 // PhoneSettings contains phone login and SMS provider settings.
@@ -247,6 +261,16 @@ func (s *Service) CORSAllowedOrigins(ctx context.Context) ([]string, error) {
 	return current.HTTP.CORSAllowedOrigins, nil
 }
 
+// LoginSettings returns current hosted login-page settings.
+// LoginSettings 返回当前统一登录页配置。
+func (s *Service) LoginSettings(ctx context.Context) (LoginSettings, error) {
+	current, err := s.Get(ctx)
+	if err != nil {
+		return LoginSettings{}, err
+	}
+	return current.Login, nil
+}
+
 // Update validates and persists editable provider settings.
 // Update 校验并持久化管理后台提交的服务商配置。
 func (s *Service) Update(ctx context.Context, next Snapshot) (*PublicSnapshot, error) {
@@ -270,10 +294,25 @@ func (s *Service) Update(ctx context.Context, next Snapshot) (*PublicSnapshot, e
 // normalize 在持久化前清理常见字符串字段。
 func normalize(s *Snapshot) {
 	s.HTTP.CORSAllowedOrigins = normalizeOrigins(s.HTTP.CORSAllowedOrigins)
+	normalizeLogin(&s.Login)
 	s.Phone.Provider.Type = strings.ToLower(strings.TrimSpace(s.Phone.Provider.Type))
 	s.Email.Provider.Type = strings.ToLower(strings.TrimSpace(s.Email.Provider.Type))
 	normalizeOAuth(&s.OAuth.Google)
 	normalizeOAuth(&s.OAuth.GitHub)
+}
+
+// normalizeLogin trims login-page display fields and fills safe defaults.
+// normalizeLogin 清理统一登录页展示字段，并补齐安全默认值。
+func normalizeLogin(login *LoginSettings) {
+	login.BrandName = strings.TrimSpace(login.BrandName)
+	login.BrandMark = strings.TrimSpace(login.BrandMark)
+	login.Subtitle = strings.TrimSpace(login.Subtitle)
+	if login.BrandName == "" {
+		login.BrandName = "Open Wallet Auth"
+	}
+	if login.BrandMark == "" {
+		login.BrandMark = "L"
+	}
 }
 
 // normalizeOrigins trims empty origins and removes duplicates.
