@@ -41,7 +41,7 @@ Business backend
 
 ## Production Usage
 
-Open Wallet Auth is used in production by [Lianxi Labs](https://lianxilabs.com) to provide centralized authentication for business systems including [BlockX](https://blockx.lianxilabs.com) and [Label Service](https://label.lianxilabs.com).
+Open Wallet Auth is used in production by [Lianxi Labs](https://lianxilabs.com/) to provide centralized authentication for business systems including [BlockX](https://blockx.lianxilabs.com) and [Label Service](https://label.lianxilabs.com).
 
 ## Quick Start
 
