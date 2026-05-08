@@ -7,7 +7,7 @@
 ## 推荐阅读路径
 
 1. [快速开始](QUICKSTART.zh-CN.md)  
-   先在本地跑起来，确认管理后台和统一登录页可用。
+   在本地启动服务，确认管理后台和统一登录页可用。
 
 2. [业务系统接入指南](INTEGRATION.zh-CN.md)  
    理解 client、回调地址、access token、JWKS、业务本地用户之间的关系。
@@ -28,7 +28,7 @@
 
 | 文档 | 解决的问题 |
 | --- | --- |
-| [QUICKSTART.zh-CN.md](QUICKSTART.zh-CN.md) | 怎么最快跑起来 |
+| [QUICKSTART.zh-CN.md](QUICKSTART.zh-CN.md) | 本地启动和基础验证 |
 | [INTEGRATION.zh-CN.md](INTEGRATION.zh-CN.md) | 业务系统怎么接入 |
 | [PROVIDERS.zh-CN.md](PROVIDERS.zh-CN.md) | 登录方式和服务商怎么配置 |
 | [DEPLOYMENT.zh-CN.md](DEPLOYMENT.zh-CN.md) | 怎么上线和运维 |
