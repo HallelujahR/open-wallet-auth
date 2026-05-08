@@ -2,10 +2,10 @@ import { ApiOutlined, AppstoreOutlined, SafetyOutlined, TeamOutlined } from "@an
 import { Alert, Card, Col, Row, Table, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import * as echarts from "echarts";
-import { adminApi } from "../api/admin";
-import { StatCard } from "../components/StatCard";
-import { StatusBadge } from "../components/StatusBadge";
-import type { Client, HealthStatus, IdentityUser, LoginLog, SecurityEvent, Session } from "../types/api";
+import { adminApi } from "../../../api/admin";
+import { StatCard } from "../../../components/StatCard";
+import { StatusBadge } from "../../../components/StatusBadge";
+import type { Client, HealthStatus, IdentityUser, LoginLog, SecurityEvent, Session } from "../../../types/api";
 
 export function DashboardPage() {
   const [users, setUsers] = useState<IdentityUser[]>([]);

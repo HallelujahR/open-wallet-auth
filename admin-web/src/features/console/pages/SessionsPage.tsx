@@ -1,8 +1,8 @@
 import { Button, Card, Form, Input, Popconfirm, Switch, Table, Typography, message } from "antd";
 import { useEffect, useState } from "react";
-import { adminApi } from "../api/admin";
-import { StatusBadge } from "../components/StatusBadge";
-import type { Session } from "../types/api";
+import { adminApi } from "../../../api/admin";
+import { StatusBadge } from "../../../components/StatusBadge";
+import type { Session } from "../../../types/api";
 
 export function SessionsPage() {
   const [items, setItems] = useState<Session[]>([]);

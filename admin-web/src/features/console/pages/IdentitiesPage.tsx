@@ -1,8 +1,8 @@
 import { Button, Card, Drawer, Form, Input, Popconfirm, Select, Space, Table, Tabs, Typography, message } from "antd";
 import { useEffect, useState } from "react";
-import { adminApi } from "../api/admin";
-import { StatusBadge } from "../components/StatusBadge";
-import type { IdentityDetail, IdentityUser } from "../types/api";
+import { adminApi } from "../../../api/admin";
+import { StatusBadge } from "../../../components/StatusBadge";
+import type { IdentityDetail, IdentityUser } from "../../../types/api";
 
 export function IdentitiesPage() {
   const [items, setItems] = useState<IdentityUser[]>([]);

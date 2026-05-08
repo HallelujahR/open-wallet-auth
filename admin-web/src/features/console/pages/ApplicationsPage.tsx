@@ -1,8 +1,8 @@
 import { Button, Card, Form, Input, Modal, Space, Table, Typography, message } from "antd";
 import { useEffect, useState } from "react";
-import { adminApi } from "../api/admin";
-import { StatusBadge } from "../components/StatusBadge";
-import type { Client } from "../types/api";
+import { adminApi } from "../../../api/admin";
+import { StatusBadge } from "../../../components/StatusBadge";
+import type { Client } from "../../../types/api";
 
 export function ApplicationsPage() {
   const [items, setItems] = useState<Client[]>([]);

@@ -42,7 +42,7 @@ internal/delivery/http/
   HTTP handler、DTO、中间件、路由和统一响应
 
 admin-web/
-  React + Vite 管理后台，同时包含业务统一登录页
+  React + Vite 前端工程。console 是管理后台，hosted-login 是业务用户统一登录页。
 
 examples/
   接入示例
@@ -92,5 +92,5 @@ HTTP 层只做参数解析和响应包装，真正的业务判断在 usecase。
 | 新增数据表 | `migrations/`、`internal/infrastructure/postgres/model`、repository 实现 |
 | 新增短信/邮件服务商 | `internal/infrastructure/message` |
 | 新增 OAuth 服务商 | `internal/infrastructure/oauth` 和 settings 配置 |
-| 调整管理后台页面 | `admin-web/src/pages` |
-| 调整统一登录页 | `admin-web/src/pages/UnifiedLoginPage.tsx` |
+| 调整管理后台页面 | `admin-web/src/features/console/pages` |
+| 调整统一登录页 | `admin-web/src/features/hosted-login/UnifiedLoginPage.tsx` |

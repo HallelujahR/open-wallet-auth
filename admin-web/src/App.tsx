@@ -1,15 +1,15 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { ApplicationsPage } from "./features/console/pages/ApplicationsPage";
+import { AuditLogsPage } from "./features/console/pages/AuditLogsPage";
+import { DashboardPage } from "./features/console/pages/DashboardPage";
+import { IdentitiesPage } from "./features/console/pages/IdentitiesPage";
+import { AdminLoginPage } from "./features/console/pages/LoginPage";
+import { SecurityEventsPage } from "./features/console/pages/SecurityEventsPage";
+import { SessionsPage } from "./features/console/pages/SessionsPage";
+import { SettingsPage } from "./features/console/pages/SettingsPage";
+import { UnifiedLoginPage } from "./features/hosted-login/UnifiedLoginPage";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { AuthLayout } from "./layouts/AuthLayout";
-import { ApplicationsPage } from "./pages/ApplicationsPage";
-import { AuditLogsPage } from "./pages/AuditLogsPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { IdentitiesPage } from "./pages/IdentitiesPage";
-import { AdminLoginPage } from "./pages/LoginPage";
-import { SecurityEventsPage } from "./pages/SecurityEventsPage";
-import { SessionsPage } from "./pages/SessionsPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { UnifiedLoginPage } from "./pages/UnifiedLoginPage";
 import { getAdminSession } from "./store/authStore";
 
 function RequireAdmin({ children }: { children: JSX.Element }) {

@@ -1,9 +1,9 @@
 import { CopyOutlined, SaveOutlined, SyncOutlined } from "@ant-design/icons";
 import { Alert, Button, Card, Col, Descriptions, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Tabs, Typography, message } from "antd";
 import { useEffect, useState } from "react";
-import { adminApi } from "../api/admin";
-import { authApiBaseUrl } from "../config";
-import type { ReadonlySettings, RuntimeSettingsResult, SecretStatus } from "../types/api";
+import { adminApi } from "../../../api/admin";
+import { authApiBaseUrl } from "../../../config";
+import type { ReadonlySettings, RuntimeSettingsResult, SecretStatus } from "../../../types/api";
 
 const providerOptions = [
   { label: "不发送 Noop", value: "noop" },

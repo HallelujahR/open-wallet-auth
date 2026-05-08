@@ -1,8 +1,8 @@
 import { Button, Card, Form, Input, Table, Typography, message } from "antd";
 import { useEffect, useState } from "react";
-import { adminApi } from "../api/admin";
-import { StatusBadge } from "../components/StatusBadge";
-import type { LoginLog } from "../types/api";
+import { adminApi } from "../../../api/admin";
+import { StatusBadge } from "../../../components/StatusBadge";
+import type { LoginLog } from "../../../types/api";
 
 export function AuditLogsPage() {
   const [items, setItems] = useState<LoginLog[]>([]);

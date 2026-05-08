@@ -1,9 +1,9 @@
 import { LockOutlined, UserOutlined } from "@ant-design/icons";
 import { Button, Card, Form, Input, Typography, message } from "antd";
 import { useNavigate } from "react-router-dom";
-import { adminApi } from "../api/admin";
-import { authApiBaseUrl } from "../config";
-import { saveAdminSession } from "../store/authStore";
+import { adminApi } from "../../../api/admin";
+import { authApiBaseUrl } from "../../../config";
+import { saveAdminSession } from "../../../store/authStore";
 
 type FormValues = {
   username: string;
