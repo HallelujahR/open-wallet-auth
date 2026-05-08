@@ -2,32 +2,53 @@
 
 [English](README.md)
 
-本目录把产品说明、架构、业务接入、服务商配置、部署、发布检查分开维护。代码变更后，应更新对应主题文档，避免同一段说明散落在多处后互相冲突。
+这个目录按“读者要完成的任务”组织，而不是按技术模块堆叠。第一次看项目时，建议按下面顺序阅读。
+
+## 推荐阅读路径
+
+1. [快速开始](QUICKSTART.zh-CN.md)  
+   先在本地跑起来，确认管理后台和统一登录页可用。
+
+2. [业务系统接入指南](INTEGRATION.zh-CN.md)  
+   理解 client、回调地址、access token、JWKS、业务本地用户之间的关系。
+
+3. [配置说明](PROVIDERS.zh-CN.md)  
+   配置 Google、GitHub、短信、邮件、CORS、登录页品牌等。
+
+4. [部署指南](DEPLOYMENT.zh-CN.md)  
+   生产环境如何迁移数据库、准备密钥、启动服务和做健康检查。
+
+5. [代码导览](CODEBASE_GUIDE.zh-CN.md)  
+   看代码时从哪里进、每个目录负责什么、一个请求如何流转。
+
+6. [架构说明](ARCHITECTURE.zh-CN.md)  
+   深入理解分层边界、依赖方向和扩展点。
 
 ## 文档分工
 
-| 文档 | 负责内容 | 不负责内容 |
-| --- | --- | --- |
-| [ARCHITECTURE.zh-CN.md](ARCHITECTURE.zh-CN.md) | 分层边界、依赖方向、目录结构、模块职责 | API 示例、部署命令、服务商密钥配置 |
-| [INTEGRATION.zh-CN.md](INTEGRATION.zh-CN.md) | 业务系统如何调用认证服务、如何校验 JWT/JWKS | 内部实现细节、生产运维步骤 |
-| [PROVIDERS.zh-CN.md](PROVIDERS.zh-CN.md) | 短信、邮件、OAuth 服务商配置模型 | 业务系统接入流程、数据库迁移 |
-| [DEPLOYMENT.zh-CN.md](DEPLOYMENT.zh-CN.md) | 生产构建、运行配置、数据库迁移、启动、健康检查 | 架构设计理由、API 使用教程 |
-| [OPEN_SOURCE_READINESS.zh-CN.md](OPEN_SOURCE_READINESS.zh-CN.md) | 发布前检查、CI、安全扫描、打包检查 | 运行时用户指南或功能教程 |
+| 文档 | 解决的问题 |
+| --- | --- |
+| [QUICKSTART.zh-CN.md](QUICKSTART.zh-CN.md) | 怎么最快跑起来 |
+| [INTEGRATION.zh-CN.md](INTEGRATION.zh-CN.md) | 业务系统怎么接入 |
+| [PROVIDERS.zh-CN.md](PROVIDERS.zh-CN.md) | 登录方式和服务商怎么配置 |
+| [DEPLOYMENT.zh-CN.md](DEPLOYMENT.zh-CN.md) | 怎么上线和运维 |
+| [CODEBASE_GUIDE.zh-CN.md](CODEBASE_GUIDE.zh-CN.md) | 怎么读代码 |
+| [ARCHITECTURE.zh-CN.md](ARCHITECTURE.zh-CN.md) | 为什么这样分层 |
+| [OPEN_SOURCE_READINESS.zh-CN.md](OPEN_SOURCE_READINESS.zh-CN.md) | 发布前检查项 |
 
-## 准确性规则
+## 文档维护原则
 
-- 功能清单必须和 `internal/delivery/http/router` 中注册的 HTTP 路由一致。
-- 架构说明必须和 `internal/app`、`internal/usecase`、`internal/domain`、`internal/repository`、`internal/infrastructure` 的依赖关系一致。
-- 部署说明必须和 `Dockerfile`、`docker-compose.yml`、`cmd/server`、`cmd/migrate` 一致。
-- 服务商文档必须和 `internal/infrastructure/message`、`internal/infrastructure/oauth`、`configs/config.example.yaml` 一致。
-- 示例只能使用非真实密钥的占位值。
+- README 只放项目定位、最短启动路径和文档导航。
+- 接入流程只写在 Integration，避免在 README、示例、部署文档里重复解释。
+- 代码结构只写在 Codebase Guide 和 Architecture。
+- 服务商、密钥、开关只写在 Providers / Configuration 类文档。
+- 英文文档优先保证 README、Quick Start、Integration 可读；深入实现细节以中文文档为准。
 
 ## 当前功能边界
 
-- 邮箱密码注册和登录由 `/api/v1/auth/register`、`/api/v1/auth/login` 提供。
-- 邮箱验证码由 `/api/v1/email/code`、`/api/v1/email/verify` 提供；邮箱验证码用于重置密码和绑定邮箱，不是独立的邮箱验证码登录方式。
-- 手机号验证码登录由 `/api/v1/phone/code`、`/api/v1/phone/login` 提供。
-- 钱包登录由 `/api/v1/wallet/nonce`、`/api/v1/wallet/verify` 提供；已登录绑定钱包使用 `/api/v1/wallet/bind`。
-- OAuth 登录和绑定使用 `/api/v1/oauth/:provider/start`、`/api/v1/oauth/:provider/bind/start`、`/api/v1/oauth/:provider/callback`。
-- 当前后端已实现用户资料、联系方式绑定、解绑、refresh token 会话、管理端身份管理、client 管理和审计日志。
-- 正式 admin RBAC 模型尚未实现；管理接口当前依赖管理后台登录和 `X-Admin-Token`。
+- 邮箱密码注册和登录：`/api/v1/auth/register`、`/api/v1/auth/login`
+- 手机验证码登录：`/api/v1/phone/code`、`/api/v1/phone/login`
+- 钱包登录：`/api/v1/wallet/nonce`、`/api/v1/wallet/verify`
+- OAuth 登录和绑定：`/api/v1/oauth/:provider/start`、`/api/v1/oauth/:provider/bind/start`、`/api/v1/oauth/:provider/callback`
+- 用户资料、联系方式绑定、解绑、refresh token 会话、client 管理和审计日志已实现。
+- 正式 admin RBAC 模型暂未实现；管理接口当前依赖管理后台登录和 `X-Admin-Token`。
