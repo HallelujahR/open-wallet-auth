@@ -42,7 +42,7 @@ export function App() {
         <Route path="security-events" element={<SecurityEventsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Navigate to="/console" replace />} />
       <Route path="/admin/login" element={<Navigate to="/console/login" replace />} />
       <Route path="/applications" element={<Navigate to="/console/applications" replace />} />
       <Route path="/identities" element={<Navigate to="/console/identities" replace />} />
@@ -50,7 +50,7 @@ export function App() {
       <Route path="/audit-logs" element={<Navigate to="/console/audit-logs" replace />} />
       <Route path="/security-events" element={<Navigate to="/console/security-events" replace />} />
       <Route path="/settings" element={<Navigate to="/console/settings" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/console" replace />} />
     </Routes>
   );
 }
