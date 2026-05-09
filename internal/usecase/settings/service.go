@@ -268,7 +268,9 @@ func (s *Service) LoginSettings(ctx context.Context) (LoginSettings, error) {
 	if err != nil {
 		return LoginSettings{}, err
 	}
-	return current.Login, nil
+	login := current.Login
+	login.EnablePhone = login.EnablePhone && current.Phone.Enabled
+	return login, nil
 }
 
 // Update validates and persists editable provider settings.

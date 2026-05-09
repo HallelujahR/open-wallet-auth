@@ -246,6 +246,18 @@ body {
   margin-bottom: 16px;
 }
 
+.unified-session-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.unified-session-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .unified-divider {
   display: flex;
   align-items: center;

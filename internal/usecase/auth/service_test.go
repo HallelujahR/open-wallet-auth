@@ -155,6 +155,62 @@ func TestServiceRefreshRotatesRefreshToken(t *testing.T) {
 	}
 }
 
+func TestServiceSessionLoginIssuesTokenForTargetClient(t *testing.T) {
+	users := newMemoryUsers()
+	users.byID["usr_existing"] = &user.User{
+		ID:       "usr_existing",
+		Username: "alice",
+		Email:    "alice@example.com",
+		Status:   user.StatusActive,
+	}
+	clients := defaultClients()
+	clients.byClientID["label"] = &client.Client{
+		ID:          "cli_label",
+		ClientID:    "label",
+		JWTAudience: "label",
+		Status:      client.StatusActive,
+	}
+	refreshTokens := newMemoryRefreshTokens()
+	refreshTokens.byHash["hash:browser_session"] = &token.RefreshToken{
+		ID:        "rft_browser",
+		UserID:    "usr_existing",
+		ClientID:  "blockx",
+		TokenHash: "hash:browser_session",
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	refreshTokens.byID["rft_browser"] = refreshTokens.byHash["hash:browser_session"]
+	activity := newMemoryActivity()
+	service := NewService(users, clients, refreshTokens, activity, nil, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0)
+
+	status, err := service.SessionStatus(context.Background(), SessionStatusRequest{
+		ClientID:     "label",
+		SessionToken: "browser_session",
+	})
+	if err != nil {
+		t.Fatalf("session status returned error: %v", err)
+	}
+	if status.UserID != "usr_existing" {
+		t.Fatalf("unexpected session user %q", status.UserID)
+	}
+
+	result, err := service.LoginWithSession(context.Background(), SessionLoginRequest{
+		ClientID:     "label",
+		SessionToken: "browser_session",
+	})
+	if err != nil {
+		t.Fatalf("session login returned error: %v", err)
+	}
+	if result.Token == nil || refreshTokens.byHash["hash:refresh"] == nil {
+		t.Fatal("expected session login to issue and store a new token pair")
+	}
+	if refreshTokens.byHash["hash:refresh"].ClientID != "label" {
+		t.Fatal("expected new refresh token to be scoped to target client")
+	}
+	if activity.loginCount != 1 || activity.userClientCount != 1 {
+		t.Fatal("expected session login activity to be recorded")
+	}
+}
+
 func TestServiceChangePasswordUpdatesHash(t *testing.T) {
 	users := newMemoryUsers()
 	users.byID["usr_existing"] = &user.User{

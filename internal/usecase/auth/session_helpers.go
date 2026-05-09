@@ -7,7 +7,9 @@ import (
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 )
 
 // checkLoginLimit verifies password-login rate limits.
@@ -50,6 +52,51 @@ func (s *Service) rotateRefreshToken(ctx context.Context, oldTokenID string, use
 		UserAgent: userAgent,
 		ExpiresAt: time.Now().UTC().Add(s.issuer.RefreshTokenTTL()),
 	})
+}
+
+// validSessionUser loads the user behind a refresh-token backed browser session.
+// validSessionUser 根据刷新令牌型浏览器会话加载对应用户，并校验令牌状态。
+func (s *Service) validSessionUser(ctx context.Context, raw string) (*user.User, *token.RefreshToken, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil, domain.NewError(ErrInvalidRefreshToken, "invalid session")
+	}
+
+	refreshToken, err := s.refreshTokens.FindByHash(ctx, s.tokenHasher.HashToken(raw))
+	if err != nil || refreshToken == nil {
+		return nil, nil, domain.NewError(ErrInvalidRefreshToken, "invalid session")
+	}
+	if refreshToken.IsRevoked() || refreshToken.IsExpired(time.Now().UTC()) {
+		return nil, nil, domain.NewError(ErrInvalidRefreshToken, "invalid session")
+	}
+
+	u, err := s.users.FindByID(ctx, refreshToken.UserID)
+	if err != nil || u == nil || !u.IsActive() {
+		return nil, nil, domain.NewError(ErrInvalidRefreshToken, "invalid session")
+	}
+	return u, refreshToken, nil
+}
+
+// ensureActiveClient verifies that a client can use hosted login.
+// ensureActiveClient 校验业务系统是否允许使用统一登录。
+func (s *Service) ensureActiveClient(ctx context.Context, clientID string) error {
+	authClient, err := s.clients.FindByClientID(ctx, clientID)
+	if err != nil || authClient == nil || !authClient.IsActive() {
+		return domain.NewError(ErrInvalidClient, "invalid client")
+	}
+	return nil
+}
+
+// clientClaims builds token claims for an active client.
+// clientClaims 根据业务系统配置生成 token claims。
+func clientClaims(u *user.User, authClient *client.Client) token.Claims {
+	return token.Claims{
+		UserID:   u.ID,
+		ClientID: authClient.ClientID,
+		Audience: authClient.JWTAudience,
+		Username: u.Username,
+		Email:    u.Email,
+	}
 }
 
 // recordSuccessfulLogin writes audit data and the user-client activity relation.

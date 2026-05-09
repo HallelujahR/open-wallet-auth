@@ -61,6 +61,8 @@ func New(deps Dependencies) *gin.Engine {
 			{
 				auth.POST("/register", deps.Auth.Register)
 				auth.POST("/login", deps.Auth.Login)
+				auth.GET("/session", deps.Auth.Session)
+				auth.POST("/session/login", deps.Auth.SessionLogin)
 				auth.POST("/refresh", deps.Auth.Refresh)
 				auth.POST("/logout", deps.Auth.Logout)
 				auth.POST("/password/reset", deps.Auth.ResetPassword)

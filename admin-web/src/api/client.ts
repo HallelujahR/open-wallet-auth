@@ -24,6 +24,7 @@ export class ApiError extends Error {
 
 const http = axios.create({
   timeout: 15000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },

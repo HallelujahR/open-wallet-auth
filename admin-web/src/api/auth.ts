@@ -1,5 +1,5 @@
 import { request } from "./client";
-import type { AuthResult, OAuthStartResult, PublicLoginConfig, WalletNonceResult } from "../types/api";
+import type { AuthResult, AuthUser, OAuthStartResult, PublicLoginConfig, WalletNonceResult } from "../types/api";
 
 export type OAuthProvider = "github" | "google";
 
@@ -25,6 +25,22 @@ export const publicAuthApi = {
   login(data: { client_id: string; email: string; password: string }) {
     return request<AuthResult>({
       url: "/api/v1/auth/login",
+      method: "POST",
+      data,
+      skipAdminAuth: true,
+    });
+  },
+  session(clientID: string) {
+    return request<AuthUser>({
+      url: "/api/v1/auth/session",
+      method: "GET",
+      params: { client_id: clientID },
+      skipAdminAuth: true,
+    });
+  },
+  sessionLogin(data: { client_id: string }) {
+    return request<AuthResult>({
+      url: "/api/v1/auth/session/login",
       method: "POST",
       data,
       skipAdminAuth: true,

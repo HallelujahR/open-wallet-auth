@@ -86,6 +86,39 @@ type RefreshResult struct {
 	Token    *token.Pair
 }
 
+// SessionStatusRequest checks whether the browser has a valid central auth session.
+// SessionStatusRequest 检查浏览器是否已有有效的中台登录会话。
+type SessionStatusRequest struct {
+	ClientID     string
+	SessionToken string
+}
+
+// SessionStatusResult describes the signed-in user behind a central auth session.
+// SessionStatusResult 描述中台登录会话对应的已登录用户。
+type SessionStatusResult struct {
+	UserID   string
+	Username string
+	Email    string
+}
+
+// SessionLoginRequest exchanges the central auth session for a client-scoped token pair.
+// SessionLoginRequest 使用中台登录会话换取指定业务系统的 token 组合。
+type SessionLoginRequest struct {
+	ClientID     string
+	SessionToken string
+	IP           string
+	UserAgent    string
+}
+
+// SessionLoginResult is returned after one-click login from a central auth session.
+// SessionLoginResult 是基于中台会话一键登录成功后的用例输出。
+type SessionLoginResult struct {
+	UserID   string
+	Username string
+	Email    string
+	Token    *token.Pair
+}
+
 // LogoutRequest is the input for refresh token revocation.
 // LogoutRequest 是登出时吊销刷新令牌的用例输入。
 type LogoutRequest struct {

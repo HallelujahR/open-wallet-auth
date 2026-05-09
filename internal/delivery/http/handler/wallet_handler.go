@@ -74,6 +74,7 @@ func (h *WalletHandler) Verify(c *gin.Context) {
 		return
 	}
 
+	setSessionCookie(c, result.Token.RefreshToken)
 	response.OK(c, dto.WalletAuthResponse{
 		User: dto.AuthUser{
 			ID:       result.UserID,

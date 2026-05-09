@@ -43,13 +43,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 		return nil, domain.NewError(ErrInvalidCredentials, "invalid email or password")
 	}
 
-	pair, err := s.issuer.IssuePair(ctx, token.Claims{
-		UserID:   u.ID,
-		ClientID: client.ClientID,
-		Audience: client.JWTAudience,
-		Username: u.Username,
-		Email:    u.Email,
-	})
+	pair, err := s.issuer.IssuePair(ctx, clientClaims(u, client))
 	if err != nil {
 		return nil, err
 	}
@@ -114,13 +108,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*RegisterR
 		return nil, err
 	}
 
-	pair, err := s.issuer.IssuePair(ctx, token.Claims{
-		UserID:   u.ID,
-		ClientID: client.ClientID,
-		Audience: client.JWTAudience,
-		Username: u.Username,
-		Email:    u.Email,
-	})
+	pair, err := s.issuer.IssuePair(ctx, clientClaims(u, client))
 	if err != nil {
 		return nil, err
 	}
@@ -166,13 +154,7 @@ func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*RefreshResu
 		return nil, domain.NewError(ErrInvalidRefreshToken, "invalid refresh token")
 	}
 
-	pair, err := s.issuer.IssuePair(ctx, token.Claims{
-		UserID:   u.ID,
-		ClientID: client.ClientID,
-		Audience: client.JWTAudience,
-		Username: u.Username,
-		Email:    u.Email,
-	})
+	pair, err := s.issuer.IssuePair(ctx, clientClaims(u, client))
 	if err != nil {
 		return nil, err
 	}
@@ -184,6 +166,67 @@ func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*RefreshResu
 	}
 
 	return &RefreshResult{
+		UserID:   u.ID,
+		Username: u.Username,
+		Email:    u.Email,
+		Token:    pair,
+	}, nil
+}
+
+// SessionStatus validates the central auth session without issuing a new token.
+// SessionStatus 只校验中台登录会话，不签发新的业务 token。
+func (s *Service) SessionStatus(ctx context.Context, req SessionStatusRequest) (*SessionStatusResult, error) {
+	req.ClientID = defaultClientID(req.ClientID)
+	if err := s.ensureActiveClient(ctx, req.ClientID); err != nil {
+		return nil, err
+	}
+	u, _, err := s.validSessionUser(ctx, req.SessionToken)
+	if err != nil {
+		return nil, err
+	}
+	return &SessionStatusResult{
+		UserID:   u.ID,
+		Username: u.Username,
+		Email:    u.Email,
+	}, nil
+}
+
+// LoginWithSession exchanges a valid central session for a client-scoped token pair.
+// LoginWithSession 使用有效的中台会话为指定业务系统签发 token 组合。
+func (s *Service) LoginWithSession(ctx context.Context, req SessionLoginRequest) (*SessionLoginResult, error) {
+	req.ClientID = defaultClientID(req.ClientID)
+	u, _, err := s.validSessionUser(ctx, req.SessionToken)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := s.clients.FindByClientID(ctx, req.ClientID)
+	if err != nil || client == nil || !client.IsActive() {
+		s.recordFailedLogin(ctx, u.ID, req.ClientID, audit.LoginMethodRefresh, ErrInvalidClient, req.IP, req.UserAgent)
+		return nil, domain.NewError(ErrInvalidClient, "invalid client")
+	}
+
+	pair, err := s.issuer.IssuePair(ctx, token.Claims{
+		UserID:   u.ID,
+		ClientID: client.ClientID,
+		Audience: client.JWTAudience,
+		Username: u.Username,
+		Email:    u.Email,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := s.storeRefreshToken(ctx, u.ID, client.ClientID, pair.RefreshToken, req.IP, req.UserAgent); err != nil {
+		return nil, err
+	}
+	if err := s.users.UpdateLoginInfo(ctx, u.ID); err != nil {
+		return nil, err
+	}
+	if err := s.recordSuccessfulLogin(ctx, u.ID, client.ClientID, audit.LoginMethodRefresh, req.IP, req.UserAgent); err != nil {
+		return nil, err
+	}
+
+	return &SessionLoginResult{
 		UserID:   u.ID,
 		Username: u.Username,
 		Email:    u.Email,

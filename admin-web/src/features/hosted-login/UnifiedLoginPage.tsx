@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { publicAuthApi, type OAuthProvider } from "../../api/auth";
 import { authApiBaseUrl } from "../../config";
-import type { AuthResult } from "../../types/api";
+import type { AuthResult, AuthUser } from "../../types/api";
 import { buildLoginTabs } from "./LoginTabs";
 import type {
   EIP6963ProviderDetail,
@@ -32,6 +32,7 @@ export function UnifiedLoginPage() {
     defaultUnifiedLoginConfig(),
   );
   const [appName, setAppName] = useState("");
+  const [sessionUser, setSessionUser] = useState<AuthUser | null>(null);
 
   const clientID = searchParams.get("client_id") || "default";
   const returnURI = searchParams.get("return_uri") || "";
@@ -101,8 +102,18 @@ export function UnifiedLoginPage() {
         }
       }
     };
+    const loadSession = async () => {
+      setSessionUser(null);
+      try {
+        const user = await publicAuthApi.session(clientID);
+        if (!cancelled) setSessionUser(user);
+      } catch {
+        if (!cancelled) setSessionUser(null);
+      }
+    };
 
     loadLoginConfig();
+    loadSession();
     return () => {
       cancelled = true;
     };
@@ -153,6 +164,19 @@ export function UnifiedLoginPage() {
       finishLogin(result);
     } catch (err: any) {
       message.error(err.message || "注册失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithSession = async () => {
+    try {
+      setLoading(true);
+      const result = await publicAuthApi.sessionLogin({ client_id: clientID });
+      finishLogin(result);
+    } catch (err: any) {
+      setSessionUser(null);
+      message.error(err.message || "当前登录状态已失效，请重新登录");
     } finally {
       setLoading(false);
     }
@@ -287,6 +311,25 @@ export function UnifiedLoginPage() {
               className="unified-alert"
               message="登录成功"
               description="当前没有配置 return_uri，已在本页保留认证结果，方便本地调试。"
+            />
+          )}
+
+          {sessionUser && (
+            <Alert
+              type="info"
+              showIcon
+              className="unified-alert"
+              message="检测到已登录账号"
+              description={
+                <div className="unified-session-row">
+                  <span>
+                    {sessionUser.username || sessionUser.email || sessionUser.id}
+                  </span>
+                  <Button type="primary" size="small" loading={loading} onClick={loginWithSession}>
+                    一键登录
+                  </Button>
+                </div>
+              }
             />
           )}
 

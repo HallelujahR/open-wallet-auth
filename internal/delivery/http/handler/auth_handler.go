@@ -44,6 +44,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	setSessionCookie(c, result.Token.RefreshToken)
 	response.OK(c, dto.AuthResponse{
 		User: dto.AuthUser{
 			ID:       result.UserID,
@@ -80,6 +81,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	setSessionCookie(c, result.Token.RefreshToken)
 	response.OK(c, dto.AuthResponse{
 		User: dto.AuthUser{
 			ID:       result.UserID,
@@ -114,6 +116,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
+	setSessionCookie(c, result.Token.RefreshToken)
 	response.OK(c, dto.AuthResponse{
 		User: dto.AuthUser{
 			ID:       result.UserID,
@@ -145,5 +148,72 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
+	clearSessionCookie(c)
 	response.OK(c, gin.H{"logged_out": true})
+}
+
+// Session reports the current central auth session user if the browser is signed in.
+// Session 返回当前浏览器中台会话对应的用户，用于统一登录页展示“一键登录”。
+func (h *AuthHandler) Session(c *gin.Context) {
+	sessionToken, ok := readSessionCookie(c)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, authusecase.ErrInvalidRefreshToken, "not signed in")
+		return
+	}
+
+	result, err := h.auth.SessionStatus(c.Request.Context(), authusecase.SessionStatusRequest{
+		ClientID:     c.Query("client_id"),
+		SessionToken: sessionToken,
+	})
+	if err != nil {
+		writeAuthError(c, err)
+		return
+	}
+
+	response.OK(c, dto.AuthUser{
+		ID:       result.UserID,
+		Username: result.Username,
+		Email:    result.Email,
+	})
+}
+
+// SessionLogin exchanges the central auth session for a token pair for one client.
+// SessionLogin 使用中台会话为某个业务系统签发 token，实现跨系统一键登录。
+func (h *AuthHandler) SessionLogin(c *gin.Context) {
+	var req dto.SessionLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, authusecase.ErrInvalidInput, "invalid request")
+		return
+	}
+	sessionToken, ok := readSessionCookie(c)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, authusecase.ErrInvalidRefreshToken, "not signed in")
+		return
+	}
+
+	result, err := h.auth.LoginWithSession(c.Request.Context(), authusecase.SessionLoginRequest{
+		ClientID:     req.ClientID,
+		SessionToken: sessionToken,
+		IP:           c.ClientIP(),
+		UserAgent:    c.Request.UserAgent(),
+	})
+	if err != nil {
+		writeAuthError(c, err)
+		return
+	}
+
+	setSessionCookie(c, result.Token.RefreshToken)
+	response.OK(c, dto.AuthResponse{
+		User: dto.AuthUser{
+			ID:       result.UserID,
+			Username: result.Username,
+			Email:    result.Email,
+		},
+		Token: dto.TokenPair{
+			AccessToken:  result.Token.AccessToken,
+			RefreshToken: result.Token.RefreshToken,
+			ExpiresAt:    result.Token.ExpiresAt.Format(timeFormatRFC3339),
+			TokenType:    "Bearer",
+		},
+	})
 }

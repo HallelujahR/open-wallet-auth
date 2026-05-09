@@ -79,6 +79,7 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 		writeOAuthError(c, err)
 		return
 	}
+	setSessionCookie(c, result.Token.RefreshToken)
 	if result.ReturnURI != "" {
 		c.Redirect(http.StatusFound, oauthReturnURL(result))
 		return

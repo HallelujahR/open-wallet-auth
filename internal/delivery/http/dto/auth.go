@@ -20,6 +20,12 @@ type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
+// SessionLoginRequest is the HTTP body for one-click login from the central session.
+// SessionLoginRequest 是使用中台会话一键登录业务系统的 HTTP 请求体。
+type SessionLoginRequest struct {
+	ClientID string `json:"client_id"`
+}
+
 // LogoutRequest is the HTTP request body for logout.
 type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
