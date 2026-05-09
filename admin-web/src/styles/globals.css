@@ -343,6 +343,17 @@ body {
   font-size: 12px;
 }
 
+.session-cell {
+  display: grid;
+  gap: 6px;
+}
+
+.session-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .admin-content {
   padding: 18px;
   overflow: auto;

@@ -69,7 +69,7 @@ func newRouterDependencies(cfg *config.Config, logger *zap.Logger, storage *stor
 		Email:            handler.NewEmailHandler(newEmailService(cfg, runtime, settingsService)),
 		OAuth:            handler.NewOAuthHandler(newOAuthService(cfg, storage, runtime, settingsService)),
 		Client:           handler.NewClientHandler(clientService, settingsService),
-		Admin:            handler.NewAdminHandler(adminService),
+		Admin:            handler.NewAdminHandler(adminService, runtime.tokenHash),
 		Settings:         handler.NewSettingsHandler(settingsService),
 		Token:            runtime.issuer,
 		AudienceResolver: clientService,

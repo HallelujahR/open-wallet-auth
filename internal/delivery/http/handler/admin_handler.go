@@ -17,18 +17,20 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/wallet"
 	adminusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/admin"
+	authusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/auth"
 )
 
 // AdminHandler exposes identity-management APIs for internal operations.
 // AdminHandler 暴露公司内部使用的统一身份管理接口。
 type AdminHandler struct {
-	admin *adminusecase.Service
+	admin       *adminusecase.Service
+	tokenHasher authusecase.TokenHasher
 }
 
 // NewAdminHandler creates an AdminHandler bound to the admin usecase service.
 // NewAdminHandler 创建绑定身份管理用例服务的 HTTP handler。
-func NewAdminHandler(admin *adminusecase.Service) *AdminHandler {
-	return &AdminHandler{admin: admin}
+func NewAdminHandler(admin *adminusecase.Service, tokenHasher authusecase.TokenHasher) *AdminHandler {
+	return &AdminHandler{admin: admin, tokenHasher: tokenHasher}
 }
 
 // ListUsers returns paginated identity users.
@@ -99,8 +101,9 @@ func (h *AdminHandler) ListSessions(c *gin.Context) {
 		return
 	}
 	items := make([]dto.AdminSessionResponse, 0, len(result.Sessions))
+	currentHash := h.currentSessionHash(c)
 	for _, session := range result.Sessions {
-		items = append(items, toAdminSessionResponse(session))
+		items = append(items, toAdminSessionResponse(session, currentHash))
 	}
 	response.OK(c, dto.AdminSessionListResponse{Items: items})
 }
@@ -242,7 +245,7 @@ func toAdminUserDetailResponse(result *adminusecase.UserDetailResult) dto.AdminU
 	}
 	sessions := make([]dto.AdminSessionResponse, 0, len(result.Sessions))
 	for _, session := range result.Sessions {
-		sessions = append(sessions, toAdminSessionResponse(session))
+		sessions = append(sessions, toAdminSessionResponse(session, ""))
 	}
 	return dto.AdminUserDetailResponse{
 		User:     toAdminUserResponse(result.User),
@@ -343,7 +346,7 @@ func toAdminSecurityEventResponse(event audit.SecurityEvent) dto.AdminSecurityEv
 
 // toAdminSessionResponse converts a refresh token to a management DTO.
 // toAdminSessionResponse 将刷新令牌会话转换为管理接口 DTO。
-func toAdminSessionResponse(session token.RefreshToken) dto.AdminSessionResponse {
+func toAdminSessionResponse(session token.RefreshToken, currentHash string) dto.AdminSessionResponse {
 	return dto.AdminSessionResponse{
 		ID:         session.ID,
 		UserID:     session.UserID,
@@ -351,11 +354,25 @@ func toAdminSessionResponse(session token.RefreshToken) dto.AdminSessionResponse
 		IP:         session.IP,
 		UserAgent:  session.UserAgent,
 		Active:     !session.IsRevoked() && !session.IsExpired(time.Now().UTC()),
+		Current:    currentHash != "" && session.TokenHash == currentHash,
 		ExpiresAt:  formatTime(session.ExpiresAt),
 		RevokedAt:  formatOptionalTime(session.RevokedAt),
 		LastUsedAt: formatOptionalTime(session.LastUsedAt),
 		CreatedAt:  formatTime(session.CreatedAt),
 	}
+}
+
+// currentSessionHash hashes the auth-domain browser session cookie for comparison.
+// currentSessionHash 哈希当前浏览器的中台会话 Cookie，用于在管理页标记“当前浏览器”。
+func (h *AdminHandler) currentSessionHash(c *gin.Context) string {
+	if h.tokenHasher == nil {
+		return ""
+	}
+	sessionToken, ok := readSessionCookie(c)
+	if !ok {
+		return ""
+	}
+	return h.tokenHasher.HashToken(sessionToken)
 }
 
 // intQuery reads a positive integer query parameter with a fallback.

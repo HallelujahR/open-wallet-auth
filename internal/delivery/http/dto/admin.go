@@ -95,6 +95,7 @@ type AdminSessionResponse struct {
 	IP         string `json:"ip,omitempty"`
 	UserAgent  string `json:"user_agent,omitempty"`
 	Active     bool   `json:"active"`
+	Current    bool   `json:"current"`
 	ExpiresAt  string `json:"expires_at"`
 	RevokedAt  string `json:"revoked_at,omitempty"`
 	LastUsedAt string `json:"last_used_at,omitempty"`
