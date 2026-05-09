@@ -425,6 +425,112 @@ body {
   margin: 0 0 12px;
 }
 
+.identity-card .ant-table-tbody > tr > td {
+  vertical-align: top;
+}
+
+.identity-user-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 220px;
+}
+
+.identity-meta {
+  max-width: 190px;
+  margin-top: 4px;
+  color: #607086;
+  font-size: 12px;
+}
+
+.identity-contact-cell {
+  display: grid;
+  gap: 6px;
+  min-width: 210px;
+  color: #344054;
+}
+
+.identity-contact-cell span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+.identity-method-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.wallet-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 230px;
+}
+
+.identity-detail {
+  display: grid;
+  gap: 18px;
+}
+
+.identity-detail-hero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff, #f8fbff);
+}
+
+.identity-detail-hero h4 {
+  margin: 0 0 4px !important;
+}
+
+.identity-detail-id {
+  max-width: 560px;
+  color: #607086;
+  font-size: 12px;
+}
+
+.identity-methods {
+  margin-top: 10px;
+}
+
+.identity-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.identity-info-tile {
+  min-height: 88px;
+  padding: 14px;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.identity-info-tile span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #607086;
+  font-size: 12px;
+}
+
+.identity-info-tile strong {
+  display: block;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+  color: #111827;
+  font-size: 14px;
+}
+
 @media (max-width: 900px) {
   .login-page,
   .unified-login-page {
@@ -435,6 +541,10 @@ body {
   .unified-brand {
     min-height: 320px;
     padding: 36px;
+  }
+
+  .identity-info-grid {
+    grid-template-columns: 1fr;
   }
 
   .hero-copy h1,

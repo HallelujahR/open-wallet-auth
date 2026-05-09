@@ -83,6 +83,9 @@ export type IdentityUser = {
   phone?: string;
   avatar?: string;
   status: IdentityStatus | string;
+  login_methods: string[];
+  wallets?: WalletBinding[];
+  oauth_accounts?: OAuthAccount[];
   last_login_at?: string;
   created_at: string;
   updated_at: string;

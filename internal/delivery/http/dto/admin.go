@@ -17,15 +17,18 @@ type AdminLoginResponse struct {
 // AdminUserResponse is the management view of an identity user.
 // AdminUserResponse 是身份用户的管理视图。
 type AdminUserResponse struct {
-	ID          string `json:"id"`
-	Username    string `json:"username"`
-	Email       string `json:"email,omitempty"`
-	Phone       string `json:"phone,omitempty"`
-	Avatar      string `json:"avatar,omitempty"`
-	Status      string `json:"status"`
-	LastLoginAt string `json:"last_login_at,omitempty"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID           string                      `json:"id"`
+	Username     string                      `json:"username"`
+	Email        string                      `json:"email,omitempty"`
+	Phone        string                      `json:"phone,omitempty"`
+	Avatar       string                      `json:"avatar,omitempty"`
+	Status       string                      `json:"status"`
+	LoginMethods []string                    `json:"login_methods"`
+	Wallets      []AdminWalletResponse       `json:"wallets,omitempty"`
+	Accounts     []AdminOAuthAccountResponse `json:"oauth_accounts,omitempty"`
+	LastLoginAt  string                      `json:"last_login_at,omitempty"`
+	CreatedAt    string                      `json:"created_at"`
+	UpdatedAt    string                      `json:"updated_at"`
 }
 
 // AdminUserListResponse is the paginated identity-user list response.

@@ -49,7 +49,7 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 
 	items := make([]dto.AdminUserResponse, 0, len(result.Users))
 	for _, u := range result.Users {
-		items = append(items, toAdminUserResponse(u))
+		items = append(items, toAdminUserResponse(u, result.Wallets[u.ID], result.Accounts[u.ID]))
 	}
 	response.OK(c, dto.AdminUserListResponse{
 		Items:    items,
@@ -235,20 +235,14 @@ func toAdminUserDetailResponse(result *adminusecase.UserDetailResult) dto.AdminU
 	for _, client := range result.Clients {
 		clients = append(clients, toAdminUserClientResponse(client))
 	}
-	wallets := make([]dto.AdminWalletResponse, 0, len(result.Wallets))
-	for _, w := range result.Wallets {
-		wallets = append(wallets, toAdminWalletResponse(w))
-	}
-	accounts := make([]dto.AdminOAuthAccountResponse, 0, len(result.Accounts))
-	for _, account := range result.Accounts {
-		accounts = append(accounts, toAdminOAuthAccountResponse(account))
-	}
+	wallets := toAdminWalletResponses(result.Wallets)
+	accounts := toAdminOAuthAccountResponses(result.Accounts)
 	sessions := make([]dto.AdminSessionResponse, 0, len(result.Sessions))
 	for _, session := range result.Sessions {
 		sessions = append(sessions, toAdminSessionResponse(session, ""))
 	}
 	return dto.AdminUserDetailResponse{
-		User:     toAdminUserResponse(result.User),
+		User:     toAdminUserResponse(result.User, result.Wallets, result.Accounts),
 		Clients:  clients,
 		Wallets:  wallets,
 		Accounts: accounts,
@@ -258,18 +252,40 @@ func toAdminUserDetailResponse(result *adminusecase.UserDetailResult) dto.AdminU
 
 // toAdminUserResponse converts a domain user to a management DTO.
 // toAdminUserResponse 将领域用户转换为管理接口 DTO。
-func toAdminUserResponse(u user.User) dto.AdminUserResponse {
+func toAdminUserResponse(u user.User, wallets []wallet.UserWallet, accounts []oauth.Account) dto.AdminUserResponse {
 	return dto.AdminUserResponse{
-		ID:          u.ID,
-		Username:    u.Username,
-		Email:       u.Email,
-		Phone:       u.Phone,
-		Avatar:      u.Avatar,
-		Status:      string(u.Status),
-		LastLoginAt: formatOptionalTime(u.LastLoginAt),
-		CreatedAt:   formatTime(u.CreatedAt),
-		UpdatedAt:   formatTime(u.UpdatedAt),
+		ID:           u.ID,
+		Username:     u.Username,
+		Email:        u.Email,
+		Phone:        u.Phone,
+		Avatar:       u.Avatar,
+		Status:       string(u.Status),
+		LoginMethods: adminLoginMethods(u, wallets, accounts),
+		Wallets:      toAdminWalletResponses(wallets),
+		Accounts:     toAdminOAuthAccountResponses(accounts),
+		LastLoginAt:  formatOptionalTime(u.LastLoginAt),
+		CreatedAt:    formatTime(u.CreatedAt),
+		UpdatedAt:    formatTime(u.UpdatedAt),
 	}
+}
+
+// adminLoginMethods derives display login methods from bound identity factors.
+// adminLoginMethods 根据已绑定的身份因子生成管理端展示用登录方式。
+func adminLoginMethods(u user.User, wallets []wallet.UserWallet, accounts []oauth.Account) []string {
+	methods := make([]string, 0, 4)
+	if u.Email != "" {
+		methods = append(methods, "email")
+	}
+	if u.Phone != "" {
+		methods = append(methods, "phone")
+	}
+	if len(wallets) > 0 {
+		methods = append(methods, "wallet")
+	}
+	for _, account := range accounts {
+		methods = append(methods, account.Provider)
+	}
+	return methods
 }
 
 // toAdminUserClientResponse converts a user-client relation to a management DTO.
@@ -297,6 +313,16 @@ func toAdminWalletResponse(w wallet.UserWallet) dto.AdminWalletResponse {
 	}
 }
 
+// toAdminWalletResponses converts wallet bindings to management DTOs.
+// toAdminWalletResponses 批量转换钱包绑定管理 DTO。
+func toAdminWalletResponses(wallets []wallet.UserWallet) []dto.AdminWalletResponse {
+	items := make([]dto.AdminWalletResponse, 0, len(wallets))
+	for _, w := range wallets {
+		items = append(items, toAdminWalletResponse(w))
+	}
+	return items
+}
+
 // toAdminOAuthAccountResponse converts an OAuth account to a management DTO.
 // toAdminOAuthAccountResponse 将第三方账号绑定转换为管理接口 DTO。
 func toAdminOAuthAccountResponse(account oauth.Account) dto.AdminOAuthAccountResponse {
@@ -309,6 +335,16 @@ func toAdminOAuthAccountResponse(account oauth.Account) dto.AdminOAuthAccountRes
 		ProviderAvatarURL: account.ProviderAvatarURL,
 		CreatedAt:         formatTime(account.CreatedAt),
 	}
+}
+
+// toAdminOAuthAccountResponses converts OAuth bindings to management DTOs.
+// toAdminOAuthAccountResponses 批量转换第三方账号绑定管理 DTO。
+func toAdminOAuthAccountResponses(accounts []oauth.Account) []dto.AdminOAuthAccountResponse {
+	items := make([]dto.AdminOAuthAccountResponse, 0, len(accounts))
+	for _, account := range accounts {
+		items = append(items, toAdminOAuthAccountResponse(account))
+	}
+	return items
 }
 
 // toAdminLoginLogResponse converts a login audit event to a management DTO.

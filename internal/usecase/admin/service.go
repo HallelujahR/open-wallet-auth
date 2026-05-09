@@ -53,6 +53,8 @@ type UserListRequest struct {
 // UserListResult 返回分页后的身份用户列表。
 type UserListResult struct {
 	Users    []user.User
+	Wallets  map[string][]wallet.UserWallet
+	Accounts map[string][]oauth.Account
 	Total    int64
 	Page     int
 	PageSize int
@@ -168,7 +170,31 @@ func (s *Service) ListUsers(ctx context.Context, req UserListRequest) (*UserList
 	if err != nil {
 		return nil, err
 	}
-	return &UserListResult{Users: users, Total: total, Page: page, PageSize: pageSize}, nil
+	wallets, accounts, err := s.identityBindings(ctx, users)
+	if err != nil {
+		return nil, err
+	}
+	return &UserListResult{Users: users, Wallets: wallets, Accounts: accounts, Total: total, Page: page, PageSize: pageSize}, nil
+}
+
+// identityBindings loads wallet and OAuth summaries for a paginated user set.
+// identityBindings 为当前分页用户加载钱包和第三方账号摘要，供列表直接展示登录方式。
+func (s *Service) identityBindings(ctx context.Context, users []user.User) (map[string][]wallet.UserWallet, map[string][]oauth.Account, error) {
+	wallets := make(map[string][]wallet.UserWallet, len(users))
+	accounts := make(map[string][]oauth.Account, len(users))
+	for _, item := range users {
+		userWallets, err := s.wallets.ListByUserID(ctx, item.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		userAccounts, err := s.accounts.ListByUserID(ctx, item.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		wallets[item.ID] = userWallets
+		accounts[item.ID] = userAccounts
+	}
+	return wallets, accounts, nil
 }
 
 // GetUserDetail returns one identity user with login clients and linked accounts.
