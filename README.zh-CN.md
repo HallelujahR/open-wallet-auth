@@ -76,10 +76,17 @@ http://localhost:8081/login?client_id=default&return_uri=http://localhost:5173/c
 
 完整说明见：[业务系统接入指南](docs/INTEGRATION.zh-CN.md)
 
+如果希望少写协议代码，可以使用内置 SDK：
+
+- [Web SDK](sdk/web/README.md)：统一登录跳转、回调解析、钱包和 OAuth 辅助方法。
+- [Node SDK](sdk/node/README.md)：Node 后端调用登录、注册、profile 校验。
+- [Go SDK](sdk/go/README.md)：Go 后端调用登录、注册、profile 校验。
+
 ## 文档导航
 
 - [快速开始](docs/QUICKSTART.zh-CN.md)：本地启动和第一个登录流程。
 - [接入指南](docs/INTEGRATION.zh-CN.md)：业务系统如何接入统一登录。
+- [SDK 说明](sdk/README.md)：前端和后端 SDK 的职责边界。
 - [配置说明](docs/PROVIDERS.zh-CN.md)：短信、邮件、OAuth、运行期配置。
 - [部署指南](docs/DEPLOYMENT.zh-CN.md)：生产部署、迁移、健康检查。
 - [代码导览](docs/CODEBASE_GUIDE.zh-CN.md)：目录结构和从哪里开始看代码。

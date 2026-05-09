@@ -1,0 +1,14 @@
+{
+  "name": "@open-wallet-auth/node",
+  "version": "0.1.0",
+  "description": "Node.js SDK for Open Wallet Auth service-side integrations.",
+  "main": "./index.cjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "require": "./index.cjs"
+    }
+  },
+  "sideEffects": false
+}

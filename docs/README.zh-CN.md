@@ -12,16 +12,19 @@
 2. [业务系统接入指南](INTEGRATION.zh-CN.md)  
    理解 client、回调地址、access token、JWKS、业务本地用户之间的关系。
 
-3. [配置说明](PROVIDERS.zh-CN.md)  
+3. [SDK 说明](../sdk/README.md)  
+   看 Web、Node、Go SDK 分别封装了什么，什么时候该用、什么时候不该用。
+
+4. [配置说明](PROVIDERS.zh-CN.md)  
    配置 Google、GitHub、短信、邮件、CORS、登录页品牌等。
 
-4. [部署指南](DEPLOYMENT.zh-CN.md)  
+5. [部署指南](DEPLOYMENT.zh-CN.md)  
    生产环境如何迁移数据库、准备密钥、启动服务和做健康检查。
 
-5. [代码导览](CODEBASE_GUIDE.zh-CN.md)  
+6. [代码导览](CODEBASE_GUIDE.zh-CN.md)  
    看代码时从哪里进、每个目录负责什么、一个请求如何流转。
 
-6. [架构说明](ARCHITECTURE.zh-CN.md)  
+7. [架构说明](ARCHITECTURE.zh-CN.md)  
    深入理解分层边界、依赖方向和扩展点。
 
 ## 文档分工
@@ -30,6 +33,7 @@
 | --- | --- |
 | [QUICKSTART.zh-CN.md](QUICKSTART.zh-CN.md) | 本地启动和基础验证 |
 | [INTEGRATION.zh-CN.md](INTEGRATION.zh-CN.md) | 业务系统怎么接入 |
+| [SDK 说明](../sdk/README.md) | SDK 职责和选择 |
 | [PROVIDERS.zh-CN.md](PROVIDERS.zh-CN.md) | 登录方式和服务商怎么配置 |
 | [DEPLOYMENT.zh-CN.md](DEPLOYMENT.zh-CN.md) | 怎么上线和运维 |
 | [CODEBASE_GUIDE.zh-CN.md](CODEBASE_GUIDE.zh-CN.md) | 怎么读代码 |
@@ -39,7 +43,7 @@
 ## 文档维护原则
 
 - README 只放项目定位、最短启动路径和文档导航。
-- 接入流程只写在 Integration，避免在 README、示例、部署文档里重复解释。
+- 接入流程只写在 Integration；SDK 只写封装职责和最小示例，避免重复解释业务流程。
 - 代码结构只写在 Codebase Guide 和 Architecture。
 - 服务商、密钥、开关只写在 Providers / Configuration 类文档。
 - 英文文档优先保证 README、Quick Start、Integration 可读；深入实现细节以中文文档为准。

@@ -59,6 +59,22 @@ https://app.example.com/auth/callback#access_token=...&token_type=Bearer&expires
 
 The business callback page reads the `access_token` from the URL fragment and exchanges it with its own backend for a local business token or session. This keeps password, OAuth, and wallet UI inside the auth service.
 
+The Web SDK is recommended for hosted-login redirects and callback parsing:
+
+```ts
+import { createAuthClient } from "@open-wallet-auth/web";
+
+const auth = createAuthClient({
+  authBaseURL: "https://auth.example.com",
+  clientID: "example-app",
+  returnURI: `${window.location.origin}/auth/callback`,
+});
+
+auth.login({ redirect: window.location.pathname });
+```
+
+Use the Node or Go SDK only for trusted backend work such as legacy user migration, email/password identity login, and profile validation. SDKs wrap the identity protocol; business systems still own their local user tables and business tokens.
+
 Hosted login page branding and login methods are managed in the admin console:
 
 - Path: `/console/settings`

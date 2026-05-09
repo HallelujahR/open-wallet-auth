@@ -8,14 +8,16 @@ The documentation is organized by reader tasks instead of internal modules.
 
 1. [Quick Start](QUICKSTART.md): run the service locally.
 2. [Integration](INTEGRATION.md): connect a business application.
-3. [Providers](PROVIDERS.md): configure OAuth, SMS, email, and runtime options.
-4. [Deployment](DEPLOYMENT.md): prepare production runtime and migrations.
-5. [Architecture](ARCHITECTURE.md): understand boundaries and extension points.
+3. [SDK](../sdk/README.md): choose the browser or service-side SDK.
+4. [Providers](PROVIDERS.md): configure OAuth, SMS, email, and runtime options.
+5. [Deployment](DEPLOYMENT.md): prepare production runtime and migrations.
+6. [Architecture](ARCHITECTURE.md): understand boundaries and extension points.
 
 ## Maintainer Notes
 
 - Keep README short and task-oriented.
 - Put integration behavior in Integration docs.
+- Put SDK responsibilities and minimal examples in SDK docs.
 - Put provider and secret configuration in Providers docs.
 - Put production operations in Deployment docs.
 - The Chinese docs contain the most detailed implementation notes for now.

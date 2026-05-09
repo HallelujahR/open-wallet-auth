@@ -62,6 +62,22 @@ https://app.example.com/auth/callback#access_token=...&token_type=Bearer&expires
 
 业务系统回调页读取 URL fragment 中的 `access_token`，再交给自己的后端换取本地业务 token 或本地 session。这样业务系统不用保存认证密码，也不用复制第三方登录和钱包登录 UI。
 
+前端推荐使用 Web SDK 处理跳转和回调，避免每个业务系统重复拼 URL、保存回跳地址、解析 fragment：
+
+```ts
+import { createAuthClient } from "@open-wallet-auth/web";
+
+const auth = createAuthClient({
+  authBaseURL: "https://auth.example.com",
+  clientID: "example-app",
+  returnURI: `${window.location.origin}/auth/callback`,
+});
+
+auth.login({ redirect: window.location.pathname });
+```
+
+后端如果需要做老用户无感迁移、邮箱密码代登录或 profile 校验，可以使用 Node SDK 或 Go SDK。SDK 只封装认证协议，业务系统仍然保留自己的用户表和业务 token。
+
 统一登录页的品牌和登录方式在管理后台配置：
 
 - 路径：`/console/settings`

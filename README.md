@@ -76,10 +76,17 @@ http://localhost:8081/login?client_id=default&return_uri=http://localhost:5173/c
 
 Full guide: [Integration](docs/INTEGRATION.md)
 
+Built-in SDKs are available when you want less protocol glue code:
+
+- [Web SDK](sdk/web/README.md): hosted-login redirects, callback parsing, wallet and OAuth helpers.
+- [Node SDK](sdk/node/README.md): service-side login, registration, and profile validation.
+- [Go SDK](sdk/go/README.md): service-side login, registration, and profile validation.
+
 ## Documentation
 
 - [Quick Start](docs/QUICKSTART.md)
 - [Integration](docs/INTEGRATION.md)
+- [SDK](sdk/README.md)
 - [Providers and Runtime Configuration](docs/PROVIDERS.md)
 - [Deployment](docs/DEPLOYMENT.md)
 - [Architecture](docs/ARCHITECTURE.md)
