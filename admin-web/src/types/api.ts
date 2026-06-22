@@ -172,6 +172,7 @@ export type Client = {
   jwt_audience: string;
   allowed_origins: string[];
   allowed_redirect_uris: string[];
+  whitelist_enabled: boolean;
   status: string;
   created_at: string;
 };
@@ -182,6 +183,31 @@ export type ClientCreateInput = {
   jwt_audience: string;
   allowed_origins: string[];
   allowed_redirect_uris: string[];
+  whitelist_enabled?: boolean;
+};
+
+export type ClientMember = {
+  id: string;
+  client_id: string;
+  user_id: string;
+  username?: string;
+  email?: string;
+  phone?: string;
+  role: string;
+  permissions: string[];
+  status: string;
+  remark?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClientMemberInput = {
+  user_id?: string;
+  role: string;
+  permissions: string[];
+  status: string;
+  remark?: string;
 };
 
 export type SecretStatus = {

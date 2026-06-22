@@ -9,6 +9,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/dto"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/response"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/usecase/clientaccess"
 	phoneusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/phone"
 )
 
@@ -90,6 +91,8 @@ func writePhoneError(c *gin.Context, err error) {
 		switch appErr.Code {
 		case phoneusecase.ErrInvalidCode:
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
+		case clientaccess.ErrAccessDenied:
+			response.Error(c, http.StatusForbidden, appErr.Code, appErr.Message)
 		case phoneusecase.ErrRateLimited:
 			response.Error(c, http.StatusTooManyRequests, appErr.Code, appErr.Message)
 		case phoneusecase.ErrSendFailed:

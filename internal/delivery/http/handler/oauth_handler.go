@@ -12,6 +12,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/delivery/http/response"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/usecase/clientaccess"
 	oauthusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/oauth"
 )
 
@@ -133,6 +134,8 @@ func writeOAuthError(c *gin.Context, err error) {
 			response.Error(c, http.StatusServiceUnavailable, appErr.Code, appErr.Message)
 		case oauthusecase.ErrInvalidState:
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
+		case clientaccess.ErrAccessDenied:
+			response.Error(c, http.StatusForbidden, appErr.Code, appErr.Message)
 		case oauthusecase.ErrOAuthBound:
 			response.Error(c, http.StatusConflict, appErr.Code, appErr.Message)
 		default:

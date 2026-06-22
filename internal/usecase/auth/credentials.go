@@ -8,7 +8,6 @@ import (
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
-	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 )
@@ -43,7 +42,12 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 		return nil, domain.NewError(ErrInvalidCredentials, "invalid email or password")
 	}
 
-	pair, err := s.issuer.IssuePair(ctx, clientClaims(u, client))
+	claims, err := s.authorizedClientClaims(ctx, u, client)
+	if err != nil {
+		s.recordFailedLogin(ctx, u.ID, client.ClientID, audit.LoginMethodPassword, errCode(err), req.IP, req.UserAgent)
+		return nil, err
+	}
+	pair, err := s.issuer.IssuePair(ctx, claims)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +112,12 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*RegisterR
 		return nil, err
 	}
 
-	pair, err := s.issuer.IssuePair(ctx, clientClaims(u, client))
+	claims, err := s.authorizedClientClaims(ctx, u, client)
+	if err != nil {
+		s.recordFailedLogin(ctx, u.ID, client.ClientID, audit.LoginMethodPassword, errCode(err), req.IP, req.UserAgent)
+		return nil, err
+	}
+	pair, err := s.issuer.IssuePair(ctx, claims)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +163,11 @@ func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*RefreshResu
 		return nil, domain.NewError(ErrInvalidRefreshToken, "invalid refresh token")
 	}
 
-	pair, err := s.issuer.IssuePair(ctx, clientClaims(u, client))
+	claims, err := s.authorizedClientClaims(ctx, u, client)
+	if err != nil {
+		return nil, err
+	}
+	pair, err := s.issuer.IssuePair(ctx, claims)
 	if err != nil {
 		return nil, err
 	}
@@ -206,13 +219,12 @@ func (s *Service) LoginWithSession(ctx context.Context, req SessionLoginRequest)
 		return nil, domain.NewError(ErrInvalidClient, "invalid client")
 	}
 
-	pair, err := s.issuer.IssuePair(ctx, token.Claims{
-		UserID:   u.ID,
-		ClientID: client.ClientID,
-		Audience: client.JWTAudience,
-		Username: u.Username,
-		Email:    u.Email,
-	})
+	claims, err := s.authorizedClientClaims(ctx, u, client)
+	if err != nil {
+		s.recordFailedLogin(ctx, u.ID, client.ClientID, audit.LoginMethodRefresh, errCode(err), req.IP, req.UserAgent)
+		return nil, err
+	}
+	pair, err := s.issuer.IssuePair(ctx, claims)
 	if err != nil {
 		return nil, err
 	}

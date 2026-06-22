@@ -15,6 +15,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	walletdomain "github.com/open-wallet-auth/open-wallet-auth/internal/domain/wallet"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/usecase/clientaccess"
 )
 
 const (
@@ -271,14 +272,21 @@ func (s *Service) VerifySignature(ctx context.Context, req VerifyRequest) (*Veri
 		return nil, err
 	}
 
-	pair, err := s.issuer.IssuePair(ctx, token.Claims{
+	// 钱包签名只证明身份归属；业务系统访问仍需经过 client 白名单策略。
+	member, err := clientaccess.Authorize(ctx, s.clients, client, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	claims := clientaccess.ApplyClaims(token.Claims{
 		UserID:   u.ID,
 		ClientID: client.ClientID,
 		Audience: client.JWTAudience,
 		Username: u.Username,
 		Email:    u.Email,
 		Wallets:  []string{address},
-	})
+	}, member)
+
+	pair, err := s.issuer.IssuePair(ctx, claims)
 	if err != nil {
 		return nil, err
 	}

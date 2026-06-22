@@ -33,7 +33,7 @@ func newStorage(ctx context.Context, cfg *config.Config) (*storageBundle, error)
 	}
 
 	if cfg.Database.AutoMigrate {
-		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.UserWallet{}, &model.OAuthAccount{}, &model.WalletNonce{}, &model.RefreshToken{}, &model.LoginLog{}, &model.SecurityEvent{}, &model.UserClient{}, &model.SystemSetting{}); err != nil {
+		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.ClientMember{}, &model.UserWallet{}, &model.OAuthAccount{}, &model.WalletNonce{}, &model.RefreshToken{}, &model.LoginLog{}, &model.SecurityEvent{}, &model.UserClient{}, &model.SystemSetting{}); err != nil {
 			return nil, fmt.Errorf("auto migrate database: %w", err)
 		}
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	authusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/auth"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/usecase/clientaccess"
 )
 
 // currentAuthClaims reads token claims from Gin context.
@@ -99,6 +100,8 @@ func writeAuthError(c *gin.Context, err error) {
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
 		case authusecase.ErrInvalidRefreshToken:
 			response.Error(c, http.StatusUnauthorized, appErr.Code, appErr.Message)
+		case clientaccess.ErrAccessDenied:
+			response.Error(c, http.StatusForbidden, appErr.Code, appErr.Message)
 		case authusecase.ErrBindingNotFound:
 			response.Error(c, http.StatusNotFound, appErr.Code, appErr.Message)
 		case authusecase.ErrLastLoginMethod:
