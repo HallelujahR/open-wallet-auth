@@ -4,6 +4,8 @@ import type {
   AdminLoginResult,
   Client,
   ClientCreateInput,
+  ClientMember,
+  ClientMemberInput,
   HealthStatus,
   IdentityDetail,
   IdentityUser,
@@ -81,6 +83,32 @@ export const adminApi = {
   },
   createClient(input: ClientCreateInput) {
     return request<Client>({ url: "/api/v1/admin/clients", method: "POST", data: input });
+  },
+  updateClientAccessPolicy(clientId: string, whitelistEnabled: boolean) {
+    return request<Client>({
+      url: `/api/v1/admin/clients/${clientId}`,
+      method: "PATCH",
+      data: { whitelist_enabled: whitelistEnabled },
+    });
+  },
+  listClientMembers(clientId: string) {
+    return request<ClientMember[]>({ url: `/api/v1/admin/clients/${clientId}/members`, method: "GET" });
+  },
+  addClientMember(clientId: string, input: ClientMemberInput) {
+    return request<ClientMember>({ url: `/api/v1/admin/clients/${clientId}/members`, method: "POST", data: input });
+  },
+  updateClientMember(clientId: string, memberId: string, input: ClientMemberInput) {
+    return request<{ updated: boolean }>({
+      url: `/api/v1/admin/clients/${clientId}/members/${memberId}`,
+      method: "PATCH",
+      data: input,
+    });
+  },
+  deleteClientMember(clientId: string, memberId: string) {
+    return request<{ deleted: boolean }>({
+      url: `/api/v1/admin/clients/${clientId}/members/${memberId}`,
+      method: "DELETE",
+    });
   },
   getSettings() {
     return request<RuntimeSettingsResult>({ url: "/api/v1/admin/settings", method: "GET" });

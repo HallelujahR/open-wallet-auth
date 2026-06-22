@@ -531,6 +531,33 @@ body {
   font-size: 14px;
 }
 
+.application-member-drawer {
+  display: grid;
+  gap: 16px;
+}
+
+.application-member-form {
+  background: #fbfdff;
+}
+
+.application-member-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.6fr) minmax(120px, 0.8fr) minmax(120px, 0.7fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.application-member-grid .ant-form-item {
+  margin-bottom: 0;
+}
+
+.muted-text {
+  margin-top: 4px;
+  color: #607086;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 900px) {
   .login-page,
   .unified-login-page {
@@ -544,6 +571,10 @@ body {
   }
 
   .identity-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .application-member-grid {
     grid-template-columns: 1fr;
   }
 

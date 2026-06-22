@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/postgres/model"
@@ -68,6 +69,7 @@ func (r *ClientRepository) Create(ctx context.Context, c *client.Client) error {
 		JWTAudience:         c.JWTAudience,
 		AllowedOrigins:      datatypes.JSON(origins),
 		AllowedRedirectURIs: datatypes.JSON(redirectURIs),
+		WhitelistEnabled:    c.WhitelistEnabled,
 		Status:              string(c.Status),
 		CreatedAt:           c.CreatedAt,
 		UpdatedAt:           c.UpdatedAt,
@@ -109,11 +111,147 @@ func (r *ClientRepository) EnsureDefault(ctx context.Context) error {
 		JWTAudience:         "default",
 		AllowedOrigins:      []byte(`[]`),
 		AllowedRedirectURIs: []byte(`[]`),
+		WhitelistEnabled:    false,
 		Status:              string(client.StatusActive),
 		CreatedAt:           now,
 		UpdatedAt:           now,
 	}
 	return r.db.WithContext(ctx).Create(&row).Error
+}
+
+// UpdateWhitelistEnabled changes whether one client enforces allow-list login.
+// UpdateWhitelistEnabled 修改业务系统是否启用登录白名单。
+func (r *ClientRepository) UpdateWhitelistEnabled(ctx context.Context, clientID string, enabled bool) (*client.Client, error) {
+	now := time.Now().UTC()
+	result := r.db.WithContext(ctx).
+		Model(&model.Client{}).
+		Where("client_id = ?", clientID).
+		Updates(map[string]any{"whitelist_enabled": enabled, "updated_at": now})
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, domainrepo.ErrNotFound
+	}
+	return r.FindByClientID(ctx, clientID)
+}
+
+// ListMembers returns allow-list members for one client with identity summaries.
+// ListMembers 返回某个业务系统的白名单成员，并带上身份摘要字段。
+func (r *ClientRepository) ListMembers(ctx context.Context, clientID string) ([]client.Member, error) {
+	type memberRow struct {
+		model.ClientMember
+		Username string
+		Email    string
+		Phone    string
+	}
+
+	var rows []memberRow
+	err := r.db.WithContext(ctx).
+		Table("client_members").
+		Select("client_members.*, users.username, users.email, users.phone").
+		Joins("LEFT JOIN users ON users.id = client_members.user_id").
+		Where("client_members.client_id = ?", clientID).
+		Order("client_members.created_at DESC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	members := make([]client.Member, 0, len(rows))
+	for _, row := range rows {
+		member := toDomainClientMember(row.ClientMember)
+		member.Username = row.Username
+		member.Email = row.Email
+		member.Phone = row.Phone
+		members = append(members, *member)
+	}
+	return members, nil
+}
+
+// FindActiveMember returns an active allow-list member for token issuance.
+// FindActiveMember 查询可用于签发 token 的启用白名单成员。
+func (r *ClientRepository) FindActiveMember(ctx context.Context, clientID string, userID string) (*client.Member, error) {
+	var row model.ClientMember
+	if err := r.db.WithContext(ctx).
+		Where("client_id = ? AND user_id = ? AND status = ?", clientID, userID, string(client.MemberStatusActive)).
+		First(&row).Error; err != nil {
+		return nil, mapGormError(err)
+	}
+	return toDomainClientMember(row), nil
+}
+
+// UpsertMember adds a user to a client allow-list or updates an existing member.
+// UpsertMember 将用户加入应用白名单；若已存在则更新角色、权限和状态。
+func (r *ClientRepository) UpsertMember(ctx context.Context, member *client.Member) error {
+	now := time.Now().UTC()
+	if member.ID == "" {
+		member.ID = "clm_" + uuid.NewString()
+	}
+	if member.Role == "" {
+		member.Role = "member"
+	}
+	if member.Status == "" {
+		member.Status = client.MemberStatusActive
+	}
+	member.CreatedAt = now
+	member.UpdatedAt = now
+
+	row, err := toClientMemberRow(member)
+	if err != nil {
+		return err
+	}
+	return r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "client_id"}, {Name: "user_id"}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"role":        row.Role,
+				"permissions": row.Permissions,
+				"status":      row.Status,
+				"remark":      row.Remark,
+				"updated_at":  now,
+			}),
+		}).
+		Create(&row).Error
+}
+
+// UpdateMember updates role, permissions, status, and remark for one member.
+// UpdateMember 更新应用成员的角色、权限、状态和备注。
+func (r *ClientRepository) UpdateMember(ctx context.Context, member *client.Member) error {
+	permissions, err := json.Marshal(member.Permissions)
+	if err != nil {
+		return err
+	}
+	result := r.db.WithContext(ctx).
+		Model(&model.ClientMember{}).
+		Where("id = ? AND client_id = ?", member.ID, member.ClientID).
+		Updates(map[string]any{
+			"role":        member.Role,
+			"permissions": datatypes.JSON(permissions),
+			"status":      string(member.Status),
+			"remark":      member.Remark,
+			"updated_at":  time.Now().UTC(),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domainrepo.ErrNotFound
+	}
+	return nil
+}
+
+// DeleteMember removes a user from a client allow-list.
+// DeleteMember 从应用白名单中移除用户授权。
+func (r *ClientRepository) DeleteMember(ctx context.Context, clientID string, memberID string) error {
+	result := r.db.WithContext(ctx).Where("id = ? AND client_id = ?", memberID, clientID).Delete(&model.ClientMember{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domainrepo.ErrNotFound
+	}
+	return nil
 }
 
 // toDomainClient converts a database row into the domain client entity.
@@ -126,9 +264,48 @@ func toDomainClient(row model.Client) *client.Client {
 		JWTAudience:         row.JWTAudience,
 		AllowedOrigins:      jsonStringSlice(row.AllowedOrigins),
 		AllowedRedirectURIs: jsonStringSlice(row.AllowedRedirectURIs),
+		WhitelistEnabled:    row.WhitelistEnabled,
 		Status:              client.Status(row.Status),
 		CreatedAt:           row.CreatedAt,
 		UpdatedAt:           row.UpdatedAt,
+	}
+}
+
+// toClientMemberRow converts a domain allow-list member into a database row.
+// toClientMemberRow 将领域白名单成员转换为数据库行。
+func toClientMemberRow(member *client.Member) (model.ClientMember, error) {
+	permissions, err := json.Marshal(member.Permissions)
+	if err != nil {
+		return model.ClientMember{}, err
+	}
+	return model.ClientMember{
+		ID:          member.ID,
+		ClientID:    member.ClientID,
+		UserID:      member.UserID,
+		Role:        member.Role,
+		Permissions: datatypes.JSON(permissions),
+		Status:      string(member.Status),
+		Remark:      member.Remark,
+		CreatedBy:   member.CreatedBy,
+		CreatedAt:   member.CreatedAt,
+		UpdatedAt:   member.UpdatedAt,
+	}, nil
+}
+
+// toDomainClientMember converts a database row into a domain allow-list member.
+// toDomainClientMember 将数据库行转换为领域白名单成员。
+func toDomainClientMember(row model.ClientMember) *client.Member {
+	return &client.Member{
+		ID:          row.ID,
+		ClientID:    row.ClientID,
+		UserID:      row.UserID,
+		Role:        row.Role,
+		Permissions: jsonStringSlice(row.Permissions),
+		Status:      client.MemberStatus(row.Status),
+		Remark:      row.Remark,
+		CreatedBy:   row.CreatedBy,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
 	}
 }
 
@@ -143,3 +320,4 @@ func jsonStringSlice(raw []byte) []string {
 }
 
 var _ domainrepo.ClientRepository = (*ClientRepository)(nil)
+var _ domainrepo.ClientMemberRepository = (*ClientRepository)(nil)

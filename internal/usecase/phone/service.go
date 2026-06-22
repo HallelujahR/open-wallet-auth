@@ -11,6 +11,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/usecase/clientaccess"
 )
 
 const (
@@ -263,13 +264,20 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 		return nil, domain.NewError(ErrInvalidCode, "phone user is unavailable")
 	}
 
-	pair, err := s.issuer.IssuePair(ctx, token.Claims{
+	// 应用启用白名单后，手机号登录同样必须先确认用户已被授权。
+	member, err := clientaccess.Authorize(ctx, s.clients, client, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	claims := clientaccess.ApplyClaims(token.Claims{
 		UserID:   u.ID,
 		ClientID: client.ClientID,
 		Audience: client.JWTAudience,
 		Username: u.Username,
 		Email:    u.Email,
-	})
+	}, member)
+
+	pair, err := s.issuer.IssuePair(ctx, claims)
 	if err != nil {
 		return nil, err
 	}

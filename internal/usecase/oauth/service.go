@@ -14,6 +14,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/usecase/clientaccess"
 )
 
 const (
@@ -246,13 +247,20 @@ func (s *Service) Callback(ctx context.Context, req CallbackRequest) (*CallbackR
 		return nil, err
 	}
 
-	pair, err := s.issuer.IssuePair(ctx, token.Claims{
+	// OAuth 账号完成本地映射后，再按目标业务系统检查白名单访问权限。
+	member, err := clientaccess.Authorize(ctx, s.clients, client, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	claims := clientaccess.ApplyClaims(token.Claims{
 		UserID:   u.ID,
 		ClientID: client.ClientID,
 		Audience: client.JWTAudience,
 		Username: u.Username,
 		Email:    u.Email,
-	})
+	}, member)
+
+	pair, err := s.issuer.IssuePair(ctx, claims)
 	if err != nil {
 		return nil, err
 	}

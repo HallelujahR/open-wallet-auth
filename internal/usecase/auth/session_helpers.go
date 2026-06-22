@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/usecase/clientaccess"
 )
 
 // checkLoginLimit verifies password-login rate limits.
@@ -97,6 +99,26 @@ func clientClaims(u *user.User, authClient *client.Client) token.Claims {
 		Username: u.Username,
 		Email:    u.Email,
 	}
+}
+
+// authorizedClientClaims builds token claims after enforcing client allow-list access.
+// authorizedClientClaims 在生成 token claims 前执行应用白名单准入检查。
+func (s *Service) authorizedClientClaims(ctx context.Context, u *user.User, authClient *client.Client) (token.Claims, error) {
+	member, err := clientaccess.Authorize(ctx, s.clients, authClient, u.ID)
+	if err != nil {
+		return token.Claims{}, err
+	}
+	return clientaccess.ApplyClaims(clientClaims(u, authClient), member), nil
+}
+
+// errCode extracts the stable domain error code used by login audit records.
+// errCode 提取领域错误码，保证登录失败审计能记录稳定原因。
+func errCode(err error) string {
+	var appErr *domain.Error
+	if errors.As(err, &appErr) {
+		return appErr.Code
+	}
+	return "INTERNAL_ERROR"
 }
 
 // recordSuccessfulLogin writes audit data and the user-client activity relation.

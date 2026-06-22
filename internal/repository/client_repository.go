@@ -12,3 +12,20 @@ type ClientRepository interface {
 	Create(ctx context.Context, client *client.Client) error
 	List(ctx context.Context) ([]client.Client, error)
 }
+
+// ClientAccessReader checks whether a user can access one application client.
+// ClientAccessReader 校验用户是否拥有某个业务系统的准入授权。
+type ClientAccessReader interface {
+	FindActiveMember(ctx context.Context, clientID string, userID string) (*client.Member, error)
+}
+
+// ClientMemberRepository manages application allow-list members.
+// ClientMemberRepository 管理应用成员白名单。
+type ClientMemberRepository interface {
+	ClientAccessReader
+	UpdateWhitelistEnabled(ctx context.Context, clientID string, enabled bool) (*client.Client, error)
+	ListMembers(ctx context.Context, clientID string) ([]client.Member, error)
+	UpsertMember(ctx context.Context, member *client.Member) error
+	UpdateMember(ctx context.Context, member *client.Member) error
+	DeleteMember(ctx context.Context, clientID string, memberID string) error
+}

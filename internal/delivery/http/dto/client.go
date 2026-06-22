@@ -7,6 +7,7 @@ type CreateClientRequest struct {
 	JWTAudience         string   `json:"jwt_audience"`
 	AllowedOrigins      []string `json:"allowed_origins"`
 	AllowedRedirectURIs []string `json:"allowed_redirect_uris"`
+	WhitelistEnabled    bool     `json:"whitelist_enabled"`
 }
 
 // ClientResponse is the HTTP representation of an application client.
@@ -17,8 +18,40 @@ type ClientResponse struct {
 	JWTAudience         string   `json:"jwt_audience"`
 	AllowedOrigins      []string `json:"allowed_origins"`
 	AllowedRedirectURIs []string `json:"allowed_redirect_uris"`
+	WhitelistEnabled    bool     `json:"whitelist_enabled"`
 	Status              string   `json:"status"`
 	CreatedAt           string   `json:"created_at"`
+}
+
+// UpdateClientAccessPolicyRequest is the HTTP request body for client access policy.
+type UpdateClientAccessPolicyRequest struct {
+	WhitelistEnabled bool `json:"whitelist_enabled"`
+}
+
+// ClientMemberRequest is the HTTP request body for application allow-list members.
+type ClientMemberRequest struct {
+	UserID      string   `json:"user_id"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions"`
+	Status      string   `json:"status"`
+	Remark      string   `json:"remark"`
+}
+
+// ClientMemberResponse is the HTTP representation of an application allow-list member.
+type ClientMemberResponse struct {
+	ID          string   `json:"id"`
+	ClientID    string   `json:"client_id"`
+	UserID      string   `json:"user_id"`
+	Username    string   `json:"username"`
+	Email       string   `json:"email"`
+	Phone       string   `json:"phone"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions"`
+	Status      string   `json:"status"`
+	Remark      string   `json:"remark"`
+	CreatedBy   string   `json:"created_by"`
+	CreatedAt   string   `json:"created_at"`
+	UpdatedAt   string   `json:"updated_at"`
 }
 
 // PublicClientResponse is the safe client payload exposed to hosted login pages.
