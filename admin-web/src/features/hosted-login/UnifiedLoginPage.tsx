@@ -7,6 +7,7 @@ import { Alert, Button, Tabs, Typography, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { publicAuthApi, type OAuthProvider } from "../../api/auth";
+import { ApiError } from "../../api/client";
 import { authApiBaseUrl } from "../../config";
 import type { AuthResult, AuthUser } from "../../types/api";
 import { buildLoginTabs } from "./LoginTabs";
@@ -267,7 +268,7 @@ export function UnifiedLoginPage() {
       });
       window.location.href = result.auth_url;
     } catch (err: any) {
-      message.error(err.message || "第三方登录暂不可用");
+      message.error(oauthLoginErrorMessage(provider, err));
     } finally {
       setLoading(false);
     }
@@ -386,6 +387,23 @@ export function UnifiedLoginPage() {
       </section>
     </main>
   );
+}
+
+// oauthLoginErrorMessage keeps user-facing login prompts clear while preserving
+// precise configuration hints for operators testing the hosted login page.
+function oauthLoginErrorMessage(provider: OAuthProvider, error: unknown) {
+  const name = provider === "github" ? "GitHub" : "Google";
+  if (error instanceof ApiError && error.code === "OAUTH_PROVIDER_FAILED") {
+    const detail = error.message.toLowerCase();
+    if (detail.includes("redirect_uri")) {
+      return `${name} 登录未配置当前业务域名，请在系统配置里添加对应 Tenant Credentials。`;
+    }
+    return `${name} 登录尚未配置，请先在系统配置里填写 OAuth Client ID 和 Client Secret。`;
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return "第三方登录暂不可用";
 }
 
 // defaultUnifiedLoginConfig keeps the page usable while remote config is loading.
