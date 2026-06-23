@@ -23,6 +23,7 @@ type Service struct {
 	wallets       repository.WalletRepository
 	accounts      repository.OAuthAccountRepository
 	limiter       repository.RateLimiter
+	legacy        repository.LegacyCredentialRepository
 	hasher        PasswordHasher
 	tokenHasher   TokenHasher
 	issuer        TokenIssuer
@@ -49,7 +50,12 @@ func NewService(
 	rateLimit bool,
 	loginLimit int,
 	loginWindow time.Duration,
+	legacy ...repository.LegacyCredentialRepository,
 ) *Service {
+	var legacyRepo repository.LegacyCredentialRepository
+	if len(legacy) > 0 {
+		legacyRepo = legacy[0]
+	}
 	return &Service{
 		users:         users,
 		clients:       clients,
@@ -60,6 +66,7 @@ func NewService(
 		wallets:       wallets,
 		accounts:      accounts,
 		limiter:       limiter,
+		legacy:        legacyRepo,
 		hasher:        hasher,
 		tokenHasher:   tokenHasher,
 		issuer:        issuer,

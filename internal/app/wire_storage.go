@@ -19,6 +19,7 @@ type storageBundle struct {
 	clients       *pgrepo.ClientRepository
 	refreshTokens *pgrepo.RefreshTokenRepository
 	activity      *pgrepo.ActivityRepository
+	legacy        *pgrepo.LegacyCredentialRepository
 	wallets       *pgrepo.WalletRepository
 	accounts      *pgrepo.OAuthAccountRepository
 	settings      *pgrepo.SettingsRepository
@@ -33,7 +34,7 @@ func newStorage(ctx context.Context, cfg *config.Config) (*storageBundle, error)
 	}
 
 	if cfg.Database.AutoMigrate {
-		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.ClientMember{}, &model.UserWallet{}, &model.OAuthAccount{}, &model.WalletNonce{}, &model.RefreshToken{}, &model.LoginLog{}, &model.SecurityEvent{}, &model.UserClient{}, &model.SystemSetting{}); err != nil {
+		if err := db.AutoMigrate(&model.User{}, &model.Client{}, &model.ClientMember{}, &model.LegacyCredential{}, &model.UserWallet{}, &model.OAuthAccount{}, &model.WalletNonce{}, &model.RefreshToken{}, &model.LoginLog{}, &model.SecurityEvent{}, &model.UserClient{}, &model.SystemSetting{}); err != nil {
 			return nil, fmt.Errorf("auto migrate database: %w", err)
 		}
 	}
@@ -49,6 +50,7 @@ func newStorage(ctx context.Context, cfg *config.Config) (*storageBundle, error)
 		clients:       clients,
 		refreshTokens: pgrepo.NewRefreshTokenRepository(db),
 		activity:      pgrepo.NewActivityRepository(db),
+		legacy:        pgrepo.NewLegacyCredentialRepository(db),
 		wallets:       pgrepo.NewWalletRepository(db),
 		accounts:      pgrepo.NewOAuthAccountRepository(db),
 		settings:      pgrepo.NewSettingsRepository(db),

@@ -28,6 +28,7 @@ type Service struct {
 	wallets  repository.AdminWalletRepository
 	accounts repository.AdminOAuthAccountRepository
 	sessions repository.AdminRefreshTokenRepository
+	hasher   PasswordHasher
 }
 
 // Dependencies contains external ports required by identity management.
@@ -38,6 +39,13 @@ type Dependencies struct {
 	Wallets  repository.AdminWalletRepository
 	Accounts repository.AdminOAuthAccountRepository
 	Sessions repository.AdminRefreshTokenRepository
+	Hasher   PasswordHasher
+}
+
+// PasswordHasher hashes user passwords before persistence.
+// PasswordHasher 是管理端重置密码使用的哈希端口，避免用例层依赖具体算法。
+type PasswordHasher interface {
+	Hash(plain string) (string, error)
 }
 
 // UserListRequest is the input for listing identity users.
@@ -75,6 +83,15 @@ type UserDetailResult struct {
 type UpdateUserStatusRequest struct {
 	UserID string
 	Status string
+}
+
+// SetUserPasswordRequest is the input for admin password reset.
+// SetUserPasswordRequest 是管理后台为身份用户重置密码的用例输入。
+type SetUserPasswordRequest struct {
+	UserID    string
+	Password  string
+	IP        string
+	UserAgent string
 }
 
 // LoginLogListRequest is the input for listing login audit logs.
@@ -150,7 +167,7 @@ type UnbindRequest struct {
 // NewService creates the identity-management usecase service.
 // NewService 创建身份管理用例服务，并注入外部端口。
 func NewService(deps Dependencies) *Service {
-	return &Service{users: deps.Users, activity: deps.Activity, wallets: deps.Wallets, accounts: deps.Accounts, sessions: deps.Sessions}
+	return &Service{users: deps.Users, activity: deps.Activity, wallets: deps.Wallets, accounts: deps.Accounts, sessions: deps.Sessions, hasher: deps.Hasher}
 }
 
 // ListUsers returns identity users with pagination and simple search.
@@ -244,6 +261,52 @@ func (s *Service) UpdateUserStatus(ctx context.Context, req UpdateUserStatusRequ
 		}
 		return err
 	}
+	return nil
+}
+
+// SetUserPassword replaces one identity user's password from the admin console.
+// SetUserPassword 由管理后台重置身份用户密码，并吊销该用户现有刷新会话。
+func (s *Service) SetUserPassword(ctx context.Context, req SetUserPasswordRequest) error {
+	userID := strings.TrimSpace(req.UserID)
+	password := req.Password
+	if userID == "" || len(strings.TrimSpace(password)) < 8 {
+		return domain.NewError(ErrInvalidInput, "user_id and a password with at least 8 characters are required")
+	}
+	if s.hasher == nil {
+		return domain.NewError(ErrInvalidInput, "password hasher is not configured")
+	}
+	if _, err := s.users.FindByID(ctx, userID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return domain.NewError(ErrUserNotFound, "user not found")
+		}
+		return err
+	}
+	hash, err := s.hasher.Hash(password)
+	if err != nil {
+		return err
+	}
+	if err := s.users.UpdatePassword(ctx, userID, hash); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return domain.NewError(ErrUserNotFound, "user not found")
+		}
+		return err
+	}
+
+	// 管理员重置密码后吊销刷新会话，避免旧设备继续长期保持登录。
+	if s.sessions != nil {
+		if _, err := s.sessions.RevokeByUserID(ctx, userID); err != nil {
+			return err
+		}
+	}
+	s.recordSecurityEvent(ctx, audit.SecurityEvent{
+		UserID:     userID,
+		EventType:  audit.SecurityEventAdminSetPassword,
+		TargetType: "user_password",
+		TargetID:   userID,
+		IP:         req.IP,
+		UserAgent:  req.UserAgent,
+		Success:    true,
+	})
 	return nil
 }
 
@@ -354,6 +417,15 @@ func (s *Service) UnbindOAuthAccount(ctx context.Context, req UnbindRequest) err
 		return err
 	}
 	return nil
+}
+
+// recordSecurityEvent writes admin security audit data without blocking the main change.
+// recordSecurityEvent 以尽力而为方式记录管理端安全审计，审计失败不影响主操作。
+func (s *Service) recordSecurityEvent(ctx context.Context, event audit.SecurityEvent) {
+	if s.activity == nil {
+		return
+	}
+	_ = s.activity.RecordSecurityEvent(ctx, &event)
 }
 
 // normalizeBindingInput validates user and binding ids for unlink operations.

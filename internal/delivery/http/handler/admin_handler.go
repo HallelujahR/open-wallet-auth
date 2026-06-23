@@ -88,6 +88,26 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 	response.OK(c, gin.H{"updated": true})
 }
 
+// SetUserPassword lets an administrator reset one identity user's password.
+// SetUserPassword 允许管理后台为指定身份用户重置密码。
+func (h *AdminHandler) SetUserPassword(c *gin.Context) {
+	var req dto.AdminSetUserPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, adminusecase.ErrInvalidInput, "invalid request")
+		return
+	}
+	if err := h.admin.SetUserPassword(c.Request.Context(), adminusecase.SetUserPasswordRequest{
+		UserID:    c.Param("user_id"),
+		Password:  req.Password,
+		IP:        c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
+	}); err != nil {
+		writeAdminError(c, err)
+		return
+	}
+	response.OK(c, gin.H{"password_updated": true})
+}
+
 // ListSessions returns refresh-token sessions for management.
 // ListSessions 返回管理端可见的刷新令牌会话列表。
 func (h *AdminHandler) ListSessions(c *gin.Context) {

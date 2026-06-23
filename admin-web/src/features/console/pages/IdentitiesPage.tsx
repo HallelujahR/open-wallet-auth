@@ -4,6 +4,7 @@ import {
   Drawer,
   Form,
   Input,
+  Modal,
   Popconfirm,
   Select,
   Space,
@@ -38,6 +39,9 @@ export function IdentitiesPage() {
   const [status, setStatus] = useState<string>();
   const [detail, setDetail] = useState<IdentityDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [passwordTarget, setPasswordTarget] = useState<IdentityUser | null>(null);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordForm] = Form.useForm<{ password: string; confirm_password: string }>();
 
   const load = () => {
     setLoading(true);
@@ -66,6 +70,28 @@ export function IdentitiesPage() {
         if (detail?.user.id === userId) openDetail(userId);
       })
       .catch((err) => message.error(err.message));
+  };
+
+  const openPasswordModal = (user: IdentityUser) => {
+    setPasswordTarget(user);
+    passwordForm.resetFields();
+  };
+
+  const submitPassword = async () => {
+    if (!passwordTarget) return;
+    const values = await passwordForm.validateFields();
+    setPasswordSaving(true);
+    adminApi
+      .setUserPassword(passwordTarget.id, values.password)
+      .then(() => {
+        message.success("密码已更新，用户现有会话已吊销");
+        setPasswordTarget(null);
+        passwordForm.resetFields();
+        load();
+        if (detail?.user.id === passwordTarget.id) openDetail(passwordTarget.id);
+      })
+      .catch((err) => message.error(err.message))
+      .finally(() => setPasswordSaving(false));
   };
 
   const detailMethods = useMemo(
@@ -141,6 +167,7 @@ export function IdentitiesPage() {
               render: (_, row) => (
                 <Space>
                   <Button size="small" onClick={() => openDetail(row.id)}>详情</Button>
+                  <Button size="small" onClick={() => openPasswordModal(row)}>改密</Button>
                   <Popconfirm title="确认禁用该身份？" onConfirm={() => updateStatus(row.id, "suspended")}>
                     <Button size="small" danger disabled={row.status === "suspended"}>禁用</Button>
                   </Popconfirm>
@@ -163,7 +190,10 @@ export function IdentitiesPage() {
                 </div>
                 <div className="identity-methods"><MethodTags methods={detailMethods} /></div>
               </div>
-              <StatusBadge status={detail.user.status} />
+              <Space>
+                <Button size="small" onClick={() => openPasswordModal(detail.user)}>修改密码</Button>
+                <StatusBadge status={detail.user.status} />
+              </Space>
             </div>
 
             <Tabs
@@ -226,6 +256,48 @@ export function IdentitiesPage() {
           </div>
         ) : null}
       </Drawer>
+      <Modal
+        title="修改身份用户密码"
+        open={!!passwordTarget}
+        okText="确认修改"
+        cancelText="取消"
+        confirmLoading={passwordSaving}
+        onOk={submitPassword}
+        onCancel={() => setPasswordTarget(null)}
+        destroyOnClose
+      >
+        <Typography.Paragraph type="secondary">
+          将为 {passwordTarget?.username || passwordTarget?.email || passwordTarget?.id} 设置新的统一认证密码，并吊销该用户现有登录会话。
+        </Typography.Paragraph>
+        <Form form={passwordForm} layout="vertical">
+          <Form.Item
+            label="新密码"
+            name="password"
+            rules={[
+              { required: true, message: "请输入新密码" },
+              { min: 8, message: "密码至少 8 位" },
+            ]}
+          >
+            <Input.Password autoComplete="new-password" placeholder="请输入至少 8 位的新密码" />
+          </Form.Item>
+          <Form.Item
+            label="确认新密码"
+            name="confirm_password"
+            dependencies={["password"]}
+            rules={[
+              { required: true, message: "请再次输入新密码" },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue("password") === value) return Promise.resolve();
+                  return Promise.reject(new Error("两次输入的密码不一致"));
+                },
+              }),
+            ]}
+          >
+            <Input.Password autoComplete="new-password" placeholder="请再次输入新密码" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

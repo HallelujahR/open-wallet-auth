@@ -49,6 +49,7 @@ func newRouterDependencies(cfg *config.Config, logger *zap.Logger, storage *stor
 		cfg.Auth.RateLimitEnabled,
 		cfg.Auth.LoginLimit,
 		cfg.Auth.LoginWindow,
+		storage.legacy,
 	)
 	clientService := clientusecase.NewService(storage.clients)
 	adminService := adminusecase.NewService(adminusecase.Dependencies{
@@ -57,6 +58,7 @@ func newRouterDependencies(cfg *config.Config, logger *zap.Logger, storage *stor
 		Wallets:  storage.wallets,
 		Accounts: storage.accounts,
 		Sessions: storage.refreshTokens,
+		Hasher:   runtime.hasher,
 	})
 
 	return router.Dependencies{

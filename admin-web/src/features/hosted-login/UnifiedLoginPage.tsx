@@ -133,7 +133,7 @@ export function UnifiedLoginPage() {
       token_type: result.token.token_type || "Bearer",
       expires_at: result.token.expires_at,
     });
-    window.location.href = `${returnURI}#${values.toString()}`;
+    window.location.href = appendTokenToReturnURI(returnURI, values);
   };
 
   const submitPasswordLogin = async (values: PasswordValues) => {
@@ -387,6 +387,21 @@ export function UnifiedLoginPage() {
       </section>
     </main>
   );
+}
+
+// appendTokenToReturnURI keeps token outside the server-side request path.
+// appendTokenToReturnURI 兼容普通 history 路由和 Vue/React hash 路由业务系统。
+function appendTokenToReturnURI(returnURI: string, values: URLSearchParams) {
+  const tokenQuery = values.toString();
+  const hashIndex = returnURI.indexOf("#");
+  if (hashIndex < 0) {
+    return `${returnURI}#${tokenQuery}`;
+  }
+
+  const base = returnURI.slice(0, hashIndex);
+  const hashRoute = returnURI.slice(hashIndex + 1);
+  const separator = hashRoute.includes("?") ? "&" : "?";
+  return `${base}#${hashRoute}${separator}${tokenQuery}`;
 }
 
 // oauthLoginErrorMessage keeps user-facing login prompts clear while preserving

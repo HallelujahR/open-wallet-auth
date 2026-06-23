@@ -37,7 +37,11 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 		return nil, domain.NewError(ErrInvalidCredentials, "invalid email or password")
 	}
 
-	if !s.hasher.Compare(u.PasswordHash, req.Password) {
+	passwordOK, err := s.verifyPassword(ctx, u.ID, u.PasswordHash, req.Password)
+	if err != nil {
+		return nil, err
+	}
+	if !passwordOK {
 		s.recordFailedLogin(ctx, u.ID, client.ClientID, audit.LoginMethodPassword, ErrInvalidCredentials, req.IP, req.UserAgent)
 		return nil, domain.NewError(ErrInvalidCredentials, "invalid email or password")
 	}

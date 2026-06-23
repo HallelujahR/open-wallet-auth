@@ -18,14 +18,15 @@ const (
 type SecurityEventType string
 
 const (
-	SecurityEventChangePassword SecurityEventType = "change_password"
-	SecurityEventResetPassword  SecurityEventType = "reset_password"
-	SecurityEventBindEmail      SecurityEventType = "bind_email"
-	SecurityEventBindPhone      SecurityEventType = "bind_phone"
-	SecurityEventUnbindEmail    SecurityEventType = "unbind_email"
-	SecurityEventUnbindPhone    SecurityEventType = "unbind_phone"
-	SecurityEventUnbindWallet   SecurityEventType = "unbind_wallet"
-	SecurityEventUnbindOAuth    SecurityEventType = "unbind_oauth"
+	SecurityEventChangePassword   SecurityEventType = "change_password"
+	SecurityEventResetPassword    SecurityEventType = "reset_password"
+	SecurityEventAdminSetPassword SecurityEventType = "admin_set_password"
+	SecurityEventBindEmail        SecurityEventType = "bind_email"
+	SecurityEventBindPhone        SecurityEventType = "bind_phone"
+	SecurityEventUnbindEmail      SecurityEventType = "unbind_email"
+	SecurityEventUnbindPhone      SecurityEventType = "unbind_phone"
+	SecurityEventUnbindWallet     SecurityEventType = "unbind_wallet"
+	SecurityEventUnbindOAuth      SecurityEventType = "unbind_oauth"
 )
 
 // LoginLog records one authentication attempt.

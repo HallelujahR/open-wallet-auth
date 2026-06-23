@@ -42,6 +42,7 @@ type SecurityEventFilter struct {
 type AdminUserRepository interface {
 	FindByID(ctx context.Context, id string) (*user.User, error)
 	List(ctx context.Context, filter UserListFilter) ([]user.User, int64, error)
+	UpdatePassword(ctx context.Context, userID string, passwordHash string) error
 	UpdateStatus(ctx context.Context, userID string, status user.Status) error
 }
 
@@ -51,6 +52,7 @@ type AdminActivityRepository interface {
 	ListLoginLogs(ctx context.Context, filter LoginLogFilter) ([]audit.LoginLog, int64, error)
 	ListSecurityEvents(ctx context.Context, filter SecurityEventFilter) ([]audit.SecurityEvent, int64, error)
 	ListUserClients(ctx context.Context, userID string) ([]audit.UserClient, error)
+	RecordSecurityEvent(ctx context.Context, event *audit.SecurityEvent) error
 }
 
 // AdminWalletRepository defines wallet queries required by identity management.

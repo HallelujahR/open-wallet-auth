@@ -91,6 +91,48 @@ func TestServiceLoginRejectsInvalidPassword(t *testing.T) {
 	}
 }
 
+func TestServiceLoginMigratesLegacyHMACSHA1Password(t *testing.T) {
+	users := newMemoryUsers()
+	users.byEmail["alice@example.com"] = &user.User{
+		ID:           "usr_existing",
+		Username:     "alice",
+		Email:        "alice@example.com",
+		PasswordHash: "",
+		Status:       user.StatusActive,
+	}
+	users.byID["usr_existing"] = users.byEmail["alice@example.com"]
+	legacy := &memoryLegacyCredentials{
+		items: []repository.LegacyCredential{{
+			ID:           "legacy_1",
+			UserID:       "usr_existing",
+			Source:       "old-system",
+			HashType:     "hmac_sha1",
+			PasswordHash: hmacSHA1Hex("correct", "legacy-salt"),
+			Salt:         "legacy-salt",
+			Status:       repository.LegacyCredentialStatusActive,
+		}},
+	}
+	service := NewService(users, defaultClients(), newMemoryRefreshTokens(), newMemoryActivity(), nil, nil, nil, nil, nil, fakeHasher{}, fakeTokenHasher{}, fakeIssuer{}, false, 0, 0, legacy)
+
+	result, err := service.Login(context.Background(), LoginRequest{
+		ClientID: "default",
+		Email:    "alice@example.com",
+		Password: "correct",
+	})
+	if err != nil {
+		t.Fatalf("login returned error: %v", err)
+	}
+	if result.UserID != "usr_existing" || result.Token == nil {
+		t.Fatal("expected successful legacy login")
+	}
+	if users.byID["usr_existing"].PasswordHash != "hash:correct" {
+		t.Fatalf("expected password to be upgraded, got %q", users.byID["usr_existing"].PasswordHash)
+	}
+	if legacy.migratedID != "legacy_1" {
+		t.Fatalf("expected legacy credential to be migrated, got %q", legacy.migratedID)
+	}
+}
+
 func TestServiceLoginRejectsRateLimitedEmail(t *testing.T) {
 	users := newMemoryUsers()
 	users.byEmail["alice@example.com"] = &user.User{
@@ -582,6 +624,32 @@ func (m *memoryUsers) UpdateProfile(ctx context.Context, userID string, username
 
 type memoryClients struct {
 	byClientID map[string]*client.Client
+}
+
+type memoryLegacyCredentials struct {
+	items      []repository.LegacyCredential
+	migratedID string
+}
+
+func (m *memoryLegacyCredentials) FindActiveByUserID(ctx context.Context, userID string) ([]repository.LegacyCredential, error) {
+	items := make([]repository.LegacyCredential, 0, len(m.items))
+	for _, item := range m.items {
+		if item.UserID == userID && item.Status == repository.LegacyCredentialStatusActive {
+			items = append(items, item)
+		}
+	}
+	return items, nil
+}
+
+func (m *memoryLegacyCredentials) MarkMigrated(ctx context.Context, id string) error {
+	m.migratedID = id
+	for i := range m.items {
+		if m.items[i].ID == id {
+			m.items[i].Status = repository.LegacyCredentialStatusMigrated
+			return nil
+		}
+	}
+	return repository.ErrNotFound
 }
 
 type memoryRefreshTokens struct {

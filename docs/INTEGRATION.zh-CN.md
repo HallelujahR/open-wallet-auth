@@ -86,6 +86,20 @@ auth.login({ redirect: window.location.pathname });
 
 短信和邮件服务商配置见：[短信和邮件服务商接入](PROVIDERS.zh-CN.md)。
 
+## 旧密码无感迁移
+
+很多已有业务系统会使用旧的密码哈希算法，例如 `hmac_sha1`、`sha1` 或 `md5`。Open Wallet Auth 支持把这些旧密码哈希导入 `legacy_credentials`，并在用户第一次使用旧密码登录成功后自动升级为当前 bcrypt 哈希。
+
+推荐流程：
+
+1. 按邮箱或手机号匹配、导入旧业务系统用户。
+2. 将旧密码哈希写入 `legacy_credentials`，记录 `source`、`hash_type`、`password_hash` 和可选 `salt`。
+3. 如果目标应用开启了 `clients.whitelist_enabled`，同步把用户加入该应用白名单。
+4. 邮箱密码登录时，Open Wallet Auth 先校验 bcrypt；bcrypt 失败后，再校验该用户仍处于 `active` 状态的旧密码凭证。
+5. 旧密码校验成功后，Open Wallet Auth 会立即把明文密码重新保存为 bcrypt，并把旧凭证标记为 `migrated`。
+
+这个能力是通用迁移能力，不应该在认证中心写入某个具体业务系统的专属密码逻辑。
+
 钱包登录是否需要让用户自选钱包：建议需要。现代浏览器可能同时安装 MetaMask、Rabby、OKX Wallet 等多个 EIP-1193 钱包。Demo 支持 EIP-6963 多钱包发现，能发现多个钱包时让用户选择；如果只发现一个注入钱包，则自动使用默认钱包。
 
 示例里的业务接口不会每次请求都回调认证服务，而是通过 `/.well-known/jwks.json` 拉取公钥，在本地校验：

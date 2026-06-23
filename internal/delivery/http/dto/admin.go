@@ -46,6 +46,12 @@ type AdminUpdateUserStatusRequest struct {
 	Status string `json:"status" binding:"required"`
 }
 
+// AdminSetUserPasswordRequest is the request body for admin password reset.
+// AdminSetUserPasswordRequest 是管理后台重置身份用户密码的请求体。
+type AdminSetUserPasswordRequest struct {
+	Password string `json:"password" binding:"required,min=8"`
+}
+
 // AdminUserClientResponse describes one business system a user has logged into.
 // AdminUserClientResponse 描述用户登录过的一个业务系统。
 type AdminUserClientResponse struct {

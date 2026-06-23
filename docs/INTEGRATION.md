@@ -81,6 +81,20 @@ Hosted login page branding and login methods are managed in the admin console:
 - Tab: `登录页 Login`
 - Editable fields: brand name, brand mark, subtitle, registration, phone login, GitHub, Google, and wallet login.
 
+## Legacy Password Migration
+
+Existing applications often store passwords with old algorithms such as `hmac_sha1`, `sha1`, or `md5`. Open Wallet Auth can import those legacy hashes into `legacy_credentials` and transparently upgrade them after the first successful login.
+
+Recommended flow:
+
+1. Import or match the old application user by email or phone.
+2. Store the old hash in `legacy_credentials` with `source`, `hash_type`, `password_hash`, and optional `salt`.
+3. Add the user to the target application's allow-list when `clients.whitelist_enabled` is enabled.
+4. On password login, Open Wallet Auth checks bcrypt first. If bcrypt fails, it checks active legacy credentials for the user.
+5. After a legacy credential succeeds, Open Wallet Auth immediately stores a bcrypt hash in `users.password_hash` and marks the legacy credential as `migrated`.
+
+This feature is intended for generic application migrations. Business systems should not add product-specific password logic to the auth service.
+
 ## Wallet Login Flow
 
 1. Detect EIP-1193 wallet providers in the browser.

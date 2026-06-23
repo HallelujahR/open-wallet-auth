@@ -63,6 +63,29 @@ func TestServiceUpdateUserStatusRejectsInvalidStatus(t *testing.T) {
 	}
 }
 
+func TestServiceSetUserPassword(t *testing.T) {
+	service := newTestService()
+
+	if err := service.SetUserPassword(context.Background(), SetUserPasswordRequest{UserID: "usr_1", Password: "new-password"}); err != nil {
+		t.Fatalf("SetUserPassword returned error: %v", err)
+	}
+	users := service.users.(*memoryAdminUsers)
+	if users.passwordHash != "hash:new-password" {
+		t.Fatalf("password hash was not updated: %s", users.passwordHash)
+	}
+	if !service.activity.(*memoryAdminActivity).recorded {
+		t.Fatalf("expected security event to be recorded")
+	}
+}
+
+func TestServiceSetUserPasswordRejectsShortPassword(t *testing.T) {
+	service := newTestService()
+
+	if err := service.SetUserPassword(context.Background(), SetUserPasswordRequest{UserID: "usr_1", Password: "short"}); err == nil {
+		t.Fatalf("expected short password error")
+	}
+}
+
 func TestServiceListLoginLogs(t *testing.T) {
 	service := newTestService()
 
@@ -129,17 +152,20 @@ func TestServiceUnbindOAuthAccount(t *testing.T) {
 
 func newTestService() *Service {
 	users := &memoryAdminUsers{status: user.StatusActive}
+	activity := &memoryAdminActivity{}
 	return NewService(Dependencies{
 		Users:    users,
-		Activity: memoryAdminActivity{},
+		Activity: activity,
 		Wallets:  memoryAdminWallets{},
 		Accounts: memoryAdminAccounts{},
 		Sessions: memoryAdminSessions{},
+		Hasher:   fakeAdminHasher{},
 	})
 }
 
 type memoryAdminUsers struct {
-	status user.Status
+	status       user.Status
+	passwordHash string
 }
 
 func (m *memoryAdminUsers) FindByID(ctx context.Context, id string) (*user.User, error) {
@@ -167,18 +193,39 @@ func (m *memoryAdminUsers) UpdateStatus(ctx context.Context, userID string, stat
 	return nil
 }
 
-type memoryAdminActivity struct{}
+func (m *memoryAdminUsers) UpdatePassword(ctx context.Context, userID string, passwordHash string) error {
+	if userID != "usr_1" {
+		return repository.ErrNotFound
+	}
+	m.passwordHash = passwordHash
+	return nil
+}
 
-func (memoryAdminActivity) ListLoginLogs(ctx context.Context, filter repository.LoginLogFilter) ([]audit.LoginLog, int64, error) {
+type fakeAdminHasher struct{}
+
+func (fakeAdminHasher) Hash(plain string) (string, error) {
+	return "hash:" + plain, nil
+}
+
+type memoryAdminActivity struct {
+	recorded bool
+}
+
+func (*memoryAdminActivity) ListLoginLogs(ctx context.Context, filter repository.LoginLogFilter) ([]audit.LoginLog, int64, error) {
 	return []audit.LoginLog{{ID: "log_1", UserID: "usr_1", ClientID: "default", LoginMethod: audit.LoginMethodPassword, Success: true, CreatedAt: testTime}}, 1, nil
 }
 
-func (memoryAdminActivity) ListSecurityEvents(ctx context.Context, filter repository.SecurityEventFilter) ([]audit.SecurityEvent, int64, error) {
+func (*memoryAdminActivity) ListSecurityEvents(ctx context.Context, filter repository.SecurityEventFilter) ([]audit.SecurityEvent, int64, error) {
 	return []audit.SecurityEvent{{ID: "sec_1", UserID: "usr_1", EventType: audit.SecurityEventBindEmail, TargetType: "email", TargetID: "alice@example.com", Success: true, CreatedAt: testTime}}, 1, nil
 }
 
-func (memoryAdminActivity) ListUserClients(ctx context.Context, userID string) ([]audit.UserClient, error) {
+func (*memoryAdminActivity) ListUserClients(ctx context.Context, userID string) ([]audit.UserClient, error) {
 	return []audit.UserClient{{UserID: userID, ClientID: "default", LoginCount: 2, Status: "active", FirstLoginAt: testTime, LastLoginAt: testTime}}, nil
+}
+
+func (m *memoryAdminActivity) RecordSecurityEvent(ctx context.Context, event *audit.SecurityEvent) error {
+	m.recorded = event != nil && event.EventType == audit.SecurityEventAdminSetPassword
+	return nil
 }
 
 type memoryAdminWallets struct{}

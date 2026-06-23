@@ -47,6 +47,13 @@ export const adminApi = {
       data: { status },
     });
   },
+  setUserPassword(userId: string, password: string) {
+    return request<{ password_updated: boolean }>({
+      url: `/api/v1/admin/users/${userId}/password`,
+      method: "PATCH",
+      data: { password },
+    });
+  },
   revokeUserSessions(userId: string, clientId?: string) {
     return request<{ revoked: number }>({
       url: `/api/v1/admin/users/${userId}/sessions`,
