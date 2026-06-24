@@ -30,7 +30,9 @@ export function ApplicationsPage() {
   const [memberLoading, setMemberLoading] = useState(false);
   const [userOptions, setUserOptions] = useState<IdentityUser[]>([]);
   const [editingMember, setEditingMember] = useState<ClientMember | null>(null);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [form] = Form.useForm();
+  const [clientEditForm] = Form.useForm();
   const [memberForm] = Form.useForm();
   const [editForm] = Form.useForm();
 
@@ -72,13 +74,42 @@ export function ApplicationsPage() {
 
   const toggleWhitelist = async (client: Client, enabled: boolean) => {
     try {
-      await adminApi.updateClientAccessPolicy(client.client_id, enabled);
+      const updated = await adminApi.updateClient(client.client_id, clientInput({ ...client, whitelist_enabled: enabled }));
       message.success(enabled ? "登录白名单已启用" : "登录白名单已关闭");
       load();
       if (selectedClient?.client_id === client.client_id) {
-        setSelectedClient({ ...client, whitelist_enabled: enabled });
+        setSelectedClient(updated);
       }
     } catch (err: any) {
+      message.error(err.message || "更新失败");
+    }
+  };
+
+  const startEditClient = (client: Client) => {
+    setEditingClient(client);
+    clientEditForm.setFieldsValue({
+      name: client.name,
+      jwt_audience: client.jwt_audience,
+      allowed_origins: client.allowed_origins.join("\n"),
+      allowed_redirect_uris: client.allowed_redirect_uris.join("\n"),
+      whitelist_enabled: client.whitelist_enabled,
+      status: client.status || "active",
+    });
+  };
+
+  const updateClient = async () => {
+    if (!editingClient) return;
+    try {
+      const values = await clientEditForm.validateFields();
+      await adminApi.updateClient(editingClient.client_id, clientInput(values));
+      message.success("应用配置已更新");
+      setEditingClient(null);
+      load();
+      if (selectedClient?.client_id === editingClient.client_id) {
+        setSelectedClient({ ...selectedClient, ...clientInput(values) });
+      }
+    } catch (err: any) {
+      if (err?.errorFields) return;
       message.error(err.message || "更新失败");
     }
   };
@@ -174,7 +205,15 @@ export function ApplicationsPage() {
             },
             { title: "允许来源", render: (_, row) => <Typography.Text>{row.allowed_origins.join(", ") || "-"}</Typography.Text> },
             { title: "创建时间", dataIndex: "created_at" },
-            { title: "操作", render: (_, row) => <Button size="small" onClick={() => openMembers(row)}>成员</Button> },
+            {
+              title: "操作",
+              render: (_, row) => (
+                <Space>
+                  <Button size="small" onClick={() => startEditClient(row)}>编辑</Button>
+                  <Button size="small" onClick={() => openMembers(row)}>成员</Button>
+                </Space>
+              ),
+            },
           ]}
         />
       </Card>
@@ -195,6 +234,32 @@ export function ApplicationsPage() {
           </Form.Item>
           <Form.Item name="allowed_redirect_uris" label="允许回调地址（一行一个）">
             <Input.TextArea rows={3} placeholder="http://localhost:5173/auth/callback" />
+          </Form.Item>
+          <Form.Item name="whitelist_enabled" label="登录白名单" valuePropName="checked">
+            <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal title="编辑接入应用" open={!!editingClient} onOk={updateClient} onCancel={() => setEditingClient(null)} okText="保存" cancelText="取消" width={640}>
+        <Form form={clientEditForm} layout="vertical">
+          <Form.Item label="应用标识 Client ID">
+            <Input value={editingClient?.client_id} disabled />
+          </Form.Item>
+          <Form.Item name="name" label="应用名称" rules={[{ required: true, message: "请输入应用名称" }]}>
+            <Input placeholder="Example App" />
+          </Form.Item>
+          <Form.Item name="jwt_audience" label="令牌受众 JWT Audience">
+            <Input placeholder="留空则使用 Client ID" />
+          </Form.Item>
+          <Form.Item name="allowed_origins" label="允许前端来源（一行一个）">
+            <Input.TextArea rows={3} placeholder="http://localhost:5173" />
+          </Form.Item>
+          <Form.Item name="allowed_redirect_uris" label="允许回调地址（一行一个）">
+            <Input.TextArea rows={3} placeholder="http://localhost:5173/auth/callback" />
+          </Form.Item>
+          <Form.Item name="status" label="应用状态" rules={[{ required: true, message: "请选择应用状态" }]}>
+            <Select options={clientStatusOptions} />
           </Form.Item>
           <Form.Item name="whitelist_enabled" label="登录白名单" valuePropName="checked">
             <Switch checkedChildren="开启" unCheckedChildren="关闭" />
@@ -319,6 +384,26 @@ const memberStatusOptions = [
   { value: "active", label: "启用" },
   { value: "disabled", label: "停用" },
 ];
+
+const clientStatusOptions = [
+  { value: "active", label: "启用" },
+  { value: "disabled", label: "停用" },
+];
+
+function clientInput(values: Record<string, unknown>) {
+  return {
+    name: String(values.name || ""),
+    jwt_audience: String(values.jwt_audience || ""),
+    allowed_origins: Array.isArray(values.allowed_origins)
+      ? values.allowed_origins.map(String)
+      : splitLines(typeof values.allowed_origins === "string" ? values.allowed_origins : ""),
+    allowed_redirect_uris: Array.isArray(values.allowed_redirect_uris)
+      ? values.allowed_redirect_uris.map(String)
+      : splitLines(typeof values.allowed_redirect_uris === "string" ? values.allowed_redirect_uris : ""),
+    whitelist_enabled: !!values.whitelist_enabled,
+    status: String(values.status || "active"),
+  };
+}
 
 function memberInput(values: Record<string, unknown>): ClientMemberInput {
   return {

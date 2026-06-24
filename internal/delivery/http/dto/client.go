@@ -23,9 +23,15 @@ type ClientResponse struct {
 	CreatedAt           string   `json:"created_at"`
 }
 
-// UpdateClientAccessPolicyRequest is the HTTP request body for client access policy.
-type UpdateClientAccessPolicyRequest struct {
-	WhitelistEnabled bool `json:"whitelist_enabled"`
+// UpdateClientRequest is the HTTP request body for editing an application client.
+// UpdateClientRequest 是编辑接入应用基础配置的请求体。
+type UpdateClientRequest struct {
+	Name                string   `json:"name" binding:"required"`
+	JWTAudience         string   `json:"jwt_audience"`
+	AllowedOrigins      []string `json:"allowed_origins"`
+	AllowedRedirectURIs []string `json:"allowed_redirect_uris"`
+	WhitelistEnabled    bool     `json:"whitelist_enabled"`
+	Status              string   `json:"status"`
 }
 
 // ClientMemberRequest is the HTTP request body for application allow-list members.

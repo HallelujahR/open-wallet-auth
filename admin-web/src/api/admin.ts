@@ -6,6 +6,7 @@ import type {
   ClientCreateInput,
   ClientMember,
   ClientMemberInput,
+  ClientUpdateInput,
   HealthStatus,
   IdentityDetail,
   IdentityUser,
@@ -91,11 +92,11 @@ export const adminApi = {
   createClient(input: ClientCreateInput) {
     return request<Client>({ url: "/api/v1/admin/clients", method: "POST", data: input });
   },
-  updateClientAccessPolicy(clientId: string, whitelistEnabled: boolean) {
+  updateClient(clientId: string, input: ClientUpdateInput) {
     return request<Client>({
       url: `/api/v1/admin/clients/${clientId}`,
       method: "PATCH",
-      data: { whitelist_enabled: whitelistEnabled },
+      data: input,
     });
   },
   listClientMembers(clientId: string) {

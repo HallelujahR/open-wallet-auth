@@ -130,7 +130,7 @@ func New(deps Dependencies) *gin.Engine {
 			{
 				clients.POST("", deps.Client.Create)
 				clients.GET("", deps.Client.List)
-				clients.PATCH("/:client_id", deps.Client.UpdateAccessPolicy)
+				clients.PATCH("/:client_id", deps.Client.Update)
 				clients.GET("/:client_id/members", deps.Client.ListMembers)
 				clients.POST("/:client_id/members", deps.Client.AddMember)
 				clients.PATCH("/:client_id/members/:member_id", deps.Client.UpdateMember)
@@ -161,7 +161,7 @@ func New(deps Dependencies) *gin.Engine {
 				if deps.Client != nil {
 					admin.POST("/clients", deps.Client.Create)
 					admin.GET("/clients", deps.Client.List)
-					admin.PATCH("/clients/:client_id", deps.Client.UpdateAccessPolicy)
+					admin.PATCH("/clients/:client_id", deps.Client.Update)
 					admin.GET("/clients/:client_id/members", deps.Client.ListMembers)
 					admin.POST("/clients/:client_id/members", deps.Client.AddMember)
 					admin.PATCH("/clients/:client_id/members/:member_id", deps.Client.UpdateMember)

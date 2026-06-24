@@ -186,6 +186,15 @@ export type ClientCreateInput = {
   whitelist_enabled?: boolean;
 };
 
+export type ClientUpdateInput = {
+  name: string;
+  jwt_audience: string;
+  allowed_origins: string[];
+  allowed_redirect_uris: string[];
+  whitelist_enabled: boolean;
+  status: string;
+};
+
 export type ClientMember = {
   id: string;
   client_id: string;

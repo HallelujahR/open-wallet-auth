@@ -68,17 +68,22 @@ func (h *ClientHandler) List(c *gin.Context) {
 	response.OK(c, data)
 }
 
-// UpdateAccessPolicy changes whether a client requires allow-list membership.
-// UpdateAccessPolicy 修改业务系统是否启用登录白名单。
-func (h *ClientHandler) UpdateAccessPolicy(c *gin.Context) {
-	var req dto.UpdateClientAccessPolicyRequest
+// Update edits application client configuration.
+// Update 编辑接入应用基础配置，client_id 保持不变。
+func (h *ClientHandler) Update(c *gin.Context) {
+	var req dto.UpdateClientRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, clientusecase.ErrInvalidClientInput, "invalid request")
 		return
 	}
-	client, err := h.clients.UpdateAccessPolicy(c.Request.Context(), clientusecase.UpdateAccessPolicyRequest{
-		ClientID:         c.Param("client_id"),
-		WhitelistEnabled: req.WhitelistEnabled,
+	client, err := h.clients.Update(c.Request.Context(), clientusecase.UpdateRequest{
+		ClientID:            c.Param("client_id"),
+		Name:                req.Name,
+		JWTAudience:         req.JWTAudience,
+		AllowedOrigins:      req.AllowedOrigins,
+		AllowedRedirectURIs: req.AllowedRedirectURIs,
+		WhitelistEnabled:    req.WhitelistEnabled,
+		Status:              req.Status,
 	})
 	if err != nil {
 		writeClientError(c, err)

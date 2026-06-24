@@ -92,6 +92,38 @@ func (r *ClientRepository) List(ctx context.Context) ([]client.Client, error) {
 	return clients, nil
 }
 
+// Update changes editable client configuration while keeping client_id stable.
+// Update 更新接入应用可编辑配置，并保持 client_id 作为稳定接入标识不变。
+func (r *ClientRepository) Update(ctx context.Context, c *client.Client) (*client.Client, error) {
+	origins, err := json.Marshal(c.AllowedOrigins)
+	if err != nil {
+		return nil, err
+	}
+	redirectURIs, err := json.Marshal(c.AllowedRedirectURIs)
+	if err != nil {
+		return nil, err
+	}
+	result := r.db.WithContext(ctx).
+		Model(&model.Client{}).
+		Where("client_id = ?", c.ClientID).
+		Updates(map[string]any{
+			"name":                  c.Name,
+			"jwt_audience":          c.JWTAudience,
+			"allowed_origins":       datatypes.JSON(origins),
+			"allowed_redirect_uris": datatypes.JSON(redirectURIs),
+			"whitelist_enabled":     c.WhitelistEnabled,
+			"status":                string(c.Status),
+			"updated_at":            time.Now().UTC(),
+		})
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, domainrepo.ErrNotFound
+	}
+	return r.FindByClientID(ctx, c.ClientID)
+}
+
 // EnsureDefault creates a default client for local development and first boot.
 // EnsureDefault 在首次启动或本地开发时创建默认 client。
 func (r *ClientRepository) EnsureDefault(ctx context.Context) error {
@@ -117,23 +149,6 @@ func (r *ClientRepository) EnsureDefault(ctx context.Context) error {
 		UpdatedAt:           now,
 	}
 	return r.db.WithContext(ctx).Create(&row).Error
-}
-
-// UpdateWhitelistEnabled changes whether one client enforces allow-list login.
-// UpdateWhitelistEnabled 修改业务系统是否启用登录白名单。
-func (r *ClientRepository) UpdateWhitelistEnabled(ctx context.Context, clientID string, enabled bool) (*client.Client, error) {
-	now := time.Now().UTC()
-	result := r.db.WithContext(ctx).
-		Model(&model.Client{}).
-		Where("client_id = ?", clientID).
-		Updates(map[string]any{"whitelist_enabled": enabled, "updated_at": now})
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	if result.RowsAffected == 0 {
-		return nil, domainrepo.ErrNotFound
-	}
-	return r.FindByClientID(ctx, clientID)
 }
 
 // ListMembers returns allow-list members for one client with identity summaries.

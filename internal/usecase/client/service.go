@@ -34,11 +34,16 @@ type CreateRequest struct {
 	WhitelistEnabled    bool
 }
 
-// UpdateAccessPolicyRequest toggles client-level login allow-list enforcement.
-// UpdateAccessPolicyRequest 用于切换业务系统是否启用登录白名单。
-type UpdateAccessPolicyRequest struct {
-	ClientID         string
-	WhitelistEnabled bool
+// UpdateRequest is the input for editing one application client.
+// UpdateRequest 是编辑接入应用基础配置的用例输入。
+type UpdateRequest struct {
+	ClientID            string
+	Name                string
+	JWTAudience         string
+	AllowedOrigins      []string
+	AllowedRedirectURIs []string
+	WhitelistEnabled    bool
+	Status              string
 }
 
 // MemberRequest is the input for creating or updating an application member.
@@ -96,25 +101,45 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*clientdomain.
 	return client, nil
 }
 
-// UpdateAccessPolicy changes whether a client requires explicit member access.
-// UpdateAccessPolicy 修改业务系统是否要求显式成员授权后才能登录。
-func (s *Service) UpdateAccessPolicy(ctx context.Context, req UpdateAccessPolicyRequest) (*clientdomain.Client, error) {
+// Update changes editable fields of an application client.
+// Update 更新接入应用的基础配置；client_id 作为外部接入标识不允许修改。
+func (s *Service) Update(ctx context.Context, req UpdateRequest) (*clientdomain.Client, error) {
 	clientID := strings.TrimSpace(req.ClientID)
-	if clientID == "" {
-		return nil, domain.NewError(ErrInvalidClientInput, "client_id is required")
+	name := strings.TrimSpace(req.Name)
+	audience := strings.TrimSpace(req.JWTAudience)
+	status := clientdomain.Status(strings.TrimSpace(req.Status))
+	if clientID == "" || name == "" {
+		return nil, domain.NewError(ErrInvalidClientInput, "client_id and name are required")
 	}
-	members, ok := s.clients.(repository.ClientMemberRepository)
+	if audience == "" {
+		audience = clientID
+	}
+	if status == "" {
+		status = clientdomain.StatusActive
+	}
+	if status != clientdomain.StatusActive && status != clientdomain.StatusDisabled {
+		return nil, domain.NewError(ErrInvalidClientInput, "invalid client status")
+	}
+	configRepo, ok := s.clients.(repository.ClientConfigRepository)
 	if !ok {
-		return nil, domain.NewError(ErrInvalidClientInput, "client member repository is unavailable")
+		return nil, domain.NewError(ErrInvalidClientInput, "client config repository is unavailable")
 	}
-	client, err := members.UpdateWhitelistEnabled(ctx, clientID, req.WhitelistEnabled)
+	updated, err := configRepo.Update(ctx, &clientdomain.Client{
+		ClientID:            clientID,
+		Name:                name,
+		JWTAudience:         audience,
+		AllowedOrigins:      normalizeStringList(req.AllowedOrigins),
+		AllowedRedirectURIs: normalizeStringList(req.AllowedRedirectURIs),
+		WhitelistEnabled:    req.WhitelistEnabled,
+		Status:              status,
+	})
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return nil, domain.NewError(ErrClientNotFound, "client not found")
 		}
 		return nil, err
 	}
-	return client, nil
+	return updated, nil
 }
 
 // ListMembers returns all allow-list members for one client.
@@ -271,11 +296,17 @@ func memberFromRequest(req MemberRequest) (*clientdomain.Member, error) {
 // normalizePermissions trims and de-duplicates permission keys.
 // normalizePermissions 清洗权限标识，避免空值和重复值写入 token。
 func normalizePermissions(values []string) []string {
+	return normalizeStringList(values)
+}
+
+// normalizeStringList trims and de-duplicates list-style config values.
+// normalizeStringList 清洗列表配置，避免空值和重复值进入数据库。
+func normalizeStringList(values []string) []string {
 	if len(values) == 0 {
 		return nil
 	}
 	seen := make(map[string]struct{}, len(values))
-	permissions := make([]string, 0, len(values))
+	result := make([]string, 0, len(values))
 	for _, value := range values {
 		value = strings.TrimSpace(value)
 		if value == "" {
@@ -285,7 +316,7 @@ func normalizePermissions(values []string) []string {
 			continue
 		}
 		seen[value] = struct{}{}
-		permissions = append(permissions, value)
+		result = append(result, value)
 	}
-	return permissions
+	return result
 }

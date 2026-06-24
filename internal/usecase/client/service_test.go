@@ -48,6 +48,45 @@ func TestServiceCreateRejectsDuplicateClient(t *testing.T) {
 	}
 }
 
+func TestServiceUpdateClient(t *testing.T) {
+	clients := newMemoryClients()
+	clients.byID["example-app"] = &clientdomain.Client{
+		ClientID: "example-app",
+		Name:     "Old Name",
+		Status:   clientdomain.StatusActive,
+	}
+	service := NewService(clients)
+
+	updated, err := service.Update(context.Background(), UpdateRequest{
+		ClientID:            "example-app",
+		Name:                "New Name",
+		JWTAudience:         "example-api",
+		AllowedOrigins:      []string{" https://example.com ", "https://example.com"},
+		AllowedRedirectURIs: []string{"https://example.com/auth/callback"},
+		WhitelistEnabled:    true,
+		Status:              "disabled",
+	})
+	if err != nil {
+		t.Fatalf("update returned error: %v", err)
+	}
+	if updated.Name != "New Name" || updated.JWTAudience != "example-api" || !updated.WhitelistEnabled || updated.Status != clientdomain.StatusDisabled {
+		t.Fatalf("client was not updated: %+v", updated)
+	}
+	if len(updated.AllowedOrigins) != 1 || updated.AllowedOrigins[0] != "https://example.com" {
+		t.Fatalf("origins were not normalized: %#v", updated.AllowedOrigins)
+	}
+}
+
+func TestServiceUpdateRejectsInvalidStatus(t *testing.T) {
+	clients := newMemoryClients()
+	clients.byID["example-app"] = &clientdomain.Client{ClientID: "example-app", Name: "Example", Status: clientdomain.StatusActive}
+	service := NewService(clients)
+
+	if _, err := service.Update(context.Background(), UpdateRequest{ClientID: "example-app", Name: "Example", Status: "deleted"}); err == nil {
+		t.Fatal("expected invalid status error")
+	}
+}
+
 func TestServiceResolveAudience(t *testing.T) {
 	clients := newMemoryClients()
 	clients.byID["example-app"] = &clientdomain.Client{
@@ -85,6 +124,14 @@ func (m *memoryClients) FindByClientID(ctx context.Context, clientID string) (*c
 func (m *memoryClients) Create(ctx context.Context, client *clientdomain.Client) error {
 	m.byID[client.ClientID] = client
 	return nil
+}
+
+func (m *memoryClients) Update(ctx context.Context, client *clientdomain.Client) (*clientdomain.Client, error) {
+	if _, ok := m.byID[client.ClientID]; !ok {
+		return nil, repository.ErrNotFound
+	}
+	m.byID[client.ClientID] = client
+	return client, nil
 }
 
 func (m *memoryClients) List(ctx context.Context) ([]clientdomain.Client, error) {
