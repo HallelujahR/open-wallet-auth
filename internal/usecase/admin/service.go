@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"sort"
 	"strings"
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
@@ -28,6 +29,8 @@ type Service struct {
 	wallets  repository.AdminWalletRepository
 	accounts repository.AdminOAuthAccountRepository
 	sessions repository.AdminRefreshTokenRepository
+	clients  repository.ClientRepository
+	limits   repository.RateLimitResetter
 	hasher   PasswordHasher
 }
 
@@ -39,6 +42,8 @@ type Dependencies struct {
 	Wallets  repository.AdminWalletRepository
 	Accounts repository.AdminOAuthAccountRepository
 	Sessions repository.AdminRefreshTokenRepository
+	Clients  repository.ClientRepository
+	Limits   repository.RateLimitResetter
 	Hasher   PasswordHasher
 }
 
@@ -157,6 +162,22 @@ type RevokeSessionsResult struct {
 	Revoked int64
 }
 
+// ResetLoginRateLimitRequest is the input for clearing password-login counters.
+// ResetLoginRateLimitRequest 是清除身份用户密码登录限流计数的输入。
+type ResetLoginRateLimitRequest struct {
+	UserID    string
+	ClientID  string
+	IP        string
+	UserAgent string
+}
+
+// ResetLoginRateLimitResult describes the cleared login counters.
+// ResetLoginRateLimitResult 描述本次实际清除的登录限流计数。
+type ResetLoginRateLimitResult struct {
+	Cleared   int
+	ClientIDs []string
+}
+
 // UnbindRequest is the input for removing a login-method binding.
 // UnbindRequest 是移除登录方式绑定的用例输入。
 type UnbindRequest struct {
@@ -167,7 +188,16 @@ type UnbindRequest struct {
 // NewService creates the identity-management usecase service.
 // NewService 创建身份管理用例服务，并注入外部端口。
 func NewService(deps Dependencies) *Service {
-	return &Service{users: deps.Users, activity: deps.Activity, wallets: deps.Wallets, accounts: deps.Accounts, sessions: deps.Sessions, hasher: deps.Hasher}
+	return &Service{
+		users:    deps.Users,
+		activity: deps.Activity,
+		wallets:  deps.Wallets,
+		accounts: deps.Accounts,
+		sessions: deps.Sessions,
+		clients:  deps.Clients,
+		limits:   deps.Limits,
+		hasher:   deps.Hasher,
+	}
 }
 
 // ListUsers returns identity users with pagination and simple search.
@@ -385,6 +415,105 @@ func (s *Service) RevokeUserSessions(ctx context.Context, req RevokeUserSessions
 		return nil, err
 	}
 	return &RevokeSessionsResult{Revoked: count}, nil
+}
+
+// ResetLoginRateLimit clears one user's password-login counters for one or all clients.
+// ResetLoginRateLimit 清除指定身份用户在单个或全部接入应用下的密码登录限流计数。
+func (s *Service) ResetLoginRateLimit(ctx context.Context, req ResetLoginRateLimitRequest) (*ResetLoginRateLimitResult, error) {
+	userID := strings.TrimSpace(req.UserID)
+	if userID == "" {
+		return nil, domain.NewError(ErrInvalidInput, "user_id is required")
+	}
+	u, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, domain.NewError(ErrUserNotFound, "user not found")
+		}
+		return nil, err
+	}
+	email := strings.ToLower(strings.TrimSpace(u.Email))
+	if email == "" {
+		return nil, domain.NewError(ErrInvalidInput, "user does not have an email login")
+	}
+	if s.limits == nil {
+		return nil, domain.NewError(ErrInvalidInput, "rate-limit resetter is not configured")
+	}
+
+	clientIDs, err := s.loginRateLimitClientIDs(ctx, userID, req.ClientID)
+	if err != nil {
+		return nil, err
+	}
+	clearedClients := make([]string, 0, len(clientIDs))
+	for _, clientID := range clientIDs {
+		cleared, err := s.limits.Reset(ctx, repository.PasswordLoginRateLimitKey(clientID, email))
+		if err != nil {
+			return nil, err
+		}
+		if cleared {
+			clearedClients = append(clearedClients, clientID)
+		}
+	}
+	s.recordSecurityEvent(ctx, audit.SecurityEvent{
+		UserID:     userID,
+		EventType:  audit.SecurityEventResetLoginLimit,
+		TargetType: "login_rate_limit",
+		TargetID:   email,
+		IP:         req.IP,
+		UserAgent:  req.UserAgent,
+		Success:    true,
+	})
+	return &ResetLoginRateLimitResult{Cleared: len(clearedClients), ClientIDs: clearedClients}, nil
+}
+
+// loginRateLimitClientIDs resolves the exact keys to clear without exposing arbitrary Redis patterns.
+// loginRateLimitClientIDs 汇总注册应用与用户历史应用，避免向管理接口暴露任意 Redis 模式删除能力。
+func (s *Service) loginRateLimitClientIDs(ctx context.Context, userID string, requestedClientID string) ([]string, error) {
+	requestedClientID = strings.TrimSpace(requestedClientID)
+	if requestedClientID != "" {
+		if s.clients != nil {
+			item, err := s.clients.FindByClientID(ctx, requestedClientID)
+			if err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					return nil, domain.NewError(ErrInvalidInput, "client not found")
+				}
+				return nil, err
+			}
+			if item == nil {
+				return nil, domain.NewError(ErrInvalidInput, "client not found")
+			}
+		}
+		return []string{requestedClientID}, nil
+	}
+
+	seen := map[string]struct{}{"default": {}}
+	if s.clients != nil {
+		items, err := s.clients.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			if clientID := strings.TrimSpace(item.ClientID); clientID != "" {
+				seen[clientID] = struct{}{}
+			}
+		}
+	}
+	if s.activity != nil {
+		items, err := s.activity.ListUserClients(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			if clientID := strings.TrimSpace(item.ClientID); clientID != "" {
+				seen[clientID] = struct{}{}
+			}
+		}
+	}
+	clientIDs := make([]string, 0, len(seen))
+	for clientID := range seen {
+		clientIDs = append(clientIDs, clientID)
+	}
+	sort.Strings(clientIDs)
+	return clientIDs, nil
 }
 
 // UnbindWallet removes one wallet binding from an identity user.

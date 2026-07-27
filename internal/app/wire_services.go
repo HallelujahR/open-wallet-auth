@@ -13,6 +13,7 @@ import (
 	inframessage "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/message"
 	infraoauth "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/oauth"
 	infrawallet "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/wallet"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 	adminusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/admin"
 	authusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/auth"
 	clientusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/client"
@@ -58,6 +59,8 @@ func newRouterDependencies(cfg *config.Config, logger *zap.Logger, storage *stor
 		Wallets:  storage.wallets,
 		Accounts: storage.accounts,
 		Sessions: storage.refreshTokens,
+		Clients:  storage.clients,
+		Limits:   rateLimitResetter(runtime.limiter),
 		Hasher:   runtime.hasher,
 	})
 
@@ -78,6 +81,13 @@ func newRouterDependencies(cfg *config.Config, logger *zap.Logger, storage *stor
 		JWKS:             handler.NewJWKSHandler(runtime.issuer),
 		AdminToken:       cfg.Management.AdminToken,
 	}
+}
+
+// rateLimitResetter exposes reset support only when the selected limiter implements it.
+// rateLimitResetter 仅在当前限流实现支持清除操作时向管理用例暴露该能力。
+func rateLimitResetter(limiter repository.RateLimiter) repository.RateLimitResetter {
+	resetter, _ := limiter.(repository.RateLimitResetter)
+	return resetter
 }
 
 // newPhoneService creates the phone login usecase.

@@ -55,6 +55,13 @@ export const adminApi = {
       data: { password },
     });
   },
+  resetLoginRateLimit(userId: string, clientId?: string) {
+    return request<{ cleared: number; client_ids: string[] }>({
+      url: `/api/v1/admin/users/${userId}/login-rate-limit/reset`,
+      method: "POST",
+      data: clientId ? { client_id: clientId } : {},
+    });
+  },
   revokeUserSessions(userId: string, clientId?: string) {
     return request<{ revoked: number }>({
       url: `/api/v1/admin/users/${userId}/sessions`,

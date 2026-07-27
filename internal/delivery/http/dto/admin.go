@@ -52,6 +52,19 @@ type AdminSetUserPasswordRequest struct {
 	Password string `json:"password" binding:"required,min=8"`
 }
 
+// AdminResetLoginRateLimitRequest optionally scopes a reset to one application client.
+// AdminResetLoginRateLimitRequest 可选指定只清除某个接入应用的登录限流。
+type AdminResetLoginRateLimitRequest struct {
+	ClientID string `json:"client_id"`
+}
+
+// AdminResetLoginRateLimitResponse describes counters removed by an admin action.
+// AdminResetLoginRateLimitResponse 返回本次实际清除的计数及应用范围。
+type AdminResetLoginRateLimitResponse struct {
+	Cleared   int      `json:"cleared"`
+	ClientIDs []string `json:"client_ids"`
+}
+
 // AdminUserClientResponse describes one business system a user has logged into.
 // AdminUserClientResponse 描述用户登录过的一个业务系统。
 type AdminUserClientResponse struct {

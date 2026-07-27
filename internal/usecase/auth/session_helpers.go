@@ -11,6 +11,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/usecase/clientaccess"
 )
 
@@ -20,7 +21,7 @@ func (s *Service) checkLoginLimit(ctx context.Context, clientID string, email st
 	if !s.rateLimit || s.limiter == nil || email == "" {
 		return nil
 	}
-	ok, err := s.limiter.Allow(ctx, "auth:login:"+clientID+":"+strings.ToLower(email), s.loginLimit, s.loginWindow)
+	ok, err := s.limiter.Allow(ctx, repository.PasswordLoginRateLimitKey(clientID, email), s.loginLimit, s.loginWindow)
 	if err != nil {
 		return err
 	}

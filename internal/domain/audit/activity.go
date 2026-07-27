@@ -27,6 +27,7 @@ const (
 	SecurityEventUnbindPhone      SecurityEventType = "unbind_phone"
 	SecurityEventUnbindWallet     SecurityEventType = "unbind_wallet"
 	SecurityEventUnbindOAuth      SecurityEventType = "unbind_oauth"
+	SecurityEventResetLoginLimit  SecurityEventType = "reset_login_rate_limit"
 )
 
 // LoginLog records one authentication attempt.

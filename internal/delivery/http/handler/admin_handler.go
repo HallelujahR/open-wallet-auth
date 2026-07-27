@@ -108,6 +108,32 @@ func (h *AdminHandler) SetUserPassword(c *gin.Context) {
 	response.OK(c, gin.H{"password_updated": true})
 }
 
+// ResetLoginRateLimit clears password-login counters for one identity user.
+// ResetLoginRateLimit 清除指定身份用户的密码登录限流计数。
+func (h *AdminHandler) ResetLoginRateLimit(c *gin.Context) {
+	var req dto.AdminResetLoginRateLimitRequest
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, http.StatusBadRequest, adminusecase.ErrInvalidInput, "invalid request")
+			return
+		}
+	}
+	result, err := h.admin.ResetLoginRateLimit(c.Request.Context(), adminusecase.ResetLoginRateLimitRequest{
+		UserID:    c.Param("user_id"),
+		ClientID:  req.ClientID,
+		IP:        c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
+	})
+	if err != nil {
+		writeAdminError(c, err)
+		return
+	}
+	response.OK(c, dto.AdminResetLoginRateLimitResponse{
+		Cleared:   result.Cleared,
+		ClientIDs: result.ClientIDs,
+	})
+}
+
 // ListSessions returns refresh-token sessions for management.
 // ListSessions 返回管理端可见的刷新令牌会话列表。
 func (h *AdminHandler) ListSessions(c *gin.Context) {

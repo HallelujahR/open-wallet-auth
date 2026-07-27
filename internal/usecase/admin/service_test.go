@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/oauth"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/token"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/wallet"
+	infraratelimit "github.com/open-wallet-auth/open-wallet-auth/internal/infrastructure/ratelimit"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
 )
 
@@ -83,6 +85,63 @@ func TestServiceSetUserPasswordRejectsShortPassword(t *testing.T) {
 
 	if err := service.SetUserPassword(context.Background(), SetUserPasswordRequest{UserID: "usr_1", Password: "short"}); err == nil {
 		t.Fatalf("expected short password error")
+	}
+}
+
+func TestServiceResetLoginRateLimit(t *testing.T) {
+	service := newTestService()
+	limits := infraratelimit.NewMemoryLimiter()
+	service.limits = limits
+	for _, clientID := range []string{"default", "case_workflow"} {
+		key := authLoginKey(clientID)
+		if _, err := limits.Allow(context.Background(), key, 1, time.Minute); err != nil {
+			t.Fatalf("seed rate limit returned error: %v", err)
+		}
+		if allowed, err := limits.Allow(context.Background(), key, 1, time.Minute); err != nil || allowed {
+			t.Fatalf("expected %s to be limited before reset, allowed=%v err=%v", clientID, allowed, err)
+		}
+	}
+
+	result, err := service.ResetLoginRateLimit(context.Background(), ResetLoginRateLimitRequest{
+		UserID:    "usr_1",
+		IP:        "127.0.0.1",
+		UserAgent: "admin-test",
+	})
+	if err != nil {
+		t.Fatalf("ResetLoginRateLimit returned error: %v", err)
+	}
+	if result.Cleared != 2 || len(result.ClientIDs) != 2 {
+		t.Fatalf("unexpected reset result: %#v", result)
+	}
+	for _, clientID := range []string{"default", "case_workflow"} {
+		if allowed, err := limits.Allow(context.Background(), authLoginKey(clientID), 1, time.Minute); err != nil || !allowed {
+			t.Fatalf("expected %s login to be allowed after reset, allowed=%v err=%v", clientID, allowed, err)
+		}
+	}
+	activity := service.activity.(*memoryAdminActivity)
+	if activity.lastEvent == nil || activity.lastEvent.EventType != audit.SecurityEventResetLoginLimit {
+		t.Fatalf("expected reset login limit security event")
+	}
+}
+
+func TestServiceResetLoginRateLimitScopesToClient(t *testing.T) {
+	service := newTestService()
+	limits := service.limits.(*memoryRateLimitResetter)
+	limits.entries[authLoginKey("default")] = true
+	limits.entries[authLoginKey("case_workflow")] = true
+
+	result, err := service.ResetLoginRateLimit(context.Background(), ResetLoginRateLimitRequest{
+		UserID:   "usr_1",
+		ClientID: "case_workflow",
+	})
+	if err != nil {
+		t.Fatalf("ResetLoginRateLimit returned error: %v", err)
+	}
+	if result.Cleared != 1 || len(result.ClientIDs) != 1 || result.ClientIDs[0] != "case_workflow" {
+		t.Fatalf("unexpected scoped reset result: %#v", result)
+	}
+	if !limits.entries[authLoginKey("default")] {
+		t.Fatal("default client counter should remain")
 	}
 }
 
@@ -159,6 +218,8 @@ func newTestService() *Service {
 		Wallets:  memoryAdminWallets{},
 		Accounts: memoryAdminAccounts{},
 		Sessions: memoryAdminSessions{},
+		Clients:  memoryAdminClients{},
+		Limits:   &memoryRateLimitResetter{entries: map[string]bool{}},
 		Hasher:   fakeAdminHasher{},
 	})
 }
@@ -208,7 +269,8 @@ func (fakeAdminHasher) Hash(plain string) (string, error) {
 }
 
 type memoryAdminActivity struct {
-	recorded bool
+	recorded  bool
+	lastEvent *audit.SecurityEvent
 }
 
 func (*memoryAdminActivity) ListLoginLogs(ctx context.Context, filter repository.LoginLogFilter) ([]audit.LoginLog, int64, error) {
@@ -224,8 +286,51 @@ func (*memoryAdminActivity) ListUserClients(ctx context.Context, userID string) 
 }
 
 func (m *memoryAdminActivity) RecordSecurityEvent(ctx context.Context, event *audit.SecurityEvent) error {
-	m.recorded = event != nil && event.EventType == audit.SecurityEventAdminSetPassword
+	m.recorded = event != nil
+	m.lastEvent = event
 	return nil
+}
+
+type memoryAdminClients struct{}
+
+func (memoryAdminClients) FindByClientID(ctx context.Context, clientID string) (*client.Client, error) {
+	for _, item := range []client.Client{
+		{ClientID: "default", Status: client.StatusActive},
+		{ClientID: "case_workflow", Status: client.StatusActive},
+	} {
+		if item.ClientID == clientID {
+			result := item
+			return &result, nil
+		}
+	}
+	return nil, nil
+}
+
+func (memoryAdminClients) Create(ctx context.Context, item *client.Client) error {
+	return nil
+}
+
+func (memoryAdminClients) List(ctx context.Context) ([]client.Client, error) {
+	return []client.Client{
+		{ClientID: "default", Status: client.StatusActive},
+		{ClientID: "case_workflow", Status: client.StatusActive},
+	}, nil
+}
+
+type memoryRateLimitResetter struct {
+	entries map[string]bool
+}
+
+func (m *memoryRateLimitResetter) Reset(ctx context.Context, key string) (bool, error) {
+	if !m.entries[key] {
+		return false, nil
+	}
+	delete(m.entries, key)
+	return true, nil
+}
+
+func authLoginKey(clientID string) string {
+	return repository.PasswordLoginRateLimitKey(clientID, "alice@example.com")
 }
 
 type memoryAdminWallets struct{}

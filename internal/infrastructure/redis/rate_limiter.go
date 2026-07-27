@@ -38,3 +38,13 @@ func (r *RateLimiter) Allow(ctx context.Context, key string, limit int, window t
 	}
 	return count <= int64(limit), nil
 }
+
+// Reset removes one Redis-backed rate-limit counter.
+// Reset 删除一个 Redis 限流计数。
+func (r *RateLimiter) Reset(ctx context.Context, key string) (bool, error) {
+	deleted, err := r.client.Del(ctx, r.prefix+":"+key).Result()
+	if err != nil {
+		return false, err
+	}
+	return deleted > 0, nil
+}

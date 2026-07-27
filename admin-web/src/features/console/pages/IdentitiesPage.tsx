@@ -21,6 +21,7 @@ import {
   GoogleOutlined,
   MailOutlined,
   PhoneOutlined,
+  UnlockOutlined,
   UserOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
@@ -41,6 +42,7 @@ export function IdentitiesPage() {
   const [loading, setLoading] = useState(false);
   const [passwordTarget, setPasswordTarget] = useState<IdentityUser | null>(null);
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [clearingLimitUserID, setClearingLimitUserID] = useState("");
   const [passwordForm] = Form.useForm<{ password: string; confirm_password: string }>();
 
   const load = () => {
@@ -92,6 +94,25 @@ export function IdentitiesPage() {
       })
       .catch((err) => message.error(err.message))
       .finally(() => setPasswordSaving(false));
+  };
+
+  const resetLoginRateLimit = (user: IdentityUser) => {
+    if (!user.email) {
+      message.warning("该用户没有邮箱登录方式");
+      return;
+    }
+    setClearingLimitUserID(user.id);
+    adminApi
+      .resetLoginRateLimit(user.id)
+      .then((result) => {
+        if (result.cleared > 0) {
+          message.success(`已清除 ${result.cleared} 个应用下的登录限制`);
+          return;
+        }
+        message.info("该账号当前没有生效中的登录限制");
+      })
+      .catch((err) => message.error(err.message))
+      .finally(() => setClearingLimitUserID(""));
   };
 
   const detailMethods = useMemo(
@@ -168,6 +189,20 @@ export function IdentitiesPage() {
                 <Space>
                   <Button size="small" onClick={() => openDetail(row.id)}>详情</Button>
                   <Button size="small" onClick={() => openPasswordModal(row)}>改密</Button>
+                  <Popconfirm
+                    title="清除该账号的登录限制？"
+                    description="将清除该邮箱在所有接入应用下的登录计数。"
+                    onConfirm={() => resetLoginRateLimit(row)}
+                  >
+                    <Button
+                      size="small"
+                      icon={<UnlockOutlined />}
+                      loading={clearingLimitUserID === row.id}
+                      disabled={!row.email}
+                    >
+                      解除限流
+                    </Button>
+                  </Popconfirm>
                   <Popconfirm title="确认禁用该身份？" onConfirm={() => updateStatus(row.id, "suspended")}>
                     <Button size="small" danger disabled={row.status === "suspended"}>禁用</Button>
                   </Popconfirm>
@@ -192,6 +227,20 @@ export function IdentitiesPage() {
               </div>
               <Space>
                 <Button size="small" onClick={() => openPasswordModal(detail.user)}>修改密码</Button>
+                <Popconfirm
+                  title="清除该账号的登录限制？"
+                  description="将清除该邮箱在所有接入应用下的登录计数。"
+                  onConfirm={() => resetLoginRateLimit(detail.user)}
+                >
+                  <Button
+                    size="small"
+                    icon={<UnlockOutlined />}
+                    loading={clearingLimitUserID === detail.user.id}
+                    disabled={!detail.user.email}
+                  >
+                    解除限流
+                  </Button>
+                </Popconfirm>
                 <StatusBadge status={detail.user.status} />
               </Space>
             </div>

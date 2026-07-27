@@ -42,3 +42,16 @@ func (l *MemoryLimiter) Allow(ctx context.Context, key string, limit int, window
 	l.entries[key] = entry
 	return entry.count <= limit, nil
 }
+
+// Reset removes one in-memory rate-limit counter.
+// Reset 删除一个进程内限流计数。
+func (l *MemoryLimiter) Reset(ctx context.Context, key string) (bool, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if _, ok := l.entries[key]; !ok {
+		return false, nil
+	}
+	delete(l.entries, key)
+	return true, nil
+}
