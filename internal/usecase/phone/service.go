@@ -129,6 +129,7 @@ type CodeResult struct {
 // LoginRequest is the input for phone-code login.
 // LoginRequest 是手机号验证码登录的用例输入。
 type LoginRequest struct {
+	ReturnURI string
 	ClientID  string
 	Phone     string
 	Code      string
@@ -238,6 +239,10 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 	if err != nil || client == nil || !client.IsActive() {
 		return nil, domain.NewError(ErrInvalidClient, "invalid client")
 	}
+	if err := clientaccess.ValidateReturnURI(client, req.ReturnURI, false); err != nil {
+		return nil, domain.NewError("AUTH_INVALID_RETURN_URI", "回调地址未授权，请联系应用管理员")
+	}
+
 	ok, err := s.codes.Verify(ctx, phone, code, s.clock.Now().UTC())
 	if err != nil {
 		return nil, err

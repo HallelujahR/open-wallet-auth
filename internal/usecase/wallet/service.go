@@ -110,6 +110,7 @@ type NonceResult struct {
 // VerifyRequest is the input for wallet signature login.
 // VerifyRequest 是钱包签名登录的用例输入。
 type VerifyRequest struct {
+	ReturnURI string
 	ClientID  string
 	Address   string
 	Nonce     string
@@ -227,6 +228,9 @@ func (s *Service) VerifySignature(ctx context.Context, req VerifyRequest) (*Veri
 	client, err := s.clients.FindByClientID(ctx, clientID)
 	if err != nil || client == nil || !client.IsActive() {
 		return nil, domain.NewError(ErrInvalidClient, "invalid client")
+	}
+	if err := clientaccess.ValidateReturnURI(client, req.ReturnURI, false); err != nil {
+		return nil, domain.NewError("AUTH_INVALID_RETURN_URI", "回调地址未授权，请联系应用管理员")
 	}
 
 	nonce, err := s.wallets.FindNonce(ctx, address, nonceValue)

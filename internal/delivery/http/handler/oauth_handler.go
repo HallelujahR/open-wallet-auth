@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -36,6 +37,7 @@ func (h *OAuthHandler) Start(c *gin.Context) {
 		ClientID:    c.Query("client_id"),
 		RedirectURI: c.Query("redirect_uri"),
 		ReturnURI:   c.Query("return_uri"),
+		ClientState: c.Query("client_state"),
 	})
 	if err != nil {
 		writeOAuthError(c, err)
@@ -80,7 +82,7 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 		writeOAuthError(c, err)
 		return
 	}
-	setSessionCookie(c, result.Token.RefreshToken)
+	setSessionCookie(c, result.UserID, result.Token.RefreshToken)
 	if result.ReturnURI != "" {
 		c.Redirect(http.StatusFound, oauthReturnURL(result))
 		return
@@ -106,8 +108,19 @@ func oauthReturnURL(result *oauthusecase.CallbackResult) string {
 	values := url.Values{}
 	values.Set("access_token", result.Token.AccessToken)
 	values.Set("token_type", "Bearer")
+	if result.ClientState != "" {
+		values.Set("state", result.ClientState)
+	}
 	values.Set("expires_at", result.Token.ExpiresAt.Format(timeFormatRFC3339))
-	return result.ReturnURI + "#" + values.Encode()
+	base, fragment, found := strings.Cut(result.ReturnURI, "#")
+	if !found {
+		return base + "#" + values.Encode()
+	}
+	separator := "?"
+	if strings.Contains(fragment, "?") {
+		separator = "&"
+	}
+	return base + "#" + fragment + separator + values.Encode()
 }
 
 // currentOAuthAuthClaims reads token claims from Gin context.

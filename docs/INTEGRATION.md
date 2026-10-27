@@ -49,6 +49,18 @@ Parameters:
 - `client_id`: the application ID registered in the auth service.
 - `return_uri`: the business callback URL that receives the auth result.
 
+Register complete callback URLs in the client's `allowed_redirect_uris`. Configured lists require an exact HTTP(S) URL match including path, query and hash; wildcards are unsupported. Existing clients with no list and no business `state` retain their deployed legacy protocol. State-bound flows require an explicitly registered callback. New applications should always configure a list. Hosted login and OAuth preserve business `state` in the callback fragment alongside the token.
+
+The hosted page lists all valid accounts previously signed in within the same browser. Users can select an account, sign in with another, or sign out of one account independently. Each account uses an HttpOnly cookie; the old single-account cookie is migrated when the list is read. The page does not persist refresh tokens in localStorage.
+
+Custom same-origin account pickers can use these cookie-authenticated endpoints:
+
+- `GET /api/v1/auth/sessions?client_id=example-app` returns `data.items` containing `session_id` and display information, never credentials.
+- `POST /api/v1/auth/session/login` accepts `client_id`, the selected `session_id`, and optional `return_uri`. Multiple accounts require explicit selection. Expired selections fail instead of falling back to another account.
+- `POST /api/v1/auth/sessions/logout` accepts `{ "session_id": "..." }` for one account or `{ "all": true }` for all accounts in this browser. Independent sessions on other devices are unaffected.
+
+The selector is not a credential; a matching cookie is required. The target application's user allow-list is still enforced at login.
+
 The application display name is read from the auth service client registry, not from URL parameters, so users cannot spoof the source application name by editing the URL.
 
 After email, phone, Google, GitHub, or wallet login succeeds, the page redirects to:
@@ -79,7 +91,9 @@ Hosted login page branding and login methods are managed in the admin console:
 
 - Path: `/console/settings`
 - Tab: `登录页 Login`
-- Editable fields: brand name, brand mark, subtitle, registration, phone login, GitHub, Google, and wallet login.
+- Editable fields: brand name, brand mark, multiline hero title, subtitle, registration, phone login, GitHub, Google, and wallet login.
+
+The hero title is runtime editable. Visible login pages refresh settings every five seconds and on focus without clearing active forms. No restart or deployment is needed; an empty title restores the default.
 
 ## Legacy Password Migration
 

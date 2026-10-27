@@ -24,27 +24,29 @@ const (
 // Service orchestrates identity-management queries and commands.
 // Service 编排统一身份管理的查询和操作，不处理具体 HTTP 或数据库细节。
 type Service struct {
-	users    repository.AdminUserRepository
-	activity repository.AdminActivityRepository
-	wallets  repository.AdminWalletRepository
-	accounts repository.AdminOAuthAccountRepository
-	sessions repository.AdminRefreshTokenRepository
-	clients  repository.ClientRepository
-	limits   repository.RateLimitResetter
-	hasher   PasswordHasher
+	dashboard repository.DashboardRepository
+	users     repository.AdminUserRepository
+	activity  repository.AdminActivityRepository
+	wallets   repository.AdminWalletRepository
+	accounts  repository.AdminOAuthAccountRepository
+	sessions  repository.AdminRefreshTokenRepository
+	clients   repository.ClientRepository
+	limits    repository.RateLimitResetter
+	hasher    PasswordHasher
 }
 
 // Dependencies contains external ports required by identity management.
 // Dependencies 汇总身份管理用例需要的仓储端口。
 type Dependencies struct {
-	Users    repository.AdminUserRepository
-	Activity repository.AdminActivityRepository
-	Wallets  repository.AdminWalletRepository
-	Accounts repository.AdminOAuthAccountRepository
-	Sessions repository.AdminRefreshTokenRepository
-	Clients  repository.ClientRepository
-	Limits   repository.RateLimitResetter
-	Hasher   PasswordHasher
+	Dashboard repository.DashboardRepository
+	Users     repository.AdminUserRepository
+	Activity  repository.AdminActivityRepository
+	Wallets   repository.AdminWalletRepository
+	Accounts  repository.AdminOAuthAccountRepository
+	Sessions  repository.AdminRefreshTokenRepository
+	Clients   repository.ClientRepository
+	Limits    repository.RateLimitResetter
+	Hasher    PasswordHasher
 }
 
 // PasswordHasher hashes user passwords before persistence.
@@ -189,14 +191,15 @@ type UnbindRequest struct {
 // NewService 创建身份管理用例服务，并注入外部端口。
 func NewService(deps Dependencies) *Service {
 	return &Service{
-		users:    deps.Users,
-		activity: deps.Activity,
-		wallets:  deps.Wallets,
-		accounts: deps.Accounts,
-		sessions: deps.Sessions,
-		clients:  deps.Clients,
-		limits:   deps.Limits,
-		hasher:   deps.Hasher,
+		dashboard: deps.Dashboard,
+		users:     deps.Users,
+		activity:  deps.Activity,
+		wallets:   deps.Wallets,
+		accounts:  deps.Accounts,
+		sessions:  deps.Sessions,
+		clients:   deps.Clients,
+		limits:    deps.Limits,
+		hasher:    deps.Hasher,
 	}
 }
 

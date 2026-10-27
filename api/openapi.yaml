@@ -45,6 +45,108 @@ paths:
       responses:
         "200":
           description: Current user
+  /api/v1/public/login-config:
+    get:
+      summary: Read hosted login configuration and validate the callback
+      parameters:
+        - in: query
+          name: client_id
+          schema:
+            type: string
+        - in: query
+          name: return_uri
+          description: Exact registered HTTP(S) callback; legacy clients without state or a list retain their deployed protocol
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Login configuration and verified return_uri
+        "400":
+          description: Invalid client or callback URI
+  /api/v1/auth/sessions:
+    get:
+      summary: List valid browser accounts using HttpOnly session cookies
+      parameters:
+        - in: query
+          name: client_id
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Account display information without credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/BrowserAccount"
+  /api/v1/auth/session/login:
+    post:
+      summary: Sign in with the explicitly selected browser account
+      description: Requires a matching HttpOnly cookie. Target client access policies still apply.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionLoginRequest"
+      responses:
+        "200":
+          description: Selected user and newly issued token pair
+        "400":
+          description: Invalid callback URI or input
+        "401":
+          description: Missing, expired, revoked, or mismatched session
+        "403":
+          description: Account cannot access the requested application
+        "409":
+          description: Multiple browser accounts require a session_id selector
+  /api/v1/auth/sessions/logout:
+    post:
+      summary: Sign out one account or all accounts in this browser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                  description: Required unless all is true
+                all:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: Selected browser sessions revoked and their cookies cleared
+        "400":
+          description: Missing or invalid selection
+  /api/v1/admin/dashboard:
+    get:
+      summary: Complete identity, client, session and seven-day login statistics
+      security:
+        - adminToken: []
+      parameters:
+        - in: query
+          name: timezone_offset
+          description: Minutes east of UTC (for example 480 for Asia/Shanghai)
+          schema:
+            type: integer
+            minimum: -840
+            maximum: 840
+            default: 0
+      responses:
+        "200":
+          description: Counts, seven local calendar dates and grouped login buckets
+        "400":
+          description: Invalid timezone offset
   /api/v1/profile:
     get:
       summary: Get the current authenticated user's persisted profile
@@ -514,11 +616,43 @@ paths:
           description: Login audit log list
 components:
   securitySchemes:
+    adminToken:
+      type: apiKey
+      in: header
+      name: X-Admin-Token
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    BrowserAccount:
+      type: object
+      required: [session_id, id, username]
+      properties:
+        session_id:
+          type: string
+          description: Non-secret selector; authentication still requires its cookie
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        avatar:
+          type: string
+    SessionLoginRequest:
+      type: object
+      properties:
+        client_id:
+          type: string
+        session_id:
+          type: string
+          description: Required when more than one browser account is present
+        return_uri:
+          type: string
+          description: Optional; exact match when a callback list is configured
     UpdateProfileRequest:
       type: object
       required:
@@ -595,6 +729,9 @@ components:
         - nonce
         - signature
       properties:
+        return_uri:
+          type: string
+          description: Optional; exact match when a callback list is configured
         client_id:
           type: string
         address:
@@ -631,6 +768,9 @@ components:
         - phone
         - code
       properties:
+        return_uri:
+          type: string
+          description: Optional; exact match when a callback list is configured
         client_id:
           type: string
         phone:

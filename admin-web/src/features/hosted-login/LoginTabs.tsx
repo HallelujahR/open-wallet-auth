@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   LockOutlined,
   MailOutlined,
@@ -18,7 +19,7 @@ type BuildLoginTabsInput = {
   phoneCodeLoading: boolean;
   pageConfig: UnifiedLoginConfig;
   submitPasswordLogin: (values: PasswordValues) => void;
-  sendPhoneCode: (phone: string) => void;
+  sendPhoneCode: (phone: string) => Promise<boolean>;
   submitPhoneLogin: (values: PhoneValues) => void;
   submitRegister: (values: RegisterValues) => void;
 };
@@ -33,10 +34,12 @@ export function buildLoginTabs(input: BuildLoginTabsInput): TabsProps["items"] {
       children: (
         <Form<PasswordValues>
           layout="vertical"
+          size="large"
+          requiredMark={false}
           onFinish={input.submitPasswordLogin}
         >
           <Form.Item
-            label="邮箱 Email"
+            label="邮箱"
             name="email"
             rules={[
               { required: true, type: "email", message: "请输入有效邮箱" },
@@ -49,7 +52,7 @@ export function buildLoginTabs(input: BuildLoginTabsInput): TabsProps["items"] {
             />
           </Form.Item>
           <Form.Item
-            label="密码 Password"
+            label="密码"
             name="password"
             rules={[{ required: true, message: "请输入密码" }]}
           >
@@ -93,16 +96,21 @@ export function buildLoginTabs(input: BuildLoginTabsInput): TabsProps["items"] {
       key: "register",
       label: "注册账号",
       children: (
-        <Form<RegisterValues> layout="vertical" onFinish={input.submitRegister}>
-          <Form.Item label="昵称 Username" name="username">
+        <Form<RegisterValues>
+          layout="vertical"
+          size="large"
+          requiredMark={false}
+          onFinish={input.submitRegister}
+        >
+          <Form.Item label="昵称" name="username">
             <Input
               prefix={<UserAddOutlined />}
-              placeholder="可选，默认使用邮箱前缀"
+              placeholder="你的昵称（可选）"
               autoComplete="username"
             />
           </Form.Item>
           <Form.Item
-            label="邮箱 Email"
+            label="邮箱"
             name="email"
             rules={[
               { required: true, type: "email", message: "请输入有效邮箱" },
@@ -115,7 +123,7 @@ export function buildLoginTabs(input: BuildLoginTabsInput): TabsProps["items"] {
             />
           </Form.Item>
           <Form.Item
-            label="密码 Password"
+            label="密码"
             name="password"
             rules={[{ required: true, min: 8, message: "密码至少 8 位" }]}
           >
@@ -150,15 +158,38 @@ function PhoneLoginForm({
 }: {
   loading: boolean;
   codeLoading: boolean;
-  onSendCode: (phone: string) => void;
+  onSendCode: (phone: string) => Promise<boolean>;
   onFinish: (values: PhoneValues) => void;
 }) {
   const [form] = Form.useForm<PhoneValues>();
+  const [remaining, setRemaining] = useState(0);
+  useEffect(() => {
+    if (!remaining) return;
+    const timer = window.setTimeout(
+      () => setRemaining((value) => value - 1),
+      1000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [remaining]);
+  const sendCode = async () => {
+    try {
+      await form.validateFields(["phone"]);
+      if (await onSendCode(form.getFieldValue("phone") || "")) setRemaining(60);
+    } catch {
+      /* Form displays field validation errors. */
+    }
+  };
 
   return (
-    <Form<PhoneValues> form={form} layout="vertical" onFinish={onFinish}>
+    <Form<PhoneValues>
+      form={form}
+      layout="vertical"
+      size="large"
+      requiredMark={false}
+      onFinish={onFinish}
+    >
       <Form.Item
-        label="手机号 Phone"
+        label="手机号"
         name="phone"
         rules={[{ required: true, message: "请输入手机号" }]}
       >
@@ -169,7 +200,7 @@ function PhoneLoginForm({
         />
       </Form.Item>
       <Form.Item
-        label="验证码 Code"
+        label="验证码"
         name="code"
         rules={[{ required: true, message: "请输入验证码" }]}
       >
@@ -181,9 +212,10 @@ function PhoneLoginForm({
               type="link"
               size="small"
               loading={codeLoading}
-              onClick={() => onSendCode(form.getFieldValue("phone") || "")}
+              disabled={remaining > 0 || loading}
+              onClick={sendCode}
             >
-              发送
+              {remaining ? `${remaining} 秒` : "发送验证码"}
             </Button>
           }
         />

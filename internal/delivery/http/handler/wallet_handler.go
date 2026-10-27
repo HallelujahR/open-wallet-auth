@@ -63,6 +63,7 @@ func (h *WalletHandler) Verify(c *gin.Context) {
 	}
 
 	result, err := h.wallet.VerifySignature(c.Request.Context(), walletusecase.VerifyRequest{
+		ReturnURI: req.ReturnURI,
 		ClientID:  req.ClientID,
 		Address:   req.Address,
 		Nonce:     req.Nonce,
@@ -75,7 +76,7 @@ func (h *WalletHandler) Verify(c *gin.Context) {
 		return
 	}
 
-	setSessionCookie(c, result.Token.RefreshToken)
+	setSessionCookie(c, result.UserID, result.Token.RefreshToken)
 	response.OK(c, dto.WalletAuthResponse{
 		User: dto.AuthUser{
 			ID:       result.UserID,

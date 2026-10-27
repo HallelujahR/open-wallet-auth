@@ -57,6 +57,7 @@ func (h *PhoneHandler) Login(c *gin.Context) {
 		return
 	}
 	result, err := h.phone.Login(c.Request.Context(), phoneusecase.LoginRequest{
+		ReturnURI: req.ReturnURI,
 		ClientID:  req.ClientID,
 		Phone:     req.Phone,
 		Code:      req.Code,
@@ -67,7 +68,7 @@ func (h *PhoneHandler) Login(c *gin.Context) {
 		writePhoneError(c, err)
 		return
 	}
-	setSessionCookie(c, result.Token.RefreshToken)
+	setSessionCookie(c, result.UserID, result.Token.RefreshToken)
 	response.OK(c, dto.PhoneAuthResponse{
 		User: dto.PhoneAuthUser{
 			ID:       result.UserID,

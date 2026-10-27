@@ -70,6 +70,7 @@ type PublicClientResponse struct {
 // LoginPageSettingsResponse is the public hosted login-page configuration.
 // LoginPageSettingsResponse 是公开的统一登录页配置。
 type LoginPageSettingsResponse struct {
+	HeroTitle      string `json:"hero_title"`
 	BrandName      string `json:"brand_name"`
 	BrandMark      string `json:"brand_mark"`
 	Subtitle       string `json:"subtitle"`
@@ -83,6 +84,7 @@ type LoginPageSettingsResponse struct {
 // LoginConfigResponse contains everything the hosted login page needs to render.
 // LoginConfigResponse 包含统一登录页渲染所需的公开配置。
 type LoginConfigResponse struct {
-	Client PublicClientResponse      `json:"client"`
-	Login  LoginPageSettingsResponse `json:"login"`
+	ReturnURI string                    `json:"return_uri"`
+	Client    PublicClientResponse      `json:"client"`
+	Login     LoginPageSettingsResponse `json:"login"`
 }

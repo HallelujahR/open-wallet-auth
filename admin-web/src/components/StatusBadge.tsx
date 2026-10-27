@@ -7,10 +7,19 @@ type Props = {
 
 export function StatusBadge({ status, success }: Props) {
   if (typeof success === "boolean") {
-    return <Tag color={success ? "success" : "error"}>{success ? "成功" : "失败"}</Tag>;
+    return (
+      <Tag color={success ? "success" : "error"}>
+        {success ? "成功" : "失败"}
+      </Tag>
+    );
   }
   const normalized = status || "unknown";
-  const color = normalized === "active" ? "success" : normalized === "suspended" ? "warning" : "default";
+  const color =
+    normalized === "active"
+      ? "success"
+      : normalized === "suspended"
+        ? "warning"
+        : "default";
   const labelMap: Record<string, string> = {
     active: "启用",
     suspended: "禁用",

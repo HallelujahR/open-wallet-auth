@@ -498,3 +498,12 @@ func formatTime(value time.Time) string {
 	}
 	return value.UTC().Format(timeFormatRFC3339)
 }
+
+func (h *AdminHandler) Dashboard(c *gin.Context) {
+	result, err := h.admin.Dashboard(c.Request.Context(), intQuery(c, "timezone_offset", 0))
+	if err != nil {
+		writeAdminError(c, err)
+		return
+	}
+	response.OK(c, result)
+}

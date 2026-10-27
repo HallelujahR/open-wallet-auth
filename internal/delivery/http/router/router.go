@@ -62,6 +62,8 @@ func New(deps Dependencies) *gin.Engine {
 				auth.POST("/register", deps.Auth.Register)
 				auth.POST("/login", deps.Auth.Login)
 				auth.GET("/session", deps.Auth.Session)
+				auth.GET("/sessions", deps.Auth.BrowserSessions)
+				auth.POST("/sessions/logout", deps.Auth.BrowserLogout)
 				auth.POST("/session/login", deps.Auth.SessionLogin)
 				auth.POST("/refresh", deps.Auth.Refresh)
 				auth.POST("/logout", deps.Auth.Logout)
@@ -143,6 +145,7 @@ func New(deps Dependencies) *gin.Engine {
 
 			admin := v1.Group("/admin", middleware.RequireAdminToken(deps.AdminToken))
 			{
+				admin.GET("/dashboard", deps.Admin.Dashboard)
 				admin.GET("/users", deps.Admin.ListUsers)
 				admin.GET("/users/:user_id", deps.Admin.GetUser)
 				admin.PATCH("/users/:user_id/status", deps.Admin.UpdateUserStatus)
@@ -172,14 +175,14 @@ func New(deps Dependencies) *gin.Engine {
 		}
 	}
 
-	registerAdminConsole(engine)
+	registerAdminConsole(engine, deps.Client)
 
 	return engine
 }
 
 // registerAdminConsole serves the built management console when admin-web/dist exists.
 // registerAdminConsole 在存在 admin-web/dist 时挂载管理控制台静态页面，根路径直接进入控制台。
-func registerAdminConsole(engine *gin.Engine) {
+func registerAdminConsole(engine *gin.Engine, clients *handler.ClientHandler) {
 	const distDir = "admin-web/dist"
 	indexFile := filepath.Join(distDir, "index.html")
 	if _, err := os.Stat(indexFile); err != nil {
@@ -187,8 +190,20 @@ func registerAdminConsole(engine *gin.Engine) {
 	}
 
 	engine.Static("/assets", filepath.Join(distDir, "assets"))
-	engine.GET("/", func(c *gin.Context) {
+	serve := func(c *gin.Context) {
+		if c.Query("return_uri") != "" && clients == nil {
+			c.Status(http.StatusServiceUnavailable)
+			return
+		}
+		if clients != nil && !clients.ValidateHostedLogin(c) {
+			return
+		}
+		c.Header("Cache-Control", "no-store")
+		c.Header("Referrer-Policy", "no-referrer")
 		c.File(indexFile)
+	}
+	engine.GET("/", func(c *gin.Context) {
+		serve(c)
 	})
 	engine.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
@@ -200,6 +215,6 @@ func registerAdminConsole(engine *gin.Engine) {
 			c.String(http.StatusNotFound, "404 page not found")
 			return
 		}
-		c.File(indexFile)
+		serve(c)
 	})
 }

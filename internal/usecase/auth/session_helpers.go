@@ -66,6 +66,9 @@ func (s *Service) validSessionUser(ctx context.Context, raw string) (*user.User,
 	}
 
 	refreshToken, err := s.refreshTokens.FindByHash(ctx, s.tokenHasher.HashToken(raw))
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return nil, nil, err
+	}
 	if err != nil || refreshToken == nil {
 		return nil, nil, domain.NewError(ErrInvalidRefreshToken, "invalid session")
 	}
@@ -74,6 +77,9 @@ func (s *Service) validSessionUser(ctx context.Context, raw string) (*user.User,
 	}
 
 	u, err := s.users.FindByID(ctx, refreshToken.UserID)
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return nil, nil, err
+	}
 	if err != nil || u == nil || !u.IsActive() {
 		return nil, nil, domain.NewError(ErrInvalidRefreshToken, "invalid session")
 	}
