@@ -38,6 +38,7 @@ type HTTPSettings struct {
 // LoginSettings contains user-facing hosted login page settings.
 // LoginSettings 保存面向业务用户的统一登录页配置。
 type LoginSettings struct {
+	HeroTitle      string `json:"hero_title"`
 	BrandName      string `json:"brand_name"`
 	BrandMark      string `json:"brand_mark"`
 	Subtitle       string `json:"subtitle"`
@@ -204,6 +205,7 @@ func NewService(store repository.SettingsRepository, defaults Snapshot, readonly
 // Get 返回合并后的配置；数据库配置存在时覆盖启动默认值。
 func (s *Service) Get(ctx context.Context) (Snapshot, error) {
 	current := s.defaults
+	normalizeLogin(&current.Login)
 	raw, err := s.store.Get(ctx, runtimeSettingsKey)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -217,6 +219,7 @@ func (s *Service) Get(ctx context.Context) (Snapshot, error) {
 	if err := json.Unmarshal(raw, &current); err != nil {
 		return Snapshot{}, err
 	}
+	normalizeLogin(&current.Login)
 	return current, nil
 }
 
@@ -306,6 +309,10 @@ func normalize(s *Snapshot) {
 // normalizeLogin trims login-page display fields and fills safe defaults.
 // normalizeLogin 清理统一登录页展示字段，并补齐安全默认值。
 func normalizeLogin(login *LoginSettings) {
+	login.HeroTitle = strings.TrimSpace(login.HeroTitle)
+	if login.HeroTitle == "" {
+		login.HeroTitle = "一个账号，\n连接你的应用。"
+	}
 	login.BrandName = strings.TrimSpace(login.BrandName)
 	login.BrandMark = strings.TrimSpace(login.BrandMark)
 	login.Subtitle = strings.TrimSpace(login.Subtitle)

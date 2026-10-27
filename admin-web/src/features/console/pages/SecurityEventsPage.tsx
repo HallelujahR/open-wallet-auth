@@ -1,34 +1,72 @@
-import { Button, Card, Form, Input, Select, Table, Typography, message } from "antd";
-import { useEffect, useState } from "react";
+import { formatTime } from "../../../utils/format";
+import { PageHeader } from "../../../components/PageHeader";
+import { Button, Card, Form, Input, Select, Table, App } from "antd";
+import { useEffect, useRef, useState } from "react";
 import { adminApi } from "../../../api/admin";
 import { StatusBadge } from "../../../components/StatusBadge";
 import type { SecurityEvent } from "../../../types/api";
 
 export function SecurityEventsPage() {
+  const { message } = App.useApp();
+  const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<SecurityEvent[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [userId, setUserId] = useState("");
   const [eventType, setEventType] = useState<string>();
 
+  const requestRef = useRef(0);
+  useEffect(
+    () => () => {
+      requestRef.current++;
+    },
+    [],
+  );
   const load = () => {
+    const request = ++requestRef.current;
+    setLoading(true);
     adminApi
-      .listSecurityEvents({ user_id: userId || undefined, event_type: eventType, page, page_size: 20 })
+      .listSecurityEvents({
+        user_id: userId || undefined,
+        event_type: eventType,
+        page,
+        page_size: 20,
+      })
       .then((result) => {
+        if (request !== requestRef.current) return;
         setItems(result.items);
         setTotal(result.total);
       })
-      .catch((err) => message.error(err.message));
+      .catch((err) => {
+        if (request === requestRef.current) message.error(err.message);
+      })
+      .finally(() => {
+        if (request === requestRef.current) setLoading(false);
+      });
   };
 
   useEffect(load, [page]);
 
   return (
     <div>
-      <Typography.Title level={3}>安全操作</Typography.Title>
+      <PageHeader
+        title="安全操作"
+        description="查看账号安全变更与敏感操作记录。"
+      />
       <Card>
-        <Form layout="inline" className="toolbar" onFinish={() => { setPage(1); load(); }}>
-          <Input placeholder="用户ID" value={userId} onChange={(e) => setUserId(e.target.value)} />
+        <Form
+          layout="inline"
+          className="toolbar"
+          onFinish={() => {
+            if (page === 1) load();
+            else setPage(1);
+          }}
+        >
+          <Input
+            placeholder="用户ID"
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+          />
           <Select
             allowClear
             placeholder="事件类型"
@@ -47,17 +85,39 @@ export function SecurityEventsPage() {
               "unbind_oauth",
             ].map((value) => ({ value, label: securityEventLabel(value) }))}
           />
-          <Button type="primary" htmlType="submit">查询</Button>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
         </Form>
-        <Table rowKey="id" dataSource={items} pagination={{ total, current: page, pageSize: 20, onChange: setPage }} columns={[
-          { title: "时间", dataIndex: "created_at" },
-          { title: "用户", dataIndex: "user_id", ellipsis: true },
-          { title: "事件", render: (_, row) => securityEventLabel(row.event_type) },
-          { title: "目标类型", dataIndex: "target_type" },
-          { title: "目标", dataIndex: "target_id", ellipsis: true },
-          { title: "状态", render: (_, row) => <StatusBadge success={row.success} /> },
-          { title: "IP", dataIndex: "ip" },
-        ]} />
+        <Table
+          loading={loading}
+          scroll={{ x: "max-content" }}
+          rowKey="id"
+          dataSource={items}
+          pagination={{
+            total,
+            current: page,
+            pageSize: 20,
+            showSizeChanger: false,
+            showTotal: (total) => `共 ${total} 条`,
+            onChange: setPage,
+          }}
+          columns={[
+            { title: "时间", dataIndex: "created_at", render: formatTime },
+            { title: "用户", dataIndex: "user_id", ellipsis: true },
+            {
+              title: "事件",
+              render: (_, row) => securityEventLabel(row.event_type),
+            },
+            { title: "目标类型", dataIndex: "target_type" },
+            { title: "目标", dataIndex: "target_id", ellipsis: true },
+            {
+              title: "状态",
+              render: (_, row) => <StatusBadge success={row.success} />,
+            },
+            { title: "IP", dataIndex: "ip" },
+          ]}
+        />
       </Card>
     </div>
   );

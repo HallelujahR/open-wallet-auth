@@ -32,7 +32,11 @@ const http = axios.create({
 
 http.interceptors.request.use((config) => {
   const session = getAdminSession();
-  config.baseURL = config.baseURL || session?.baseUrl || authApiBaseUrl;
+  config.baseURL =
+    config.baseURL ||
+    (config.skipAdminAuth
+      ? authApiBaseUrl
+      : session?.baseUrl || authApiBaseUrl);
   if (session && !config.skipAdminAuth) {
     config.headers["X-Admin-Token"] = session.adminToken;
   }

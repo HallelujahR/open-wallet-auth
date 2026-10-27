@@ -11,6 +11,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain"
 	clientdomain "github.com/open-wallet-auth/open-wallet-auth/internal/domain/client"
 	clientusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/client"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/usecase/clientaccess"
 	settingsusecase "github.com/open-wallet-auth/open-wallet-auth/internal/usecase/settings"
 )
 
@@ -19,6 +20,35 @@ import (
 type ClientHandler struct {
 	clients  *clientusecase.Service
 	settings *settingsusecase.Service
+}
+
+// ValidateHostedLogin checks the callback on the server before serving any login page.
+// It intentionally never includes the supplied URI or state in an error.
+func (h *ClientHandler) ValidateHostedLogin(c *gin.Context) bool {
+	q := c.Request.URL.Query()
+	if _, present := q["return_uri"]; !present {
+		return true
+	}
+	if len(q["return_uri"]) != 1 || len(q["client_id"]) > 1 || len(q["state"]) > 1 || len(q.Get("state")) > 512 {
+		response.Error(c, http.StatusBadRequest, clientaccess.ErrInvalidRedirectURI, "invalid login request")
+		return false
+	}
+	if q.Get("return_uri") == "" {
+		if q.Get("state") != "" {
+			response.Error(c, http.StatusBadRequest, clientaccess.ErrInvalidRedirectURI, "callback address is required")
+			return false
+		}
+		return true
+	}
+	app, err := h.clients.GetByClientID(c.Request.Context(), q.Get("client_id"))
+	if err == nil {
+		err = clientaccess.ValidateReturnURI(app, q.Get("return_uri"), q.Get("state") != "")
+	}
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, clientaccess.ErrInvalidRedirectURI, "callback address is not allowed")
+		return false
+	}
+	return true
 }
 
 // NewClientHandler creates a client management handler.
@@ -167,9 +197,14 @@ func (h *ClientHandler) DeleteMember(c *gin.Context) {
 // LoginConfig returns public login-page configuration for one application.
 // LoginConfig 返回某个业务系统的统一登录页公开配置。
 func (h *ClientHandler) LoginConfig(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	client, err := h.clients.GetByClientID(c.Request.Context(), c.Query("client_id"))
 	if err != nil {
 		writeClientError(c, err)
+		return
+	}
+	if len(c.Query("state")) > 512 || clientaccess.ValidateReturnURI(client, c.Query("return_uri"), c.Query("state") != "") != nil {
+		response.Error(c, http.StatusBadRequest, "AUTH_INVALID_RETURN_URI", "应用不可用或回调地址未授权，请联系应用管理员")
 		return
 	}
 	login, err := h.settings.LoginSettings(c.Request.Context())
@@ -178,11 +213,13 @@ func (h *ClientHandler) LoginConfig(c *gin.Context) {
 		return
 	}
 	response.OK(c, dto.LoginConfigResponse{
+		ReturnURI: c.Query("return_uri"),
 		Client: dto.PublicClientResponse{
 			ClientID: client.ClientID,
 			Name:     client.Name,
 		},
 		Login: dto.LoginPageSettingsResponse{
+			HeroTitle:      login.HeroTitle,
 			BrandName:      login.BrandName,
 			BrandMark:      login.BrandMark,
 			Subtitle:       login.Subtitle,

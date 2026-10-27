@@ -52,6 +52,18 @@ https://auth.example.com/login?client_id=example-app&return_uri=https%3A%2F%2Fap
 - `client_id`：业务系统在认证中台中的应用 ID。
 - `return_uri`：认证成功后返回业务系统的地址。
 
+建议在“接入应用”的 `allowed_redirect_uris` 中登记完整回调地址。已有白名单时，服务端按完整 HTTP(S) URL 精确匹配，包括路径、查询参数和 hash，不支持通配符。为兼容线上旧系统，未配置白名单且未传 `state` 的旧流程继续沿用原有协议；携带 `state` 的流程必须登记回调地址。新应用应始终登记白名单。登录页与 OAuth 回调均保留业务 `state`，并与 token 一起放在 fragment 中返回。
+
+同一浏览器登录多个系统账号后，统一登录页会列出各个有效账号，用户可选择其中一个继续、使用其他账号，或单独退出某个账号。账号分别保存在 HttpOnly Cookie 中，旧版单账号 Cookie 会在读取列表时自动兼容迁移；页面不会把刷新令牌保存到 localStorage。
+
+自建同源账号选择页可以使用以下接口（请求须携带 Cookie）：
+
+- `GET /api/v1/auth/sessions?client_id=example-app`：返回 `data.items`，含 `session_id` 和账号展示资料，不返回凭证。
+- `POST /api/v1/auth/session/login`：传入 `client_id`、列表中的 `session_id` 和可选 `return_uri`。多个账号存在时必须明确选择；会话失效返回错误，不会自动换成另一个账号。
+- `POST /api/v1/auth/sessions/logout`：传入 `{ "session_id": "..." }` 退出一个账号，或 `{ "all": true }` 退出该浏览器中的全部账号。不会吊销其他设备的独立会话。
+
+`session_id` 只是选择标识，不能代替 Cookie 认证；目标应用的用户白名单仍会在登录时校验。
+
 登录页展示的业务系统名称来自认证中台“接入应用”中的应用名称，不从 URL 参数读取，避免前端参数被随意篡改。
 
 统一登录页完成邮箱、手机、Google、GitHub 或钱包登录后，会跳转到：
@@ -82,7 +94,9 @@ auth.login({ redirect: window.location.pathname });
 
 - 路径：`/console/settings`
 - Tab：`登录页 Login`
-- 可配置项：品牌名称、品牌标识、副标题、注册入口、手机号登录、GitHub、Google、钱包登录。
+- 可配置项：品牌名称、品牌标识、左侧主标题（支持换行）、副标题、注册入口、手机号登录、GitHub、Google、钱包登录。
+
+左侧主标题保存后无需重启或部署；已打开且可见的登录页每 5 秒读取最新配置，切回页面时也会立即刷新，填写中的表单不会被清空。留空恢复默认标题。
 
 短信和邮件服务商配置见：[短信和邮件服务商接入](PROVIDERS.zh-CN.md)。
 

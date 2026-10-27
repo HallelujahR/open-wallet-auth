@@ -16,6 +16,7 @@ type WalletNonceResponse struct {
 
 // WalletVerifyRequest is the HTTP request body for wallet signature login.
 type WalletVerifyRequest struct {
+	ReturnURI string `json:"return_uri"`
 	ClientID  string `json:"client_id"`
 	Address   string `json:"address" binding:"required"`
 	Nonce     string `json:"nonce" binding:"required"`

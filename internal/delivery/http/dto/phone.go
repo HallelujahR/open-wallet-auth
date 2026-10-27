@@ -15,9 +15,10 @@ type PhoneCodeResponse struct {
 
 // PhoneLoginRequest is the HTTP request body for phone-code login.
 type PhoneLoginRequest struct {
-	ClientID string `json:"client_id"`
-	Phone    string `json:"phone" binding:"required"`
-	Code     string `json:"code" binding:"required"`
+	ReturnURI string `json:"return_uri"`
+	ClientID  string `json:"client_id"`
+	Phone     string `json:"phone" binding:"required"`
+	Code      string `json:"code" binding:"required"`
 }
 
 // PhoneAuthUser is the user payload returned by phone endpoints.

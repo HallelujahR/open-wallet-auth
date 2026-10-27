@@ -10,6 +10,7 @@ import (
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/audit"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/domain/user"
 	"github.com/open-wallet-auth/open-wallet-auth/internal/repository"
+	"github.com/open-wallet-auth/open-wallet-auth/internal/usecase/clientaccess"
 )
 
 // Login verifies email/password credentials and issues a token pair.
@@ -25,6 +26,9 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 	if err != nil || client == nil || !client.IsActive() {
 		s.recordFailedLogin(ctx, "", req.ClientID, audit.LoginMethodPassword, ErrInvalidClient, req.IP, req.UserAgent)
 		return nil, domain.NewError(ErrInvalidClient, "invalid client")
+	}
+	if err := clientaccess.ValidateReturnURI(client, req.ReturnURI, false); err != nil {
+		return nil, domain.NewError("AUTH_INVALID_RETURN_URI", "回调地址未授权，请联系应用管理员")
 	}
 
 	u, err := s.users.FindByEmail(ctx, req.Email)
@@ -91,6 +95,9 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*RegisterR
 	client, err := s.clients.FindByClientID(ctx, req.ClientID)
 	if err != nil || client == nil || !client.IsActive() {
 		return nil, domain.NewError(ErrInvalidClient, "invalid client")
+	}
+	if err := clientaccess.ValidateReturnURI(client, req.ReturnURI, false); err != nil {
+		return nil, domain.NewError("AUTH_INVALID_RETURN_URI", "回调地址未授权，请联系应用管理员")
 	}
 
 	existing, err := s.users.FindByEmail(ctx, req.Email)
@@ -202,6 +209,7 @@ func (s *Service) SessionStatus(ctx context.Context, req SessionStatusRequest) (
 		return nil, err
 	}
 	return &SessionStatusResult{
+		Phone: u.Phone, Avatar: u.Avatar,
 		UserID:   u.ID,
 		Username: u.Username,
 		Email:    u.Email,
@@ -221,6 +229,9 @@ func (s *Service) LoginWithSession(ctx context.Context, req SessionLoginRequest)
 	if err != nil || client == nil || !client.IsActive() {
 		s.recordFailedLogin(ctx, u.ID, req.ClientID, audit.LoginMethodRefresh, ErrInvalidClient, req.IP, req.UserAgent)
 		return nil, domain.NewError(ErrInvalidClient, "invalid client")
+	}
+	if err := clientaccess.ValidateReturnURI(client, req.ReturnURI, false); err != nil {
+		return nil, domain.NewError("AUTH_INVALID_RETURN_URI", "回调地址未授权，请联系应用管理员")
 	}
 
 	claims, err := s.authorizedClientClaims(ctx, u, client)

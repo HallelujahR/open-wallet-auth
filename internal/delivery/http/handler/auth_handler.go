@@ -13,13 +13,14 @@ import (
 // AuthHandler exposes authentication usecases as HTTP endpoints.
 // AuthHandler 将认证用例暴露为 HTTP 接口。
 type AuthHandler struct {
-	auth *authusecase.Service
+	auth     *authusecase.Service
+	sessions browserSessionService
 }
 
 // NewAuthHandler creates an AuthHandler bound to the auth usecase service.
 // NewAuthHandler 创建绑定认证用例服务的 HTTP handler。
 func NewAuthHandler(auth *authusecase.Service) *AuthHandler {
-	return &AuthHandler{auth: auth}
+	return &AuthHandler{auth: auth, sessions: auth}
 }
 
 // Register handles email/password registration and returns a token pair.
@@ -32,6 +33,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	result, err := h.auth.Register(c.Request.Context(), authusecase.RegisterRequest{
+		ReturnURI: req.ReturnURI,
 		ClientID:  req.ClientID,
 		Username:  req.Username,
 		Email:     req.Email,
@@ -44,7 +46,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	setSessionCookie(c, result.Token.RefreshToken)
+	setSessionCookie(c, result.UserID, result.Token.RefreshToken)
 	response.OK(c, dto.AuthResponse{
 		User: dto.AuthUser{
 			ID:       result.UserID,
@@ -70,6 +72,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	result, err := h.auth.Login(c.Request.Context(), authusecase.LoginRequest{
+		ReturnURI: req.ReturnURI,
 		ClientID:  req.ClientID,
 		Email:     req.Email,
 		Password:  req.Password,
@@ -81,7 +84,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	setSessionCookie(c, result.Token.RefreshToken)
+	setSessionCookie(c, result.UserID, result.Token.RefreshToken)
 	response.OK(c, dto.AuthResponse{
 		User: dto.AuthUser{
 			ID:       result.UserID,
@@ -116,7 +119,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	setSessionCookie(c, result.Token.RefreshToken)
+	setSessionCookie(c, result.UserID, result.Token.RefreshToken)
 	response.OK(c, dto.AuthResponse{
 		User: dto.AuthUser{
 			ID:       result.UserID,
@@ -148,7 +151,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	clearSessionCookie(c)
+	clearTokenCookies(c, req.RefreshToken)
 	response.OK(c, gin.H{"logged_out": true})
 }
 
@@ -161,7 +164,7 @@ func (h *AuthHandler) Session(c *gin.Context) {
 		return
 	}
 
-	result, err := h.auth.SessionStatus(c.Request.Context(), authusecase.SessionStatusRequest{
+	result, err := h.sessions.SessionStatus(c.Request.Context(), authusecase.SessionStatusRequest{
 		ClientID:     c.Query("client_id"),
 		SessionToken: sessionToken,
 	})
@@ -185,13 +188,13 @@ func (h *AuthHandler) SessionLogin(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, authusecase.ErrInvalidInput, "invalid request")
 		return
 	}
-	sessionToken, ok := readSessionCookie(c)
+	sessionToken, ok := h.selectedSession(c, req.ClientID, req.SessionID)
 	if !ok {
-		response.Error(c, http.StatusUnauthorized, authusecase.ErrInvalidRefreshToken, "not signed in")
 		return
 	}
 
-	result, err := h.auth.LoginWithSession(c.Request.Context(), authusecase.SessionLoginRequest{
+	result, err := h.sessions.LoginWithSession(c.Request.Context(), authusecase.SessionLoginRequest{
+		ReturnURI:    req.ReturnURI,
 		ClientID:     req.ClientID,
 		SessionToken: sessionToken,
 		IP:           c.ClientIP(),
@@ -202,7 +205,7 @@ func (h *AuthHandler) SessionLogin(c *gin.Context) {
 		return
 	}
 
-	setSessionCookie(c, result.Token.RefreshToken)
+	setSessionCookie(c, result.UserID, result.Token.RefreshToken)
 	response.OK(c, dto.AuthResponse{
 		User: dto.AuthUser{
 			ID:       result.UserID,

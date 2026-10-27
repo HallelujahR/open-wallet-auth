@@ -1,62 +1,52 @@
 package handler
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 const (
 	authSessionCookieName = "owa_session"
 	authSessionCookiePath = "/"
 	authSessionCookieTTL  = 30 * 24 * time.Hour
+	accountCookiePrefix   = "owa_account_"
 )
 
-// setSessionCookie stores the central auth session in an HttpOnly cookie.
-// setSessionCookie 将中台登录会话写入 HttpOnly Cookie，业务前端无法直接读取刷新令牌。
-func setSessionCookie(c *gin.Context, refreshToken string) {
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     authSessionCookieName,
-		Value:    refreshToken,
-		Path:     authSessionCookiePath,
-		MaxAge:   int(authSessionCookieTTL.Seconds()),
-		HttpOnly: true,
-		Secure:   requestIsSecure(c),
-		SameSite: http.SameSiteLaxMode,
-	})
+// Account cookies are independent so concurrent logins in separate tabs cannot
+// overwrite another identity. Only HttpOnly credentials are stored in the browser;
+// every selector is checked against the persisted, revocable server session.
+func accountSessionID(userID string) string {
+	sum := sha256.Sum256([]byte(userID))
+	return hex.EncodeToString(sum[:16])
 }
-
-// readSessionCookie returns the central auth session token from the request.
-// readSessionCookie 从请求中读取中台登录会话 token。
+func writeSessionCookie(c *gin.Context, name, value string, maxAge int) {
+	http.SetCookie(c.Writer, &http.Cookie{Name: name, Value: value, Path: authSessionCookiePath,
+		MaxAge: maxAge, HttpOnly: true, Secure: requestIsSecure(c), SameSite: http.SameSiteLaxMode})
+}
+func setSessionCookie(c *gin.Context, userID, refreshToken string) {
+	// The session-list endpoint migrates a validated legacy session before a new login.
+	writeSessionCookie(c, accountCookiePrefix+accountSessionID(userID), refreshToken, int(authSessionCookieTTL.Seconds()))
+	writeSessionCookie(c, authSessionCookieName, refreshToken, int(authSessionCookieTTL.Seconds()))
+}
 func readSessionCookie(c *gin.Context) (string, bool) {
 	value, err := c.Cookie(authSessionCookieName)
-	if err != nil || strings.TrimSpace(value) == "" {
-		return "", false
+	return value, err == nil && strings.TrimSpace(value) != ""
+}
+func clearTokenCookies(c *gin.Context, raw string) {
+	for _, cookie := range c.Request.Cookies() {
+		if (cookie.Name == authSessionCookieName || strings.HasPrefix(cookie.Name, accountCookiePrefix)) && cookie.Value == raw {
+			writeSessionCookie(c, cookie.Name, "", -1)
+		}
 	}
-	return value, true
 }
-
-// clearSessionCookie removes the central auth session from the browser.
-// clearSessionCookie 清除浏览器中的中台登录会话。
-func clearSessionCookie(c *gin.Context) {
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     authSessionCookieName,
-		Value:    "",
-		Path:     authSessionCookiePath,
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   requestIsSecure(c),
-		SameSite: http.SameSiteLaxMode,
-	})
+func validSessionID(id string) bool {
+	decoded, err := hex.DecodeString(id)
+	return err == nil && len(decoded) == 16
 }
-
-// requestIsSecure respects reverse-proxy HTTPS headers when deciding cookie security.
-// requestIsSecure 兼容反向代理场景，根据 HTTPS 请求头判断是否写 Secure Cookie。
 func requestIsSecure(c *gin.Context) bool {
-	if c.Request.TLS != nil {
-		return true
-	}
-	return strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https")
+	return c.Request.TLS != nil || strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https")
 }

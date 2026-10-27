@@ -48,7 +48,10 @@ export type OAuthStartResult = {
   state: string;
 };
 
+export type BrowserAccount = AuthUser & { session_id: string; avatar?: string };
+
 export type PublicLoginConfig = {
+  return_uri: string;
   client: {
     client_id: string;
     name: string;
@@ -57,6 +60,7 @@ export type PublicLoginConfig = {
 };
 
 export type LoginPageSettings = {
+  hero_title: string;
   brand_name: string;
   brand_mark: string;
   subtitle: string;
@@ -323,4 +327,17 @@ export type ReadonlySettings = {
     public_key_path: string;
     active_key_id: string;
   };
+};
+
+export type DashboardSummary = {
+  active_users: number;
+  clients: number;
+  active_sessions: number;
+  days: string[];
+  login_buckets: {
+    day: string;
+    method: string;
+    success: boolean;
+    count: number;
+  }[];
 };

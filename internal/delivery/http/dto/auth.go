@@ -2,17 +2,19 @@ package dto
 
 // RegisterRequest is the HTTP request body for registration.
 type RegisterRequest struct {
-	ClientID string `json:"client_id"`
-	Username string `json:"username"`
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
+	ReturnURI string `json:"return_uri"`
+	ClientID  string `json:"client_id"`
+	Username  string `json:"username"`
+	Email     string `json:"email" binding:"required,email"`
+	Password  string `json:"password" binding:"required,min=8"`
 }
 
 // LoginRequest is the HTTP request body for password login.
 type LoginRequest struct {
-	ClientID string `json:"client_id"`
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	ReturnURI string `json:"return_uri"`
+	ClientID  string `json:"client_id"`
+	Email     string `json:"email" binding:"required,email"`
+	Password  string `json:"password" binding:"required"`
 }
 
 // RefreshRequest is the HTTP request body for token rotation.
@@ -23,7 +25,9 @@ type RefreshRequest struct {
 // SessionLoginRequest is the HTTP body for one-click login from the central session.
 // SessionLoginRequest 是使用中台会话一键登录业务系统的 HTTP 请求体。
 type SessionLoginRequest struct {
-	ClientID string `json:"client_id"`
+	ReturnURI string `json:"return_uri"`
+	SessionID string `json:"session_id"`
+	ClientID  string `json:"client_id"`
 }
 
 // LogoutRequest is the HTTP request body for logout.

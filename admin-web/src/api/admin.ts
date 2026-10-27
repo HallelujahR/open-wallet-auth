@@ -19,6 +19,13 @@ import type {
 } from "../types/api";
 
 export const adminApi = {
+  dashboard() {
+    return request<import("../types/api").DashboardSummary>({
+      url: "/api/v1/admin/dashboard",
+      method: "GET",
+      params: { timezone_offset: -new Date().getTimezoneOffset() },
+    });
+  },
   login(data: { username: string; password: string }) {
     return request<AdminLoginResult>({
       baseURL: authApiBaseUrl,
@@ -35,11 +42,23 @@ export const adminApi = {
       skipAdminAuth: true,
     });
   },
-  listUsers(params: { keyword?: string; status?: string; page?: number; page_size?: number }) {
-    return request<PageResult<IdentityUser>>({ url: "/api/v1/admin/users", method: "GET", params });
+  listUsers(params: {
+    keyword?: string;
+    status?: string;
+    page?: number;
+    page_size?: number;
+  }) {
+    return request<PageResult<IdentityUser>>({
+      url: "/api/v1/admin/users",
+      method: "GET",
+      params,
+    });
   },
   getUser(userId: string) {
-    return request<IdentityDetail>({ url: `/api/v1/admin/users/${userId}`, method: "GET" });
+    return request<IdentityDetail>({
+      url: `/api/v1/admin/users/${userId}`,
+      method: "GET",
+    });
   },
   updateUserStatus(userId: string, status: string) {
     return request<{ updated: boolean }>({
@@ -81,23 +100,56 @@ export const adminApi = {
       method: "DELETE",
     });
   },
-  listSessions(params: { user_id?: string; client_id?: string; active_only?: boolean }) {
-    return request<{ items: Session[] }>({ url: "/api/v1/admin/sessions", method: "GET", params });
+  listSessions(params: {
+    user_id?: string;
+    client_id?: string;
+    active_only?: boolean;
+  }) {
+    return request<{ items: Session[] }>({
+      url: "/api/v1/admin/sessions",
+      method: "GET",
+      params,
+    });
   },
   revokeSession(sessionId: string) {
-    return request<{ revoked: boolean }>({ url: `/api/v1/admin/sessions/${sessionId}`, method: "DELETE" });
+    return request<{ revoked: boolean }>({
+      url: `/api/v1/admin/sessions/${sessionId}`,
+      method: "DELETE",
+    });
   },
-  listLoginLogs(params: { user_id?: string; client_id?: string; page?: number; page_size?: number }) {
-    return request<PageResult<LoginLog>>({ url: "/api/v1/admin/login-logs", method: "GET", params });
+  listLoginLogs(params: {
+    user_id?: string;
+    client_id?: string;
+    page?: number;
+    page_size?: number;
+  }) {
+    return request<PageResult<LoginLog>>({
+      url: "/api/v1/admin/login-logs",
+      method: "GET",
+      params,
+    });
   },
-  listSecurityEvents(params: { user_id?: string; event_type?: string; page?: number; page_size?: number }) {
-    return request<PageResult<SecurityEvent>>({ url: "/api/v1/admin/security-events", method: "GET", params });
+  listSecurityEvents(params: {
+    user_id?: string;
+    event_type?: string;
+    page?: number;
+    page_size?: number;
+  }) {
+    return request<PageResult<SecurityEvent>>({
+      url: "/api/v1/admin/security-events",
+      method: "GET",
+      params,
+    });
   },
   listClients() {
     return request<Client[]>({ url: "/api/v1/admin/clients", method: "GET" });
   },
   createClient(input: ClientCreateInput) {
-    return request<Client>({ url: "/api/v1/admin/clients", method: "POST", data: input });
+    return request<Client>({
+      url: "/api/v1/admin/clients",
+      method: "POST",
+      data: input,
+    });
   },
   updateClient(clientId: string, input: ClientUpdateInput) {
     return request<Client>({
@@ -107,12 +159,23 @@ export const adminApi = {
     });
   },
   listClientMembers(clientId: string) {
-    return request<ClientMember[]>({ url: `/api/v1/admin/clients/${clientId}/members`, method: "GET" });
+    return request<ClientMember[]>({
+      url: `/api/v1/admin/clients/${clientId}/members`,
+      method: "GET",
+    });
   },
   addClientMember(clientId: string, input: ClientMemberInput) {
-    return request<ClientMember>({ url: `/api/v1/admin/clients/${clientId}/members`, method: "POST", data: input });
+    return request<ClientMember>({
+      url: `/api/v1/admin/clients/${clientId}/members`,
+      method: "POST",
+      data: input,
+    });
   },
-  updateClientMember(clientId: string, memberId: string, input: ClientMemberInput) {
+  updateClientMember(
+    clientId: string,
+    memberId: string,
+    input: ClientMemberInput,
+  ) {
     return request<{ updated: boolean }>({
       url: `/api/v1/admin/clients/${clientId}/members/${memberId}`,
       method: "PATCH",
@@ -126,9 +189,16 @@ export const adminApi = {
     });
   },
   getSettings() {
-    return request<RuntimeSettingsResult>({ url: "/api/v1/admin/settings", method: "GET" });
+    return request<RuntimeSettingsResult>({
+      url: "/api/v1/admin/settings",
+      method: "GET",
+    });
   },
   updateSettings(input: RuntimeSettings) {
-    return request<RuntimeSettingsResult>({ url: "/api/v1/admin/settings", method: "PUT", data: input });
+    return request<RuntimeSettingsResult>({
+      url: "/api/v1/admin/settings",
+      method: "PUT",
+      data: input,
+    });
   },
 };

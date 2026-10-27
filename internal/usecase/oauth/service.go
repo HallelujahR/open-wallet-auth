@@ -74,6 +74,7 @@ type TokenHasher interface {
 // StateValue records trusted values from the OAuth start request.
 // StateValue 保存 OAuth 发起阶段已校验的可信参数。
 type StateValue struct {
+	ClientState   string
 	ClientID      string
 	RedirectURI   string
 	CredentialURI string
@@ -116,6 +117,7 @@ type Dependencies struct {
 // StartRequest is the input for creating an OAuth authorization URL.
 // StartRequest 是创建第三方授权地址的用例输入。
 type StartRequest struct {
+	ClientState string
 	Provider    string
 	ClientID    string
 	RedirectURI string
@@ -144,11 +146,12 @@ type CallbackRequest struct {
 // CallbackResult is returned after a successful OAuth callback.
 // CallbackResult 是 OAuth 回调登录成功后的用例输出。
 type CallbackResult struct {
-	UserID    string
-	Username  string
-	Email     string
-	ReturnURI string
-	Token     *token.Pair
+	ClientState string
+	UserID      string
+	Username    string
+	Email       string
+	ReturnURI   string
+	Token       *token.Pair
 }
 
 // NewService creates the OAuth usecase service.
@@ -195,6 +198,12 @@ func (s *Service) Start(ctx context.Context, req StartRequest) (*StartResult, er
 		return nil, domain.NewError(ErrInvalidState, "redirect_uri is required")
 	}
 	returnURI := strings.TrimSpace(req.ReturnURI)
+	if len(req.ClientState) > 512 {
+		return nil, domain.NewError(ErrInvalidState, "invalid client state")
+	}
+	if err := clientaccess.ValidateReturnURI(client, returnURI, req.ClientState != ""); err != nil {
+		return nil, domain.NewError("AUTH_INVALID_RETURN_URI", "回调地址未授权，请联系应用管理员")
+	}
 	credentialURI := redirectURI
 	if returnURI != "" {
 		credentialURI = returnURI
@@ -211,6 +220,7 @@ func (s *Service) Start(ctx context.Context, req StartRequest) (*StartResult, er
 		RedirectURI:   redirectURI,
 		CredentialURI: credentialURI,
 		ReturnURI:     returnURI,
+		ClientState:   req.ClientState,
 		BindUserID:    strings.TrimSpace(req.BindUserID),
 	}, s.clock.Now().UTC().Add(s.stateTTL)); err != nil {
 		return nil, err
@@ -232,6 +242,9 @@ func (s *Service) Callback(ctx context.Context, req CallbackRequest) (*CallbackR
 	client, err := s.clients.FindByClientID(ctx, state.ClientID)
 	if err != nil || client == nil || !client.IsActive() {
 		return nil, domain.NewError(ErrInvalidClient, "invalid client")
+	}
+	if err := clientaccess.ValidateReturnURI(client, state.ReturnURI, state.ClientState != ""); err != nil {
+		return nil, domain.NewError("AUTH_INVALID_RETURN_URI", "回调地址未授权，请联系应用管理员")
 	}
 	profile, err := provider.FetchUser(ctx, strings.TrimSpace(req.Code), state.RedirectURI, state.CredentialURI)
 	if err != nil || profile == nil || profile.Subject == "" {
@@ -292,7 +305,7 @@ func (s *Service) Callback(ctx context.Context, req CallbackRequest) (*CallbackR
 			return nil, err
 		}
 	}
-	return &CallbackResult{UserID: u.ID, Username: u.Username, Email: u.Email, ReturnURI: state.ReturnURI, Token: pair}, nil
+	return &CallbackResult{UserID: u.ID, Username: u.Username, Email: u.Email, ReturnURI: state.ReturnURI, ClientState: state.ClientState, Token: pair}, nil
 }
 
 // resolveUser links an OAuth profile according to explicit binding rules.

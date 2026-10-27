@@ -33,6 +33,7 @@ type TokenHasher interface {
 // LoginRequest is the input for password login.
 // LoginRequest 是邮箱密码登录的用例输入。
 type LoginRequest struct {
+	ReturnURI string
 	ClientID  string
 	Email     string
 	Password  string
@@ -52,6 +53,7 @@ type LoginResult struct {
 // RegisterRequest is the input for email/password registration.
 // RegisterRequest 是邮箱密码注册的用例输入。
 type RegisterRequest struct {
+	ReturnURI string
 	ClientID  string
 	Username  string
 	Email     string
@@ -96,6 +98,8 @@ type SessionStatusRequest struct {
 // SessionStatusResult describes the signed-in user behind a central auth session.
 // SessionStatusResult 描述中台登录会话对应的已登录用户。
 type SessionStatusResult struct {
+	Phone    string
+	Avatar   string
 	UserID   string
 	Username string
 	Email    string
@@ -104,6 +108,7 @@ type SessionStatusResult struct {
 // SessionLoginRequest exchanges the central auth session for a client-scoped token pair.
 // SessionLoginRequest 使用中台登录会话换取指定业务系统的 token 组合。
 type SessionLoginRequest struct {
+	ReturnURI    string
 	ClientID     string
 	SessionToken string
 	IP           string

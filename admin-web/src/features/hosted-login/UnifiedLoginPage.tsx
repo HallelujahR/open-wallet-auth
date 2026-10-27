@@ -1,15 +1,38 @@
 import {
+  ArrowLeftOutlined,
+  ArrowRightOutlined,
   GithubOutlined,
   GoogleOutlined,
+  LogoutOutlined,
+  PlusOutlined,
+  UserOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
-import { Alert, Button, Tabs, Typography, message } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  App,
+  Avatar,
+  Button,
+  Divider,
+  Modal,
+  Popconfirm,
+  Result,
+  Skeleton,
+  Tabs,
+  Tooltip,
+  Typography,
+} from "antd";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { publicAuthApi, type OAuthProvider } from "../../api/auth";
 import { ApiError } from "../../api/client";
 import { authApiBaseUrl } from "../../config";
-import type { AuthResult, AuthUser } from "../../types/api";
+import { AuthShell } from "../../components/AuthShell";
+import type {
+  AuthResult,
+  BrowserAccount,
+  PublicLoginConfig,
+} from "../../types/api";
 import { buildLoginTabs } from "./LoginTabs";
 import type {
   EIP6963ProviderDetail,
@@ -21,111 +44,179 @@ import type {
   WalletProvider,
 } from "./types";
 
-// UnifiedLoginPage is the branded login surface shared by all business applications.
-// UnifiedLoginPage 是所有业务系统共享的品牌化登录入口。
 export function UnifiedLoginPage() {
+  const { message } = App.useApp();
   const [searchParams] = useSearchParams();
+  const clientID = searchParams.get("client_id") || "default";
+  const returnURI = searchParams.get("return_uri") || "";
+  const clientState = searchParams.get("state") || "";
+  const contextKey = JSON.stringify([clientID, returnURI, clientState]);
+  const currentContext = useRef(contextKey);
+  currentContext.current = contextKey;
+  const [config, setConfig] = useState<{
+    key: string;
+    value: PublicLoginConfig;
+  } | null>(null);
+  const [configError, setConfigError] = useState("");
+  const [retry, setRetry] = useState(0);
+  const [accounts, setAccounts] = useState<BrowserAccount[]>([]);
+  const [accountLoading, setAccountLoading] = useState(true);
+  const [accountError, setAccountError] = useState("");
+  const [addingAccount, setAddingAccount] = useState(false);
   const [loading, setLoading] = useState(false);
   const [phoneCodeLoading, setPhoneCodeLoading] = useState(false);
   const [wallets, setWallets] = useState<WalletOption[]>([]);
-  const [successToken, setSuccessToken] = useState("");
-  const [pageConfig, setPageConfig] = useState<UnifiedLoginConfig>(() =>
-    defaultUnifiedLoginConfig(),
+  const [walletChoice, setWalletChoice] = useState<{
+    provider: WalletProvider;
+    addresses: string[];
+  } | null>(null);
+  const [successName, setSuccessName] = useState<string | null>(null);
+  const busy = useRef(false);
+  const sessionRequest = useRef(0);
+  const pageConfig = config?.key === contextKey ? config.value : null;
+  const loginConfig: UnifiedLoginConfig = {
+    brandName: pageConfig?.login.brand_name || "Open Wallet Auth",
+    brandMark: pageConfig?.login.brand_mark || "O",
+    subtitle: pageConfig?.login.subtitle || "",
+    enableRegister: !!pageConfig?.login.enable_register,
+    enablePhone: !!pageConfig?.login.enable_phone,
+    enableGitHub: !!pageConfig?.login.enable_github,
+    enableGoogle: !!pageConfig?.login.enable_google,
+    enableWallet: !!pageConfig?.login.enable_wallet,
+  };
+  const reloadAccounts = useCallback(async () => {
+    const request = ++sessionRequest.current;
+    setAccountLoading(true);
+    try {
+      const result = await publicAuthApi.sessions(clientID);
+      if (request === sessionRequest.current) {
+        setAccounts(result.items);
+        setAccountError("");
+      }
+    } catch (err) {
+      if (request === sessionRequest.current) setAccountError(errorText(err));
+    } finally {
+      if (request === sessionRequest.current) setAccountLoading(false);
+    }
+  }, [clientID]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setConfig(null);
+    setConfigError("");
+    setAddingAccount(false);
+    setSuccessName(null);
+    setAccounts([]);
+    publicAuthApi
+      .loginConfig(clientID, returnURI, clientState)
+      .then((value) => {
+        if (!cancelled) setConfig({ key: contextKey, value });
+      })
+      .catch((err) => {
+        if (!cancelled) setConfigError(errorText(err));
+      });
+    void reloadAccounts();
+    const onFocus = () => {
+      if (!busy.current) void reloadAccounts();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      sessionRequest.current++;
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [clientID, returnURI, clientState, contextKey, reloadAccounts, retry]);
+
+  // Refresh display settings without resetting forms or the selected account.
+  const configReady = !!pageConfig;
+  useEffect(() => {
+    if (!configReady) return;
+    let cancelled = false;
+    let pending = false;
+    const refreshConfig = async () => {
+      if (pending || document.visibilityState === "hidden") return;
+      pending = true;
+      try {
+        const value = await publicAuthApi.loginConfig(
+          clientID,
+          returnURI,
+          clientState,
+        );
+        if (!cancelled) setConfig({ key: contextKey, value });
+      } catch {
+        // A transient refresh failure should not interrupt an active login.
+      } finally {
+        pending = false;
+      }
+    };
+    const timer = window.setInterval(refreshConfig, 5000);
+    window.addEventListener("focus", refreshConfig);
+    document.addEventListener("visibilitychange", refreshConfig);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshConfig);
+      document.removeEventListener("visibilitychange", refreshConfig);
+    };
+  }, [clientID, returnURI, clientState, contextKey, configReady]);
+
+  const fallbackWallet = useMemo(
+    () => (window as unknown as { ethereum?: WalletProvider }).ethereum,
+    [],
   );
-  const [appName, setAppName] = useState("");
-  const [sessionUser, setSessionUser] = useState<AuthUser | null>(null);
-
-  const clientID = searchParams.get("client_id") || "default";
-  const returnURI = searchParams.get("return_uri") || "";
-  const redirectURI = `${authApiBaseUrl}/api/v1/oauth/{provider}/callback`;
-
-  const fallbackWallet = useMemo<WalletOption | null>(() => {
-    const ethereum = (window as unknown as { ethereum?: WalletProvider })
-      .ethereum;
-    if (!ethereum?.request) return null;
-    return { id: "browser-wallet", name: "浏览器钱包", provider: ethereum };
-  }, []);
-
-  const availableWallets =
-    wallets.length > 0 ? wallets : fallbackWallet ? [fallbackWallet] : [];
-
+  const availableWallets = wallets.length
+    ? wallets
+    : fallbackWallet?.request
+      ? [{ id: "browser", name: "浏览器钱包", provider: fallbackWallet }]
+      : [];
   useEffect(() => {
     const onProvider = (event: Event) => {
       const detail = (event as CustomEvent<EIP6963ProviderDetail>).detail;
       if (!detail?.provider?.request || !detail.info?.uuid) return;
-      setWallets((items) => {
-        if (items.some((item) => item.id === detail.info.uuid)) return items;
-        return [
-          ...items,
-          {
-            id: detail.info.uuid,
-            name: detail.info.name || detail.info.rdns || "浏览器钱包",
-            icon: detail.info.icon,
-            provider: detail.provider,
-          },
-        ];
-      });
+      setWallets((items) =>
+        items.some((item) => item.id === detail.info.uuid)
+          ? items
+          : [
+              ...items,
+              {
+                id: detail.info.uuid,
+                name: detail.info.name || "浏览器钱包",
+                provider: detail.provider,
+              },
+            ],
+      );
     };
-
-    window.addEventListener(
-      "eip6963:announceProvider",
-      onProvider as EventListener,
-    );
+    window.addEventListener("eip6963:announceProvider", onProvider);
     window.dispatchEvent(new Event("eip6963:requestProvider"));
     return () =>
-      window.removeEventListener(
-        "eip6963:announceProvider",
-        onProvider as EventListener,
-      );
+      window.removeEventListener("eip6963:announceProvider", onProvider);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const loadLoginConfig = async () => {
-      try {
-        const result = await publicAuthApi.loginConfig(clientID);
-        if (cancelled) return;
-        setAppName(result.client.name || result.client.client_id);
-        setPageConfig({
-          brandName: result.login.brand_name || "Open Wallet Auth",
-          brandMark: result.login.brand_mark || "O",
-          subtitle: result.login.subtitle || "",
-          enableRegister: result.login.enable_register,
-          enablePhone: result.login.enable_phone,
-          enableGitHub: result.login.enable_github,
-          enableGoogle: result.login.enable_google,
-          enableWallet: result.login.enable_wallet,
-        });
-      } catch (err: any) {
-        if (!cancelled) {
-          setAppName(clientID);
-          message.error(err.message || "加载登录配置失败");
-        }
-      }
-    };
-    const loadSession = async () => {
-      setSessionUser(null);
-      try {
-        const user = await publicAuthApi.session(clientID);
-        if (!cancelled) setSessionUser(user);
-      } catch {
-        if (!cancelled) setSessionUser(null);
-      }
-    };
-
-    loadLoginConfig();
-    loadSession();
-    return () => {
-      cancelled = true;
-    };
-  }, [clientID]);
-
-  // finishLogin returns the identity token to the business callback through a URL fragment.
-  // finishLogin 将认证结果通过 URL fragment 返回业务系统，避免 token 进入服务端访问日志。
+  const run = async (action: () => Promise<void>) => {
+    if (busy.current || !pageConfig) return;
+    busy.current = true;
+    setLoading(true);
+    try {
+      await action();
+    } catch (err) {
+      message.error(errorText(err));
+    } finally {
+      busy.current = false;
+      setLoading(false);
+    }
+  };
   const finishLogin = (result: AuthResult) => {
-    if (!returnURI) {
-      setSuccessToken(result.token.access_token);
-      message.success("登录成功");
+    // A response started for another application must never redirect the new page.
+    if (currentContext.current !== contextKey || !pageConfig) return;
+    if (!pageConfig.return_uri) {
+      setSuccessName(
+        result.user.username ||
+          result.user.email ||
+          result.user.phone ||
+          "当前账号",
+      );
+      setAddingAccount(false);
+      void reloadAccounts();
       return;
     }
     const values = new URLSearchParams({
@@ -133,305 +224,395 @@ export function UnifiedLoginPage() {
       token_type: result.token.token_type || "Bearer",
       expires_at: result.token.expires_at,
     });
-    window.location.href = appendTokenToReturnURI(returnURI, values);
+    window.location.assign(
+      appendTokenToReturnURI(pageConfig.return_uri, values, clientState),
+    );
   };
-
-  const submitPasswordLogin = async (values: PasswordValues) => {
-    try {
-      setLoading(true);
-      const result = await publicAuthApi.login({
-        client_id: clientID,
-        email: values.email.trim(),
-        password: values.password,
-      });
-      finishLogin(result);
-    } catch (err: any) {
-      message.error(err.message || "登录失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const submitRegister = async (values: RegisterValues) => {
-    try {
-      setLoading(true);
+  const submitPasswordLogin = (values: PasswordValues) =>
+    run(async () => {
+      finishLogin(
+        await publicAuthApi.login({
+          client_id: clientID,
+          return_uri: pageConfig!.return_uri,
+          email: values.email.trim(),
+          password: values.password,
+        }),
+      );
+    });
+  const submitRegister = (values: RegisterValues) =>
+    run(async () => {
       const email = values.email.trim();
-      const result = await publicAuthApi.register({
-        client_id: clientID,
-        username: values.username?.trim() || email.split("@")[0],
-        email,
-        password: values.password,
-      });
-      finishLogin(result);
-    } catch (err: any) {
-      message.error(err.message || "注册失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loginWithSession = async () => {
-    try {
-      setLoading(true);
-      const result = await publicAuthApi.sessionLogin({ client_id: clientID });
-      finishLogin(result);
-    } catch (err: any) {
-      setSessionUser(null);
-      message.error(err.message || "当前登录状态已失效，请重新登录");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+      finishLogin(
+        await publicAuthApi.register({
+          client_id: clientID,
+          return_uri: pageConfig!.return_uri,
+          username: values.username?.trim() || email.split("@")[0],
+          email,
+          password: values.password,
+        }),
+      );
+    });
+  const submitPhoneLogin = (values: PhoneValues) =>
+    run(async () => {
+      finishLogin(
+        await publicAuthApi.phoneLogin({
+          client_id: clientID,
+          return_uri: pageConfig!.return_uri,
+          phone: values.phone.trim(),
+          code: values.code.trim(),
+        }),
+      );
+    });
   const sendPhoneCode = async (phone: string) => {
     if (!phone.trim()) {
       message.warning("请先输入手机号");
-      return;
+      return false;
     }
+    setPhoneCodeLoading(true);
     try {
-      setPhoneCodeLoading(true);
       const result = await publicAuthApi.sendPhoneCode({
         client_id: clientID,
         phone: phone.trim(),
       });
       message.success(
-        result.dev_code ? `验证码已生成：${result.dev_code}` : "验证码已发送",
+        result.dev_code ? `验证码：${result.dev_code}` : "验证码已发送，请查收",
       );
-    } catch (err: any) {
-      message.error(err.message || "发送验证码失败");
+      return true;
+    } catch (err) {
+      message.error(errorText(err));
+      return false;
     } finally {
       setPhoneCodeLoading(false);
     }
   };
-
-  const submitPhoneLogin = async (values: PhoneValues) => {
-    try {
-      setLoading(true);
-      const result = await publicAuthApi.phoneLogin({
-        client_id: clientID,
-        phone: values.phone.trim(),
-        code: values.code.trim(),
-      });
-      finishLogin(result);
-    } catch (err: any) {
-      message.error(err.message || "手机号登录失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loginWithWallet = async (provider: WalletProvider) => {
-    try {
-      setLoading(true);
-      const accounts = (await provider.request({
-        method: "eth_requestAccounts",
-      })) as string[];
-      const address = accounts?.[0];
-      if (!address) {
-        message.error("未获取到钱包地址");
-        return;
+  const loginWithSession = (account: BrowserAccount) =>
+    run(async () => {
+      try {
+        const result = await publicAuthApi.sessionLogin({
+          client_id: clientID,
+          session_id: account.session_id,
+          return_uri: pageConfig!.return_uri,
+        });
+        if (result.user.id !== account.id)
+          throw new Error("账号状态已变化，请重新选择");
+        finishLogin(result);
+      } catch (err) {
+        await reloadAccounts();
+        throw err;
       }
-      const chainHex = (await provider.request({
-        method: "eth_chainId",
-      })) as string;
-      const chainID = Number.parseInt(chainHex, 16) || 1;
-      const nonce = await publicAuthApi.walletNonce({
-        address,
-        chain_id: chainID,
-        domain: window.location.host,
-      });
-      const signature = (await provider.request({
-        method: "personal_sign",
-        params: [nonce.message, address],
-      })) as string;
-      const result = await publicAuthApi.walletVerify({
+    });
+  const logout = (sessionID?: string) =>
+    run(async () => {
+      await publicAuthApi.logoutSession(
+        sessionID ? { session_id: sessionID } : { all: true },
+      );
+      await reloadAccounts();
+      message.success(sessionID ? "已退出此账号" : "已退出本浏览器全部账号");
+    });
+  const signWallet = async (provider: WalletProvider, address: string) => {
+    const chainHex = (await provider.request({
+      method: "eth_chainId",
+    })) as string;
+    const nonce = await publicAuthApi.walletNonce({
+      address,
+      chain_id: Number.parseInt(chainHex, 16) || 1,
+      domain: window.location.host,
+    });
+    const signature = (await provider.request({
+      method: "personal_sign",
+      params: [nonce.message, address],
+    })) as string;
+    finishLogin(
+      await publicAuthApi.walletVerify({
         client_id: clientID,
+        return_uri: pageConfig!.return_uri,
         address,
         nonce: nonce.nonce,
         signature,
-      });
-      finishLogin(result);
-    } catch (err: any) {
-      message.error(err.message || "钱包登录失败");
-    } finally {
-      setLoading(false);
-    }
+      }),
+    );
   };
-
-  const startOAuth = async (provider: OAuthProvider) => {
-    try {
-      setLoading(true);
+  const loginWithWallet = (provider: WalletProvider) =>
+    run(async () => {
+      const addresses = (await provider.request({
+        method: "eth_requestAccounts",
+      })) as string[];
+      if (!addresses?.length) throw new Error("未获取到钱包地址");
+      if (addresses.length > 1) {
+        setWalletChoice({ provider, addresses });
+        return;
+      }
+      await signWallet(provider, addresses[0]);
+    });
+  const startOAuth = (provider: OAuthProvider) =>
+    run(async () => {
       const result = await publicAuthApi.startOAuth(provider, {
         client_id: clientID,
-        redirect_uri: redirectURI.replace("{provider}", provider),
-        return_uri: returnURI || undefined,
+        redirect_uri: `${authApiBaseUrl}/api/v1/oauth/${provider}/callback`,
+        return_uri: pageConfig!.return_uri || undefined,
+        client_state: clientState || undefined,
       });
-      window.location.href = result.auth_url;
-    } catch (err: any) {
-      message.error(oauthLoginErrorMessage(provider, err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loginTabs = buildLoginTabs({
-    loading,
-    phoneCodeLoading,
-    pageConfig,
-    submitPasswordLogin,
-    sendPhoneCode,
-    submitPhoneLogin,
-    submitRegister,
-  });
-
+      if (currentContext.current === contextKey)
+        window.location.assign(result.auth_url);
+    });
+  const chooseAccount = accounts.length > 0 && !addingAccount;
   return (
-    <main className="unified-login-page">
-      <section className="unified-brand">
-        <div className="unified-brand-inner">
-          <div className="hosted-brand-mark">{pageConfig.brandMark}</div>
-          <Typography.Title level={1}>{pageConfig.brandName}</Typography.Title>
-          {pageConfig.subtitle && (
-            <p className="unified-subtitle">{pageConfig.subtitle}</p>
-          )}
-          <div className="unified-app-banner">
-            <span>登录后将继续访问 {appName || clientID}</span>
-          </div>
+    <AuthShell
+      heroTitle={pageConfig?.login.hero_title || undefined}
+      brand={loginConfig.brandName}
+      mark={loginConfig.brandMark}
+      context={pageConfig?.client.name || "统一身份认证"}
+    >
+      {configError ? (
+        <Result
+          status="warning"
+          title="暂时无法登录"
+          subTitle={configError}
+          extra={
+            <Button onClick={() => setRetry((value) => value + 1)}>重试</Button>
+          }
+        />
+      ) : !pageConfig || (accountLoading && !accounts.length) ? (
+        <div className="auth-skeleton">
+          <Skeleton active paragraph={{ rows: 6 }} />
         </div>
-      </section>
-
-      <section className="unified-panel">
-        <div className="unified-card">
-          <div className="unified-card-head">
-            <Typography.Title level={2}>登录账号</Typography.Title>
+      ) : successName !== null ? (
+        <Result
+          status="success"
+          title="登录成功"
+          subTitle={`已登录为 ${successName}`}
+          extra={
+            <Button type="primary" onClick={() => setSuccessName(null)}>
+              管理登录账号
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {addingAccount && accounts.length > 0 && (
+            <Button
+              type="text"
+              className="auth-back"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => setAddingAccount(false)}
+            >
+              返回账号列表
+            </Button>
+          )}
+          <div className="auth-card-heading">
+            <span className="eyebrow">
+              {chooseAccount ? "YOUR ACCOUNTS" : "WELCOME BACK"}
+            </span>
+            <Typography.Title level={2}>
+              {chooseAccount
+                ? "选择一个账号"
+                : addingAccount
+                  ? "登录其他账号"
+                  : "欢迎回来"}
+            </Typography.Title>
+            <Typography.Paragraph type="secondary">
+              继续访问 <strong>{pageConfig.client.name || clientID}</strong>
+            </Typography.Paragraph>
           </div>
-
-          {successToken && (
+          {accountError && (
             <Alert
-              type="success"
+              type="warning"
               showIcon
-              className="unified-alert"
-              message="登录成功"
-              description="当前没有配置 return_uri，已在本页保留认证结果，方便本地调试。"
-            />
-          )}
-
-          {sessionUser && (
-            <Alert
-              type="info"
-              showIcon
-              className="unified-alert"
-              message="检测到已登录账号"
-              description={
-                <div className="unified-session-row">
-                  <span>
-                    {sessionUser.username || sessionUser.email || sessionUser.id}
-                  </span>
-                  <Button type="primary" size="small" loading={loading} onClick={loginWithSession}>
-                    一键登录
-                  </Button>
-                </div>
+              message="无法读取已登录账号"
+              description={accountError}
+              action={
+                <Button size="small" onClick={() => void reloadAccounts()}>
+                  重试
+                </Button>
               }
+              className="page-alert"
             />
           )}
-
-          <Tabs defaultActiveKey="password" items={loginTabs} />
-
-          {(pageConfig.enableGitHub ||
-            pageConfig.enableGoogle ||
-            pageConfig.enableWallet) && (
+          {chooseAccount ? (
+            <div className="account-picker">
+              <div className="account-list">
+                {accounts.map((account) => (
+                  <div className="account-row" key={account.session_id}>
+                    <button
+                      className="account-choice"
+                      disabled={loading || accountLoading}
+                      onClick={() => void loginWithSession(account)}
+                    >
+                      <Avatar
+                        size={44}
+                        icon={<UserOutlined />}
+                        src={account.avatar}
+                        className="account-avatar"
+                      />
+                      <span className="account-info">
+                        <strong>
+                          {account.username ||
+                            account.email ||
+                            account.phone ||
+                            "已登录账号"}
+                        </strong>
+                        <span>
+                          {account.email ||
+                            account.phone ||
+                            `ID · ${account.id.slice(-12)}`}
+                        </span>
+                      </span>
+                      <ArrowRightOutlined className="account-arrow" />
+                    </button>
+                    <Popconfirm
+                      title="退出这个账号？"
+                      description="将移除此浏览器中的登录状态。"
+                      onConfirm={() => logout(account.session_id)}
+                    >
+                      <Tooltip title="退出此账号">
+                        <Button
+                          type="text"
+                          aria-label={`退出 ${account.username || account.email || account.id}`}
+                          disabled={loading}
+                          icon={<LogoutOutlined />}
+                        />
+                      </Tooltip>
+                    </Popconfirm>
+                  </div>
+                ))}
+              </div>
+              <Button
+                block
+                size="large"
+                icon={<PlusOutlined />}
+                className="other-account"
+                disabled={loading}
+                onClick={() => setAddingAccount(true)}
+              >
+                使用其他账号
+              </Button>
+              <Popconfirm
+                title="退出本浏览器的全部账号？"
+                onConfirm={() => logout()}
+              >
+                <Button
+                  type="text"
+                  block
+                  disabled={loading}
+                  className="signout-all"
+                >
+                  退出全部账号
+                </Button>
+              </Popconfirm>
+            </div>
+          ) : (
             <>
-              <div className="unified-divider">
-                <span>其他登录方式</span>
-              </div>
-
-              <div className="unified-provider-grid">
-                {pageConfig.enableGitHub && (
-                  <Button
-                    icon={<GithubOutlined />}
-                    onClick={() => startOAuth("github")}
-                    disabled={loading}
-                  >
-                    GitHub
-                  </Button>
-                )}
-                {pageConfig.enableGoogle && (
-                  <Button
-                    icon={<GoogleOutlined />}
-                    onClick={() => startOAuth("google")}
-                    disabled={loading}
-                  >
-                    Google
-                  </Button>
-                )}
-                {pageConfig.enableWallet &&
-                  (availableWallets.length === 0 ? (
-                    <Button icon={<WalletOutlined />} disabled>
-                      钱包
-                    </Button>
-                  ) : (
-                    availableWallets.map((wallet) => (
+              <Tabs
+                key={contextKey}
+                defaultActiveKey="password"
+                items={buildLoginTabs({
+                  loading: loading || accountLoading,
+                  phoneCodeLoading,
+                  pageConfig: loginConfig,
+                  submitPasswordLogin,
+                  submitRegister,
+                  submitPhoneLogin,
+                  sendPhoneCode,
+                })}
+              />
+              {(loginConfig.enableGoogle ||
+                loginConfig.enableGitHub ||
+                loginConfig.enableWallet) && (
+                <>
+                  <Divider plain className="auth-divider">
+                    或通过以下方式继续
+                  </Divider>
+                  <div className="provider-buttons">
+                    {loginConfig.enableGoogle && (
                       <Button
-                        key={wallet.id}
-                        icon={<WalletOutlined />}
-                        onClick={() => loginWithWallet(wallet.provider)}
+                        icon={<GoogleOutlined />}
                         disabled={loading}
+                        onClick={() => void startOAuth("google")}
                       >
-                        {wallet.name}
+                        Google
                       </Button>
-                    ))
-                  ))}
-              </div>
+                    )}
+                    {loginConfig.enableGitHub && (
+                      <Button
+                        icon={<GithubOutlined />}
+                        disabled={loading}
+                        onClick={() => void startOAuth("github")}
+                      >
+                        GitHub
+                      </Button>
+                    )}
+                    {loginConfig.enableWallet &&
+                      (availableWallets.length ? (
+                        availableWallets.map((wallet) => (
+                          <Button
+                            key={wallet.id}
+                            icon={<WalletOutlined />}
+                            disabled={loading}
+                            onClick={() =>
+                              void loginWithWallet(wallet.provider)
+                            }
+                          >
+                            {wallet.name}
+                          </Button>
+                        ))
+                      ) : (
+                        <Tooltip title="请先安装或打开浏览器钱包">
+                          <Button icon={<WalletOutlined />} disabled>
+                            钱包
+                          </Button>
+                        </Tooltip>
+                      ))}
+                  </div>
+                </>
+              )}
             </>
           )}
-        </div>
-      </section>
-    </main>
+          {loginConfig.subtitle && (
+            <p className="auth-card-note">{loginConfig.subtitle}</p>
+          )}
+        </>
+      )}
+      <Modal
+        title="选择钱包地址"
+        open={!!walletChoice}
+        footer={null}
+        onCancel={() => setWalletChoice(null)}
+      >
+        {walletChoice?.addresses.map((address) => (
+          <Button
+            block
+            key={address}
+            className="wallet-choice"
+            onClick={() => {
+              const choice = walletChoice;
+              setWalletChoice(null);
+              void run(() => signWallet(choice.provider, address));
+            }}
+          >
+            {address}
+          </Button>
+        ))}
+      </Modal>
+    </AuthShell>
   );
 }
 
-// appendTokenToReturnURI keeps token outside the server-side request path.
-// appendTokenToReturnURI 兼容普通 history 路由和 Vue/React hash 路由业务系统。
-function appendTokenToReturnURI(returnURI: string, values: URLSearchParams) {
-  const tokenQuery = values.toString();
+function errorText(error: unknown) {
+  if (error instanceof ApiError && error.code === "OAUTH_PROVIDER_FAILED")
+    return "该第三方登录暂不可用，请使用其他方式或联系管理员";
+  if (error instanceof ApiError && error.code === "AUTH_INVALID_REFRESH_TOKEN")
+    return "登录状态已过期，请重新登录";
+  return error instanceof Error ? error.message : "操作失败，请稍后重试";
+}
+function appendTokenToReturnURI(
+  returnURI: string,
+  values: URLSearchParams,
+  state: string,
+) {
+  if (state) values.set("state", state);
   const hashIndex = returnURI.indexOf("#");
-  if (hashIndex < 0) {
-    return `${returnURI}#${tokenQuery}`;
-  }
-
+  if (hashIndex < 0) return `${returnURI}#${values}`;
   const base = returnURI.slice(0, hashIndex);
-  const hashRoute = returnURI.slice(hashIndex + 1);
-  const separator = hashRoute.includes("?") ? "&" : "?";
-  return `${base}#${hashRoute}${separator}${tokenQuery}`;
-}
-
-// oauthLoginErrorMessage keeps user-facing login prompts clear while preserving
-// precise configuration hints for operators testing the hosted login page.
-function oauthLoginErrorMessage(provider: OAuthProvider, error: unknown) {
-  const name = provider === "github" ? "GitHub" : "Google";
-  if (error instanceof ApiError && error.code === "OAUTH_PROVIDER_FAILED") {
-    const detail = error.message.toLowerCase();
-    if (detail.includes("redirect_uri")) {
-      return `${name} 登录未配置当前业务域名，请在系统配置里添加对应 Tenant Credentials。`;
-    }
-    return `${name} 登录尚未配置，请先在系统配置里填写 OAuth Client ID 和 Client Secret。`;
-  }
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-  return "第三方登录暂不可用";
-}
-
-// defaultUnifiedLoginConfig keeps the page usable while remote config is loading.
-// defaultUnifiedLoginConfig 在远程配置加载前提供可用的页面默认值。
-function defaultUnifiedLoginConfig(): UnifiedLoginConfig {
-  return {
-    brandName: "Open Wallet Auth",
-    brandMark: "L",
-    subtitle: "",
-    enableRegister: true,
-    enablePhone: true,
-    enableGitHub: true,
-    enableGoogle: true,
-    enableWallet: true,
-  };
+  const route = returnURI.slice(hashIndex + 1);
+  return `${base}#${route}${route.includes("?") ? "&" : "?"}${values}`;
 }

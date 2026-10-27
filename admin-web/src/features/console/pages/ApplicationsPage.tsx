@@ -1,3 +1,5 @@
+import { formatTime } from "../../../utils/format";
+import { PageHeader } from "../../../components/PageHeader";
 import {
   Alert,
   Button,
@@ -13,16 +15,24 @@ import {
   Table,
   Tag,
   Typography,
-  message,
+  App,
 } from "antd";
 import { useEffect, useState } from "react";
 import { adminApi } from "../../../api/admin";
 import { StatusBadge } from "../../../components/StatusBadge";
-import type { Client, ClientMember, ClientMemberInput, IdentityUser } from "../../../types/api";
+import type {
+  Client,
+  ClientMember,
+  ClientMemberInput,
+  IdentityUser,
+} from "../../../types/api";
 
 // ApplicationsPage manages OAuth/OIDC client applications and per-client allow-list access.
 // ApplicationsPage 管理接入应用及应用级登录白名单，白名单开启后只有成员可以进入对应业务系统。
 export function ApplicationsPage() {
+  const { message } = App.useApp();
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<Client[]>([]);
   const [open, setOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -36,7 +46,14 @@ export function ApplicationsPage() {
   const [memberForm] = Form.useForm();
   const [editForm] = Form.useForm();
 
-  const load = () => adminApi.listClients().then(setItems).catch((err) => message.error(err.message));
+  const load = () => {
+    setLoading(true);
+    return adminApi
+      .listClients()
+      .then(setItems)
+      .catch((err) => message.error(err.message))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     load();
@@ -52,6 +69,8 @@ export function ApplicationsPage() {
   };
 
   const create = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const values = await form.validateFields();
       await adminApi.createClient({
@@ -69,12 +88,17 @@ export function ApplicationsPage() {
     } catch (err: any) {
       if (err?.errorFields) return;
       message.error(err.message || "创建失败");
+    } finally {
+      setSaving(false);
     }
   };
 
   const toggleWhitelist = async (client: Client, enabled: boolean) => {
     try {
-      const updated = await adminApi.updateClient(client.client_id, clientInput({ ...client, whitelist_enabled: enabled }));
+      const updated = await adminApi.updateClient(
+        client.client_id,
+        clientInput({ ...client, whitelist_enabled: enabled }),
+      );
       message.success(enabled ? "登录白名单已启用" : "登录白名单已关闭");
       load();
       if (selectedClient?.client_id === client.client_id) {
@@ -99,6 +123,8 @@ export function ApplicationsPage() {
 
   const updateClient = async () => {
     if (!editingClient) return;
+    if (saving) return;
+    setSaving(true);
     try {
       const values = await clientEditForm.validateFields();
       await adminApi.updateClient(editingClient.client_id, clientInput(values));
@@ -111,6 +137,8 @@ export function ApplicationsPage() {
     } catch (err: any) {
       if (err?.errorFields) return;
       message.error(err.message || "更新失败");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -130,15 +158,22 @@ export function ApplicationsPage() {
 
   const addMember = async () => {
     if (!selectedClient) return;
+    if (saving) return;
+    setSaving(true);
     try {
       const values = await memberForm.validateFields();
-      await adminApi.addClientMember(selectedClient.client_id, memberInput(values));
+      await adminApi.addClientMember(
+        selectedClient.client_id,
+        memberInput(values),
+      );
       message.success("成员已保存");
       memberForm.resetFields(["user_id", "remark"]);
       loadMembers(selectedClient);
     } catch (err: any) {
       if (err?.errorFields) return;
       message.error(err.message || "保存失败");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -154,15 +189,23 @@ export function ApplicationsPage() {
 
   const updateMember = async () => {
     if (!selectedClient || !editingMember) return;
+    if (saving) return;
+    setSaving(true);
     try {
       const values = await editForm.validateFields();
-      await adminApi.updateClientMember(selectedClient.client_id, editingMember.id, memberInput(values));
+      await adminApi.updateClientMember(
+        selectedClient.client_id,
+        editingMember.id,
+        memberInput(values),
+      );
       message.success("成员已更新");
       setEditingMember(null);
       loadMembers(selectedClient);
     } catch (err: any) {
       if (err?.errorFields) return;
       message.error(err.message || "更新失败");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -179,19 +222,29 @@ export function ApplicationsPage() {
 
   return (
     <div>
-      <div className="page-title-row">
-        <Typography.Title level={3}>接入应用</Typography.Title>
-        <Button type="primary" onClick={() => setOpen(true)}>创建应用</Button>
-      </div>
+      <PageHeader
+        title="接入应用"
+        description="管理应用接入、回调地址与访问权限。"
+        actions={
+          <Button type="primary" onClick={() => setOpen(true)}>
+            创建应用
+          </Button>
+        }
+      />
       <Card>
         <Table
+          loading={loading}
+          scroll={{ x: "max-content" }}
           rowKey="id"
           dataSource={items}
           columns={[
             { title: "应用标识", dataIndex: "client_id" },
             { title: "名称", dataIndex: "name" },
             { title: "令牌受众", dataIndex: "jwt_audience" },
-            { title: "状态", render: (_, row) => <StatusBadge status={row.status} /> },
+            {
+              title: "状态",
+              render: (_, row) => <StatusBadge status={row.status} />,
+            },
             {
               title: "登录白名单",
               render: (_, row) => (
@@ -203,14 +256,27 @@ export function ApplicationsPage() {
                 />
               ),
             },
-            { title: "允许来源", render: (_, row) => <Typography.Text>{row.allowed_origins.join(", ") || "-"}</Typography.Text> },
-            { title: "创建时间", dataIndex: "created_at" },
+            {
+              title: "允许来源",
+              render: (_, row) => (
+                <Typography.Text>
+                  {row.allowed_origins.join(", ") || "-"}
+                </Typography.Text>
+              ),
+            },
+            { title: "创建时间", dataIndex: "created_at", render: formatTime },
             {
               title: "操作",
+              fixed: "right",
+              width: 128,
               render: (_, row) => (
                 <Space>
-                  <Button size="small" onClick={() => startEditClient(row)}>编辑</Button>
-                  <Button size="small" onClick={() => openMembers(row)}>成员</Button>
+                  <Button size="small" onClick={() => startEditClient(row)}>
+                    编辑
+                  </Button>
+                  <Button size="small" onClick={() => openMembers(row)}>
+                    成员
+                  </Button>
                 </Space>
               ),
             },
@@ -218,35 +284,74 @@ export function ApplicationsPage() {
         />
       </Card>
 
-      <Modal title="创建接入应用" open={open} onOk={create} onCancel={() => setOpen(false)} okText="创建" cancelText="取消">
+      <Modal
+        confirmLoading={saving}
+        title="创建接入应用"
+        open={open}
+        onOk={create}
+        onCancel={() => setOpen(false)}
+        okText="创建"
+        cancelText="取消"
+      >
         <Form form={form} layout="vertical">
-          <Form.Item name="client_id" label="应用标识 Client ID" rules={[{ required: true }]}>
+          <Form.Item
+            name="client_id"
+            label="应用标识 Client ID"
+            rules={[{ required: true }]}
+          >
             <Input placeholder="blockx" />
           </Form.Item>
           <Form.Item name="name" label="应用名称" rules={[{ required: true }]}>
             <Input placeholder="Example App" />
           </Form.Item>
-          <Form.Item name="jwt_audience" label="令牌受众 JWT Audience" rules={[{ required: true }]}>
+          <Form.Item
+            name="jwt_audience"
+            label="令牌受众 JWT Audience"
+            rules={[{ required: true }]}
+          >
             <Input placeholder="blockx-api" />
           </Form.Item>
           <Form.Item name="allowed_origins" label="允许前端来源（一行一个）">
             <Input.TextArea rows={3} placeholder="http://localhost:5173" />
           </Form.Item>
-          <Form.Item name="allowed_redirect_uris" label="允许回调地址（一行一个）">
-            <Input.TextArea rows={3} placeholder="http://localhost:5173/auth/callback" />
+          <Form.Item
+            name="allowed_redirect_uris"
+            label="允许回调地址（一行一个）"
+          >
+            <Input.TextArea
+              rows={3}
+              placeholder="http://localhost:5173/auth/callback"
+            />
           </Form.Item>
-          <Form.Item name="whitelist_enabled" label="登录白名单" valuePropName="checked">
+          <Form.Item
+            name="whitelist_enabled"
+            label="登录白名单"
+            valuePropName="checked"
+          >
             <Switch checkedChildren="开启" unCheckedChildren="关闭" />
           </Form.Item>
         </Form>
       </Modal>
 
-      <Modal title="编辑接入应用" open={!!editingClient} onOk={updateClient} onCancel={() => setEditingClient(null)} okText="保存" cancelText="取消" width={640}>
+      <Modal
+        confirmLoading={saving}
+        title="编辑接入应用"
+        open={!!editingClient}
+        onOk={updateClient}
+        onCancel={() => setEditingClient(null)}
+        okText="保存"
+        cancelText="取消"
+        width={640}
+      >
         <Form form={clientEditForm} layout="vertical">
           <Form.Item label="应用标识 Client ID">
             <Input value={editingClient?.client_id} disabled />
           </Form.Item>
-          <Form.Item name="name" label="应用名称" rules={[{ required: true, message: "请输入应用名称" }]}>
+          <Form.Item
+            name="name"
+            label="应用名称"
+            rules={[{ required: true, message: "请输入应用名称" }]}
+          >
             <Input placeholder="Example App" />
           </Form.Item>
           <Form.Item name="jwt_audience" label="令牌受众 JWT Audience">
@@ -255,13 +360,27 @@ export function ApplicationsPage() {
           <Form.Item name="allowed_origins" label="允许前端来源（一行一个）">
             <Input.TextArea rows={3} placeholder="http://localhost:5173" />
           </Form.Item>
-          <Form.Item name="allowed_redirect_uris" label="允许回调地址（一行一个）">
-            <Input.TextArea rows={3} placeholder="http://localhost:5173/auth/callback" />
+          <Form.Item
+            name="allowed_redirect_uris"
+            label="允许回调地址（一行一个）"
+          >
+            <Input.TextArea
+              rows={3}
+              placeholder="http://localhost:5173/auth/callback"
+            />
           </Form.Item>
-          <Form.Item name="status" label="应用状态" rules={[{ required: true, message: "请选择应用状态" }]}>
+          <Form.Item
+            name="status"
+            label="应用状态"
+            rules={[{ required: true, message: "请选择应用状态" }]}
+          >
             <Select options={clientStatusOptions} />
           </Form.Item>
-          <Form.Item name="whitelist_enabled" label="登录白名单" valuePropName="checked">
+          <Form.Item
+            name="whitelist_enabled"
+            label="登录白名单"
+            valuePropName="checked"
+          >
             <Switch checkedChildren="开启" unCheckedChildren="关闭" />
           </Form.Item>
         </Form>
@@ -269,7 +388,9 @@ export function ApplicationsPage() {
 
       <Drawer
         width={920}
-        title={selectedClient ? `${selectedClient.name} 成员白名单` : "成员白名单"}
+        title={
+          selectedClient ? `${selectedClient.name} 成员白名单` : "成员白名单"
+        }
         open={!!selectedClient}
         onClose={() => setSelectedClient(null)}
       >
@@ -278,14 +399,30 @@ export function ApplicationsPage() {
             <Alert
               type={selectedClient.whitelist_enabled ? "warning" : "info"}
               showIcon
-              message={selectedClient.whitelist_enabled ? "该应用已启用登录白名单" : "该应用未启用登录白名单"}
-              description={selectedClient.whitelist_enabled ? "只有下方状态为启用的成员可以登录该业务系统。" : "关闭时不限制统一身份用户登录；成员列表可提前维护。"}
+              message={
+                selectedClient.whitelist_enabled
+                  ? "该应用已启用登录白名单"
+                  : "该应用未启用登录白名单"
+              }
+              description={
+                selectedClient.whitelist_enabled
+                  ? "只有下方状态为启用的成员可以登录该业务系统。"
+                  : "关闭时不限制统一身份用户登录；成员列表可提前维护。"
+              }
             />
 
-            <Card size="small" title="添加成员" className="application-member-form">
+            <Card
+              size="small"
+              title="添加成员"
+              className="application-member-form"
+            >
               <Form form={memberForm} layout="vertical">
                 <div className="application-member-grid">
-                  <Form.Item name="user_id" label="用户" rules={[{ required: true, message: "请选择用户" }]}>
+                  <Form.Item
+                    name="user_id"
+                    label="用户"
+                    rules={[{ required: true, message: "请选择用户" }]}
+                  >
                     <Select
                       showSearch
                       filterOption={false}
@@ -310,13 +447,16 @@ export function ApplicationsPage() {
                     <Input placeholder="授权原因或适用范围" />
                   </Form.Item>
                   <Form.Item label=" ">
-                    <Button type="primary" onClick={addMember}>保存成员</Button>
+                    <Button type="primary" loading={saving} onClick={addMember}>
+                      保存成员
+                    </Button>
                   </Form.Item>
                 </div>
               </Form>
             </Card>
 
             <Table
+              scroll={{ x: "max-content" }}
               rowKey="id"
               size="small"
               loading={memberLoading}
@@ -326,8 +466,12 @@ export function ApplicationsPage() {
                   title: "用户",
                   render: (_, row) => (
                     <div>
-                      <Typography.Text strong>{row.username || row.email || row.phone || row.user_id}</Typography.Text>
-                      <div className="muted-text">{row.email || row.phone || row.user_id}</div>
+                      <Typography.Text strong>
+                        {row.username || row.email || row.phone || row.user_id}
+                      </Typography.Text>
+                      <div className="muted-text">
+                        {row.email || row.phone || row.user_id}
+                      </div>
                     </div>
                   ),
                 },
@@ -336,20 +480,40 @@ export function ApplicationsPage() {
                   title: "权限",
                   render: (_, row) => (
                     <Space wrap>
-                      {(row.permissions || []).length ? row.permissions.map((item) => <Tag key={item}>{item}</Tag>) : "-"}
+                      {(row.permissions || []).length
+                        ? row.permissions.map((item) => (
+                            <Tag key={item}>{item}</Tag>
+                          ))
+                        : "-"}
                     </Space>
                   ),
                 },
-                { title: "状态", render: (_, row) => <StatusBadge status={row.status} /> },
+                {
+                  title: "状态",
+                  render: (_, row) => <StatusBadge status={row.status} />,
+                },
                 { title: "备注", dataIndex: "remark" },
-                { title: "更新时间", dataIndex: "updated_at" },
+                {
+                  title: "更新时间",
+                  dataIndex: "updated_at",
+                  render: formatTime,
+                },
                 {
                   title: "操作",
+                  fixed: "right",
+                  width: 128,
                   render: (_, row) => (
                     <Space>
-                      <Button size="small" onClick={() => startEditMember(row)}>编辑</Button>
-                      <Popconfirm title="确认移除该成员？" onConfirm={() => deleteMember(row)}>
-                        <Button size="small" danger>移除</Button>
+                      <Button size="small" onClick={() => startEditMember(row)}>
+                        编辑
+                      </Button>
+                      <Popconfirm
+                        title="确认移除该成员？"
+                        onConfirm={() => deleteMember(row)}
+                      >
+                        <Button size="small" danger>
+                          移除
+                        </Button>
                       </Popconfirm>
                     </Space>
                   ),
@@ -360,7 +524,15 @@ export function ApplicationsPage() {
         ) : null}
       </Drawer>
 
-      <Modal title="编辑成员权限" open={!!editingMember} onOk={updateMember} onCancel={() => setEditingMember(null)} okText="保存" cancelText="取消">
+      <Modal
+        confirmLoading={saving}
+        title="编辑成员权限"
+        open={!!editingMember}
+        onOk={updateMember}
+        onCancel={() => setEditingMember(null)}
+        okText="保存"
+        cancelText="取消"
+      >
         <Form form={editForm} layout="vertical">
           <Form.Item name="role" label="角色" rules={[{ required: true }]}>
             <Input placeholder="member" />
@@ -396,10 +568,18 @@ function clientInput(values: Record<string, unknown>) {
     jwt_audience: String(values.jwt_audience || ""),
     allowed_origins: Array.isArray(values.allowed_origins)
       ? values.allowed_origins.map(String)
-      : splitLines(typeof values.allowed_origins === "string" ? values.allowed_origins : ""),
+      : splitLines(
+          typeof values.allowed_origins === "string"
+            ? values.allowed_origins
+            : "",
+        ),
     allowed_redirect_uris: Array.isArray(values.allowed_redirect_uris)
       ? values.allowed_redirect_uris.map(String)
-      : splitLines(typeof values.allowed_redirect_uris === "string" ? values.allowed_redirect_uris : ""),
+      : splitLines(
+          typeof values.allowed_redirect_uris === "string"
+            ? values.allowed_redirect_uris
+            : "",
+        ),
     whitelist_enabled: !!values.whitelist_enabled,
     status: String(values.status || "active"),
   };
@@ -410,7 +590,9 @@ function memberInput(values: Record<string, unknown>): ClientMemberInput {
     user_id: typeof values.user_id === "string" ? values.user_id : undefined,
     role: String(values.role || "member"),
     status: String(values.status || "active"),
-    permissions: splitLines(typeof values.permissions === "string" ? values.permissions : ""),
+    permissions: splitLines(
+      typeof values.permissions === "string" ? values.permissions : "",
+    ),
     remark: typeof values.remark === "string" ? values.remark : undefined,
   };
 }

@@ -1,6 +1,10 @@
 package client
 
-import "time"
+import (
+	"net/url"
+	"strings"
+	"time"
+)
 
 // Status is the lifecycle state of an application client.
 // Status 表示接入应用 client 的生命周期状态。
@@ -66,4 +70,22 @@ type Member struct {
 // IsActive 判断该成员授权是否允许进入对应业务系统。
 func (m Member) IsActive() bool {
 	return m.Status == MemberStatusActive
+}
+
+// AllowsReturnURI requires an exact registered HTTP(S) callback, including its
+// path, query and hash route. Empty means no browser redirect (API/standalone).
+func (c Client) AllowsReturnURI(raw string) bool {
+	if raw == "" {
+		return true
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Host == "" || parsed.User != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") {
+		return false
+	}
+	for _, allowed := range c.AllowedRedirectURIs {
+		if raw == strings.TrimSpace(allowed) {
+			return true
+		}
+	}
+	return false
 }
