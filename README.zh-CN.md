@@ -76,6 +76,8 @@ http://localhost:8081/login?client_id=default&return_uri=http://localhost:5173/c
 
 完整说明见：[业务系统接入指南](docs/INTEGRATION.zh-CN.md)
 
+希望让 AI 帮新项目接入时，将根目录 [AI 接入执行指南](AI_AUTH_INTEGRATION.md) 复制到业务项目，按文档追加 `AGENTS.md` 入口即可。AI 会先确认部署情况，生成回调、来源和用户白名单的后台填写清单，并记录未完成的手动配置与下一步。
+
 如果希望少写协议代码，可以使用内置 SDK：
 
 - [Web SDK](sdk/web/README.md)：统一登录跳转、回调解析、钱包和 OAuth 辅助方法。
